@@ -183,25 +183,11 @@
             border: none;
             z-index: 1000; /* 他の要素の上に表示 */
         }
-        #service-settings-button {
-            position: fixed;
-            top: 10px;
-            right: 10px;
-            background-color: #8bc34a; /* ライトグリーン */
-            color: white;
-            padding: 8px 15px;
-            border-radius: 5px;
-            font-size: 0.9em;
-            cursor: pointer;
-            border: none;
-            z-index: 1000;
-        }
     </style>
 </head>
 <body>
 
     <button id="settings-button">店舗設定</button>
-    <button id="service-settings-button">事業者設定</button>
 
     <h1 id="main-title">今日の会議室スケジュール</h1>
     <div id="status-message"></div>
@@ -214,13 +200,14 @@
     <div id="current-time"></div>
 
     <script>
-        // ★★★ サービス事業者設定をローカルストレージから読み込む ★★★
-        const serviceSettings = JSON.parse(localStorage.getItem('meetingRoomServiceSettings')) || {};
-        const API_KEY = serviceSettings.apiKey || ''; // APIキーはサービス事業者設定から取得
+        // Cloud FunctionsのURLをここに設定する（Cloud Functionsデプロイ後に取得）
+        const CLOUD_FUNCTION_BASE_URL = 'https://proxycalendarapi-155458326593.asia-northeast1.run.app'; 
 
         // ★★★ 店舗設定をローカルストレージから読み込む ★★★
         const savedSettings = JSON.parse(localStorage.getItem('meetingRoomSettings')) || {};
-        const CLIENT_ID = savedSettings.clientId || ''; // CLIENT_IDは店舗設定から取得
+        
+        // CLIENT_IDは店舗設定から読み込む
+        const CLIENT_ID = savedSettings.clientId || ''; 
 
         const CALENDAR_ID = savedSettings.calendarId || 'your-calendar-id@group.calendar.google.com'; // デフォルト値
         const CALENDAR_DISPLAY_NAME = savedSettings.calendarDisplayName || '会議室'; // デフォルト値
@@ -241,7 +228,6 @@
         const BOOK_NOW_30MIN_BUTTON = document.getElementById('book-now-30min');
         const MAIN_TITLE_ELEMENT = document.getElementById('main-title');
         const SETTINGS_BUTTON = document.getElementById('settings-button');
-        const SERVICE_SETTINGS_BUTTON = document.getElementById('service-settings-button'); // 新しいボタン
 
         let gisInited = false;
         let gapiInited = false;
@@ -251,9 +237,9 @@
 
         // Google APIクライアントライブラリの初期化
         function gapiLoaded() {
-            // APIキーとCLIENT_IDが設定されているかチェック
-            if (!API_KEY || !CLIENT_ID) {
-                SCHEDULE_CONTAINER.innerHTML = '<p class="no-events">設定が不足しています。<br>「事業者設定」ボタンと「店舗設定」ボタンから必須項目を設定してください。</p>';
+            // CLIENT_IDが設定されているかチェック
+            if (!CLIENT_ID) { 
+                SCHEDULE_CONTAINER.innerHTML = '<p class="no-events">設定が不足しています。<br>「店舗設定」ボタンから必須項目を設定してください。</p>';
                 STATUS_MESSAGE_ELEMENT.style.display = 'none';
                 BOOK_NOW_30MIN_BUTTON.disabled = true;
                 return; // 以降の処理を中断
@@ -262,8 +248,9 @@
         }
 
         async function initializeGapiClient() {
+            // APIキーはCloud Functionsが代理するので、ここでは不要
             await gapi.client.init({
-                apiKey: API_KEY, // スケジュール表示用（読み取り）のAPIキー
+                apiKey: 'dummy_api_key_for_gapi_init', // ダミー値で初期化 (実際のリクエストはCloud Functions経由)
                 discoveryDocs: DISCOVERY_DOCS,
             });
             gapiInited = true;
@@ -272,13 +259,11 @@
 
         // Google Identity Services (GIS) クライアントの初期化
         function gisLoaded() {
-            // APIキーとCLIENT_IDが設定されているかチェック
-            if (!API_KEY || !CLIENT_ID) {
-                // gapiLoadedで既にメッセージが出ているのでここでは何もしない
-                return; // 処理を中断
+            if (!CLIENT_ID) {
+                return; // gapiLoadedで既にメッセージが出ているのでここでは何もしない
             }
             tokenClient = google.accounts.oauth2.initTokenClient({
-                client_id: CLIENT_ID,
+                client_id: CLIENT_ID, // CLIENT_IDは店舗設定から取得
                 scope: SCOPES,
                 callback: '', // 認証完了後に別途ハンドリング
             });
@@ -312,14 +297,13 @@
 
         // Google Calendar APIから予定を取得し、表示を更新する関数
         async function fetchCalendarEvents() {
-            // APIキーまたはCLIENT_IDが設定されていない場合は処理をスキップ
-            if (!API_KEY || !CLIENT_ID) {
-                 SCHEDULE_CONTAINER.innerHTML = '<p class="no-events">設定が不足しています。<br>「事業者設定」ボタンと「店舗設定」ボタンから必須項目を設定してください。</p>';
+            // CLIENT_IDが設定されていない場合は処理をスキップ
+            if (!CLIENT_ID) {
+                 SCHEDULE_CONTAINER.innerHTML = '<p class="no-events">設定が不足しています。<br>「店舗設定」ボタンから必須項目を設定してください。</p>';
                  STATUS_MESSAGE_ELEMENT.style.display = 'none';
                  BOOK_NOW_30MIN_BUTTON.disabled = true;
                  return;
             }
-
             // カレンダーIDが設定されていない場合は処理をスキップ
             if (!CALENDAR_ID || CALENDAR_ID === 'your-calendar-id@group.calendar.google.com') {
                 SCHEDULE_CONTAINER.innerHTML = '<p class="no-events">店舗設定でGoogleカレンダーIDが不足しています。<br>左上の「店舗設定」ボタンから設定してください。</p>';
@@ -332,16 +316,35 @@
             const startOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 0, 0, 0);
             const endOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 23, 59, 59);
 
-            const url = `https://www.googleapis.com/calendar/v3/calendars/${CALENDAR_ID}/events?key=${API_KEY}&timeMin=${startOfToday.toISOString()}&timeMax=${endOfToday.toISOString()}&singleEvents=true&orderBy=startTime`;
+            // ★★★ Cloud Functions経由でAPIリクエストを送信する ★★★
+            // Cloud Functionsに送るデータ
+            const requestBody = {
+                action: 'getEvents', // 関数内で処理を分岐させるためのアクション名
+                calendarId: CALENDAR_ID,
+                timeMin: startOfToday.toISOString(),
+                timeMax: endOfToday.toISOString(),
+                // APIキーはCloud Functionsが持つのでここには含めない
+            };
 
             try {
-                const response = await fetch(url);
+                const response = await fetch(CLOUD_FUNCTION_BASE_URL, { // Cloud FunctionsのURLを呼び出す
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify(requestBody),
+                });
                 if (!response.ok) {
                     throw new Error(`HTTP error! status: ${response.status}`);
                 }
-                const data = await response.json();
+                const data = await response.json(); // Cloud FunctionsからのレスポンスはJSON形式
                 
                 const currentEventsDataString = JSON.stringify(data.items);
+                
+                // ★★★ 取得したデータをローカルストレージに保存 ★★★
+                localStorage.setItem(SCHEDULE_CACHE_KEY, currentEventsDataString);
+                console.log('最新のスケジュールデータをローカルストレージに保存しました。');
+
                 if (currentEventsDataString !== previousEventsDataString) {
                     updateScheduleDisplay(data.items);
                     previousEventsDataString = currentEventsDataString;
@@ -361,8 +364,19 @@
 
             } catch (error) {
                 console.error('Error fetching calendar events:', error);
-                SCHEDULE_CONTAINER.innerHTML = '<p class="no-events">スケジュールの読み込みに失敗しました。</p>';
-                STATUS_MESSAGE_ELEMENT.style.display = 'none';
+                
+                // ★★★ ネットワークエラーの場合、キャッシュからデータを読み込む ★★★
+                const cachedDataString = localStorage.getItem(SCHEDULE_CACHE_KEY);
+                if (cachedDataString) {
+                    const cachedEvents = JSON.parse(cachedDataString);
+                    updateScheduleDisplay(cachedEvents);
+                    updateStatusMessageDisplay(getStatusMessageData(cachedEvents)); // キャッシュデータでステータスも更新
+                    SCHEDULE_CONTAINER.innerHTML += '<p class="no-events" style="color: #e65100;">スケジュールの更新に失敗しました（オフライン表示）。</p>';
+                    console.log('ネットワークエラー: キャッシュされたスケジュールを表示しています。');
+                } else {
+                    SCHEDULE_CONTAINER.innerHTML = '<p class="no-events">スケジュールの読み込みに失敗しました。ネットワーク接続を確認してください。</p>';
+                    STATUS_MESSAGE_ELEMENT.style.display = 'none';
+                }
             }
         }
 
@@ -525,12 +539,29 @@
                 },
             };
 
+            // ★★★ Cloud Functions経由でAPIリクエストを送信する ★★★
+            const requestBody = {
+                action: 'insertEvent', // 関数内で処理を分岐させるためのアクション名
+                calendarId: CALENDAR_ID,
+                event: event,
+                // CLIENT_IDはCloud Functionsが持つ
+                // OAuthトークンはフロントエンドから渡す
+            };
+
             try {
-                const response = await gapi.client.calendar.events.insert({
-                    'calendarId': CALENDAR_ID,
-                    'resource': event,
+                const response = await fetch(CLOUD_FUNCTION_BASE_URL, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${gapi.client.getToken().access_token}` // OAuthトークンを渡す
+                    },
+                    body: JSON.stringify(requestBody),
                 });
-                console.log('Event created: ', response.result);
+                if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
+                const data = await response.json();
+                console.log('Event created: ', data);
                 alert(`${durationMinutes}分の会議を予約しました！`);
                 fetchCalendarEvents(); // 予約後、スケジュールを再読み込み
             } catch (err) {
@@ -541,12 +572,29 @@
 
         // 会議を削除する関数
         async function deleteMeeting(eventId) {
+            // ★★★ Cloud Functions経由でAPIリクエストを送信する ★★★
+            const requestBody = {
+                action: 'deleteEvent', // 関数内で処理を分岐させるためのアクション名
+                calendarId: CALENDAR_ID,
+                eventId: eventId,
+                // CLIENT_IDはCloud Functionsが持つ
+                // OAuthトークンはフロントエンドから渡す
+            };
+
             try {
-                const response = await gapi.client.calendar.events.delete({
-                    'calendarId': CALENDAR_ID,
-                    'eventId': eventId,
+                const response = await fetch(CLOUD_FUNCTION_BASE_URL, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${gapi.client.getToken().access_token}` // OAuthトークンを渡す
+                    },
+                    body: JSON.stringify(requestBody),
                 });
-                console.log('Event deleted: ', response.result);
+                if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
+                const data = await response.json();
+                console.log('Event deleted: ', data);
                 alert('会議予約を削除しました。');
                 fetchCalendarEvents(); // 削除後、スケジュールを再読み込み
             } catch (err) {
@@ -563,33 +611,33 @@
             document.body.style.fontSize = `${FONT_SIZE_PX}px`;
             document.body.classList.add(`theme-${DISPLAY_THEME}`);
 
-            // APIキーとCLIENT_IDが設定されていない場合は警告表示
-            if (!API_KEY || !CLIENT_ID) {
-                SCHEDULE_CONTAINER.innerHTML = '<p class="no-events">設定が不足しています。<br>「事業者設定」ボタンと「店舗設定」ボタンから必須項目を設定してください。</p>';
-                STATUS_MESSAGE_ELEMENT.style.display = 'none';
-                BOOK_NOW_30MIN_BUTTON.disabled = true;
-                return; // 以降のAPI関連処理を中断
-            }
-            // カレンダーIDが設定されていない場合は警告表示
-            if (!CALENDAR_ID || CALENDAR_ID === 'your-calendar-id@group.calendar.google.com') {
-                SCHEDULE_CONTAINER.innerHTML = '<p class="no-events">店舗設定でGoogleカレンダーIDが不足しています。<br>左上の「店舗設定」ボタンから設定してください。</p>';
+            // 必須設定（CLIENT_ID, CALENDAR_ID, CLOUD_FUNCTION_BASE_URL）が不足している場合の警告表示
+            if (!CLIENT_ID || !CALENDAR_ID || CALENDAR_ID === 'your-calendar-id@group.calendar.google.com' || CLOUD_FUNCTION_BASE_URL === 'YOUR_CLOUD_FUNCTION_URL') {
+                SCHEDULE_CONTAINER.innerHTML = '<p class="no-events">設定が不足しています。<br>左上の「店舗設定」ボタンから必須項目を設定してください。</p>';
                 STATUS_MESSAGE_ELEMENT.style.display = 'none';
                 BOOK_NOW_30MIN_BUTTON.disabled = true;
                 return; // 以降のAPI関連処理を中断
             }
 
-            fetchCalendarEvents();
+            // 初期ロード時にキャッシュがあれば表示する
+            const cachedDataString = localStorage.getItem(SCHEDULE_CACHE_KEY);
+            if (cachedDataString) {
+                const cachedEvents = JSON.parse(cachedDataString);
+                updateScheduleDisplay(cachedEvents);
+                updateStatusMessageDisplay(getStatusDataMessage(cachedEvents));
+                console.log('初期ロード: キャッシュされたスケジュールを表示しています。');
+            } else {
+                SCHEDULE_CONTAINER.innerHTML = '<p class="no-events">スケジュールを読み込み中...</p>'; // キャッシュがない場合の初期表示
+            }
+            
+            fetchCalendarEvents(); // 初回ロード時に必ず最新のデータを試みる
             updateCurrentTime();
             BOOK_NOW_30MIN_BUTTON.addEventListener('click', handleAuthClick);
             BOOK_NOW_30MIN_BUTTON.disabled = true; // 初期状態では無効
 
-            // 設定ボタンのイベントリスナー
+            // 店舗設定ボタンのイベントリスナー
             SETTINGS_BUTTON.addEventListener('click', () => {
                 window.location.href = 'settings.html'; // 店舗設定画面へ遷移
-            });
-            // 事業者設定ボタンのイベントリスナー
-            SERVICE_SETTINGS_BUTTON.addEventListener('click', () => {
-                window.location.href = 'settings_2.html'; // 事業者設定画面へ遷移
             });
         });
 
