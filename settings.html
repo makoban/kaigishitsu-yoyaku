@@ -91,6 +91,12 @@
     <h1>会議室サイネージ設定</h1>
 
     <div class="form-group">
+        <label for="clientId">Google Cloud Platform OAuth 2.0 クライアントID:</label>
+        <input type="text" id="clientId" placeholder="Google Cloud Platformで取得したOAuth 2.0 クライアントIDを入力">
+        <p style="font-size: 0.8em; color: #777; margin-top: 5px;">この項目はサービス事業者から提供されます。</p>
+    </div>
+
+    <div class="form-group">
         <label for="calendarId">GoogleカレンダーID:</label>
         <input type="text" id="calendarId" placeholder="例: your-calendar-id@group.calendar.google.com">
     </div>
@@ -136,7 +142,7 @@
         <div id="currentAnouncePairs">
             </div>
         <button type="button" class="add-button" onclick="addKeyValuePair('currentAnouncePairs', 'currentAnounce')">項目を追加</button>
-        <p style="font-size: 0.8em; color: #777; margin-top: 5px;">例: Googleカレンダーの件名が「定例会議」の場合、「会議」をキーワードに「会議中」と表示したい場合は、左に「会議」、右に「中」と入力。</p>
+        <p style="font-size: 0.8em; color: #777; margin-top: 5px;">例: Googleカレンダーの件名が「定例会議」の場合、「会議」をキーワードに「中」と表示したい場合は、左に「会議」、右に「中」と入力。</p>
     </div>
 
     <div class="form-group">
@@ -169,6 +175,8 @@
         // 保存された設定をロードしてフォームに表示する関数
         function loadSettings() {
             const settings = JSON.parse(localStorage.getItem('meetingRoomSettings')) || {};
+            // CLIENT_IDも店舗設定に含める
+            document.getElementById('clientId').value = settings.clientId || ''; 
 
             document.getElementById('calendarId').value = settings.calendarId || '';
             document.getElementById('calendarDisplayName').value = settings.calendarDisplayName || '';
@@ -200,6 +208,7 @@
         // 設定をローカルストレージに保存する関数
         function saveSettings() {
             const settings = {
+                clientId: document.getElementById('clientId').value, // CLIENT_IDも保存
                 calendarId: document.getElementById('calendarId').value,
                 calendarDisplayName: document.getElementById('calendarDisplayName').value,
                 refreshInterval: document.getElementById('refreshInterval').value,
@@ -209,6 +218,12 @@
                 preAnouncePairs: [],
                 currentAnouncePairs: []
             };
+
+            // CLIENT_IDの必須チェック
+            if (!settings.clientId) {
+                alert('クライアントIDは必須項目です。');
+                return;
+            }
 
             // 動的なキーバリューペアを収集 (Googleカレンダー項目名と表示名)
             document.querySelectorAll('#preAnouncePairs .key-value-pair').forEach(pairDiv => {
