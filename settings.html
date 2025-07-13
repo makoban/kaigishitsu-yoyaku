@@ -1,0 +1,237 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>会議室サイネージ設定</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', 'Roboto', 'Oxygen', 'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue', sans-serif;
+            margin: 40px auto;
+            padding: 0 20px;
+            max-width: 800px;
+            line-height: 1.6;
+            color: #333;
+            background-color: #f9f9f9;
+        }
+        h1 {
+            color: #2c3e50;
+            text-align: center;
+            margin-bottom: 30px;
+        }
+        .form-group {
+            margin-bottom: 20px;
+        }
+        label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: bold;
+            color: #555;
+        }
+        input[type="text"],
+        input[type="number"],
+        select {
+            width: calc(100% - 20px);
+            padding: 10px;
+            border: 1px solid #ccc;
+            border-radius: 5px;
+            font-size: 1em;
+            box-sizing: border-box;
+        }
+        .key-value-pair {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 5px;
+            align-items: center; /* 縦方向中央揃え */
+        }
+        .key-value-pair input {
+            flex: 1; /* 入力フィールドが等幅になるように */
+        }
+        button {
+            padding: 12px 25px;
+            font-size: 1.1em;
+            background-color: #4CAF50;
+            color: white;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            margin-top: 20px;
+            display: block;
+            width: 100%;
+            box-sizing: border-box;
+        }
+        button:hover {
+            background-color: #45a049;
+        }
+        .add-button {
+            background-color: #007bff;
+            margin-top: 10px;
+            width: auto;
+            padding: 8px 15px;
+            font-size: 0.9em;
+            display: inline-block;
+        }
+        .add-button:hover {
+            background-color: #0056b3;
+        }
+        .remove-button {
+            background-color: #dc3545;
+            width: auto;
+            padding: 8px 15px;
+            font-size: 0.9em;
+            display: inline-block;
+        }
+        .remove-button:hover {
+            background-color: #c82333;
+        }
+    </style>
+</head>
+<body>
+
+    <h1>会議室サイネージ設定</h1>
+
+    <div class="form-group">
+        <label for="calendarId">GoogleカレンダーID:</label>
+        <input type="text" id="calendarId" placeholder="例: your-calendar-id@group.calendar.google.com">
+    </div>
+
+    <div class="form-group">
+        <label for="calendarDisplayName">カレンダー表示名:</label>
+        <input type="text" id="calendarDisplayName" placeholder="例: 本社会議室">
+    </div>
+
+    <div class="form-group">
+        <label for="refreshInterval">更新頻度:</label>
+        <select id="refreshInterval">
+            <option value="20">20秒</option>
+            <option value="40">40秒</option>
+            <option value="60">60秒</option>
+        </select>
+    </div>
+
+    <div class="form-group">
+        <label for="displayTheme">表示テーマ:</label>
+        <select id="displayTheme">
+            <option value="meeting-room">会議室</option>
+            <option value="reception">受付</option>
+            <option value="free-space">フリースペース</option>
+        </select>
+    </div>
+
+    <div class="form-group">
+        <label for="preAnounceMinutes">予約があった場合の何分前から案内するか？:</label>
+        <input type="number" id="preAnounceMinutes" min="0" value="15">
+    </div>
+
+    <div class="form-group">
+        <label>Googleカレンダー項目ごとの「予約案内表示名」:</label>
+        <div id="preAnouncePairs">
+            </div>
+        <button type="button" class="add-button" onclick="addKeyValuePair('preAnouncePairs', 'preAnounce')">項目を追加</button>
+        <p style="font-size: 0.8em; color: #777; margin-top: 5px;">例: Googleカレンダーの件名が「ABCD 来客」の場合、「来客」をキーワードに「ABCD様、ようこそ！」と表示したい場合は、左に「来客」、右に「様、ようこそ！」と入力。</p>
+    </div>
+
+    <div class="form-group">
+        <label>Googleカレンダー項目ごとの「当時間案内名」:</label>
+        <div id="currentAnouncePairs">
+            </div>
+        <button type="button" class="add-button" onclick="addKeyValuePair('currentAnouncePairs', 'currentAnounce')">項目を追加</button>
+        <p style="font-size: 0.8em; color: #777; margin-top: 5px;">例: Googleカレンダーの件名が「定例会議」の場合、「会議」をキーワードに「会議中」と表示したい場合は、左に「会議」、右に「中」と入力。</p>
+    </div>
+
+    <div class="form-group">
+        <label for="fontSize">フォントサイズ (px):</label>
+        <input type="number" id="fontSize" min="10" value="16">
+    </div>
+
+    <button id="saveSettings">設定を保存</button>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            loadSettings(); // ページ読み込み時に設定をロード
+
+            document.getElementById('saveSettings').addEventListener('click', saveSettings);
+        });
+
+        // キーバリューペア（今回はGoogleカレンダー項目名と表示名）を追加する関数
+        function addKeyValuePair(containerId, type) {
+            const container = document.getElementById(containerId);
+            const div = document.createElement('div');
+            div.classList.add('key-value-pair');
+            div.innerHTML = `
+                <input type="text" class="${type}-key" placeholder="Googleカレンダーの項目名キーワード (例: 来客)">
+                <input type="text" class="${type}-value" placeholder="表示したい後続の文字列 (例: 様、ようこそ！)">
+                <button type="button" class="remove-button" onclick="this.parentNode.remove()">削除</button>
+            `;
+            container.appendChild(div);
+        }
+
+        // 保存された設定をロードしてフォームに表示する関数
+        function loadSettings() {
+            const settings = JSON.parse(localStorage.getItem('meetingRoomSettings')) || {};
+
+            document.getElementById('calendarId').value = settings.calendarId || '';
+            document.getElementById('calendarDisplayName').value = settings.calendarDisplayName || '';
+            document.getElementById('refreshInterval').value = settings.refreshInterval || '60';
+            document.getElementById('displayTheme').value = settings.displayTheme || 'meeting-room';
+            document.getElementById('preAnounceMinutes').value = settings.preAnounceMinutes || '15';
+            document.getElementById('fontSize').value = settings.fontSize || '16';
+
+            // 動的なキーバリューペアをロード
+            const preAnouncePairsContainer = document.getElementById('preAnouncePairs');
+            preAnouncePairsContainer.innerHTML = ''; // 一度クリア
+            (settings.preAnouncePairs || []).forEach(pair => {
+                addKeyValuePair('preAnouncePairs', 'preAnounce');
+                const lastPair = preAnouncePairsContainer.lastChild;
+                lastPair.querySelector('.preAnounce-key').value = pair.key;
+                lastPair.querySelector('.preAnounce-value').value = pair.value;
+            });
+
+            const currentAnouncePairsContainer = document.getElementById('currentAnouncePairs');
+            currentAnouncePairsContainer.innerHTML = ''; // 一度クリア
+            (settings.currentAnouncePairs || []).forEach(pair => {
+                addKeyValuePair('currentAnouncePairs', 'currentAnounce');
+                const lastPair = currentAnouncePairsContainer.lastChild;
+                lastPair.querySelector('.currentAnounce-key').value = pair.key;
+                lastPair.querySelector('.currentAnounce-value').value = pair.value;
+            });
+        }
+
+        // 設定をローカルストレージに保存する関数
+        function saveSettings() {
+            const settings = {
+                calendarId: document.getElementById('calendarId').value,
+                calendarDisplayName: document.getElementById('calendarDisplayName').value,
+                refreshInterval: document.getElementById('refreshInterval').value,
+                displayTheme: document.getElementById('displayTheme').value,
+                preAnounceMinutes: document.getElementById('preAnounceMinutes').value,
+                fontSize: document.getElementById('fontSize').value,
+                preAnouncePairs: [],
+                currentAnouncePairs: []
+            };
+
+            // 動的なキーバリューペアを収集 (Googleカレンダー項目名と表示名)
+            document.querySelectorAll('#preAnouncePairs .key-value-pair').forEach(pairDiv => {
+                const key = pairDiv.querySelector('.preAnounce-key').value; // Googleカレンダーの項目名キーワード
+                const value = pairDiv.querySelector('.preAnounce-value').value; // 表示したい後続の文字列
+                if (key && value) { // 両方入力されている場合のみ保存
+                    settings.preAnouncePairs.push({ key, value });
+                }
+            });
+
+            document.querySelectorAll('#currentAnouncePairs .key-value-pair').forEach(pairDiv => {
+                const key = pairDiv.querySelector('.currentAnounce-key').value; // Googleカレンダーの項目名キーワード
+                const value = pairDiv.querySelector('.currentAnounce-value').value; // 表示したい後続の文字列
+                if (key && value) { // 両方入力されている場合のみ保存
+                    settings.currentAnouncePairs.push({ key, value });
+                }
+            });
+
+            localStorage.setItem('meetingRoomSettings', JSON.stringify(settings));
+            alert('設定を保存しました！');
+            window.location.href = 'index.html'; // 設定保存後、メイン画面に戻る
+        }
+    </script>
+
+</body>
+</html>
