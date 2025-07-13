@@ -1,112 +1,16 @@
 <!DOCTYPE html>
 <html lang="ja">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>会議室サイネージ 最低限設定</title>
-    <style>
-        body {
-            font-family: 'Segoe UI', 'Roboto', 'Oxygen', 'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue', sans-serif;
-            margin: 40px auto;
-            padding: 0 20px;
-            max-width: 600px;
-            line-height: 1.6;
-            color: #333;
-            background-color: #f9f9f9;
-            border-radius: 8px;
-            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
-        }
-        h1 {
-            color: #2c3e50;
-            text-align: center;
-            margin-bottom: 30px;
-        }
-        .form-group {
-            margin-bottom: 20px;
-        }
-        label {
-            display: block;
-            margin-bottom: 8px;
-            font-weight: bold;
-            color: #555;
-        }
-        input[type="text"] {
-            width: calc(100% - 20px);
-            padding: 10px;
-            border: 1px solid #ccc;
-            border-radius: 5px;
-            font-size: 1em;
-            box-sizing: border-box;
-        }
-        button {
-            padding: 12px 25px;
-            font-size: 1.1em;
-            background-color: #4CAF50;
-            color: white;
-            border: none;
-            border-radius: 8px;
-            cursor: pointer;
-            margin-top: 20px;
-            display: block;
-            width: 100%;
-            box-sizing: border-box;
-        }
-        button:hover {
-            background-color: #45a049;
-        }
-    </style>
+  <meta charset="UTF-8">
+  <title>設定</title>
+  <link rel="stylesheet" href="style.css">
 </head>
 <body>
-
-    <h1>会議室サイネージ 最低限設定</h1>
-
-    <div class="form-group">
-        <label for="cloudFunctionUrl">Cloud Functions URL:</label>
-        <input type="text" id="cloudFunctionUrl" placeholder="例: https://proxycalendarapi-12345.asia-northeast1.run.app">
-    </div>
-
-    <div class="form-group">
-        <label for="clientId">Google Cloud Platform OAuth 2.0 クライアントID:</label>
-        <input type="text" id="clientId" placeholder="OAuth 2.0 クライアントIDを入力">
-    </div>
-
-    <div class="form-group">
-        <label for="calendarId">GoogleカレンダーID:</label>
-        <input type="text" id="calendarId" placeholder="例: your-calendar-id@group.calendar.google.com">
-    </div>
-
-    <button id="saveSettings">設定を保存</button>
-
-    <script>
-        document.addEventListener('DOMContentLoaded', () => {
-            loadSettings();
-            document.getElementById('saveSettings').addEventListener('click', saveSettings);
-        });
-
-        function loadSettings() {
-            const settings = JSON.parse(localStorage.getItem('meetingRoomSettings')) || {};
-            document.getElementById('cloudFunctionUrl').value = settings.cloudFunctionUrl || '';
-            document.getElementById('clientId').value = settings.clientId || '';
-            document.getElementById('calendarId').value = settings.calendarId || '';
-        }
-
-        function saveSettings() {
-            const settings = {
-                cloudFunctionUrl: document.getElementById('cloudFunctionUrl').value,
-                clientId: document.getElementById('clientId').value, 
-                calendarId: document.getElementById('calendarId').value
-            };
-
-            if (!settings.cloudFunctionUrl || !settings.clientId || !settings.calendarId) {
-                alert('すべての項目は必須です。');
-                return;
-            }
-
-            localStorage.setItem('meetingRoomSettings', JSON.stringify(settings));
-            alert('設定を保存しました！');
-            window.location.href = 'index.html'; // メイン画面に戻る
-        }
-    </script>
-
+  <h1>設定</h1>
+  <label>カレンダーID: <input id="calendarId" type="text"></label><br>
+  <label>Cloud Functions URL: <input id="proxyUrl" type="text"></label><br>
+  <label>OAuth Client ID: <input id="clientId" type="text"></label><br>
+  <button id="saveBtn">保存</button>
+  <script src="script.js"></script>
 </body>
 </html>
