@@ -28,9 +28,7 @@
             font-weight: bold;
             color: #555;
         }
-        input[type="text"],
-        input[type="number"],
-        select {
+        input[type="text"] {
             width: calc(100% - 20px);
             padding: 10px;
             border: 1px solid #ccc;
@@ -65,18 +63,13 @@
 
     <h1>会議室サイネージ サービス事業者設定</h1>
     <p class="warning-text">
-        注意: この設定ファイルには機密情報が含まれるため、取扱には十分ご注意ください。
+        注意: この設定ファイルには機密情報（APIキー）が含まれるため、取扱には十分ご注意ください。
         店舗側にはこのURLを共有しないでください。
     </p>
 
     <div class="form-group">
         <label for="apiKey">Google Cloud Platform APIキー:</label>
         <input type="text" id="apiKey" placeholder="Google Cloud Platformで取得したAPIキーを入力">
-    </div>
-
-    <div class="form-group">
-        <label for="clientId">Google Cloud Platform OAuth 2.0 クライアントID:</label>
-        <input type="text" id="clientId" placeholder="Google Cloud Platformで取得したOAuth 2.0 クライアントIDを入力">
     </div>
 
     <button id="saveServiceSettings">サービス事業者設定を保存</button>
@@ -91,23 +84,21 @@
         function loadServiceSettings() {
             const serviceSettings = JSON.parse(localStorage.getItem('meetingRoomServiceSettings')) || {};
             document.getElementById('apiKey').value = serviceSettings.apiKey || '';
-            document.getElementById('clientId').value = serviceSettings.clientId || '';
         }
 
         function saveServiceSettings() {
             const serviceSettings = {
-                apiKey: document.getElementById('apiKey').value,
-                clientId: document.getElementById('clientId').value
+                apiKey: document.getElementById('apiKey').value
             };
 
-            if (!serviceSettings.apiKey || !serviceSettings.clientId) {
-                alert('APIキーとクライアントIDは必須項目です。');
+            if (!serviceSettings.apiKey) {
+                alert('APIキーは必須項目です。');
                 return;
             }
 
             localStorage.setItem('meetingRoomServiceSettings', JSON.stringify(serviceSettings));
             alert('サービス事業者設定を保存しました！');
-            // 保存後、必要であればメイン画面や通常の店舗設定画面にリダイレクト
+            // 必要であれば、設定後にメイン画面や他の設定画面にリダイレクトすることもできます
             // window.location.href = 'index.html'; 
         }
     </script>
