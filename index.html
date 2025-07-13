@@ -16,6 +16,7 @@
             display: flex;
             flex-direction: column;
             min-height: 100vh; /* 画面いっぱいに表示 */
+            /* フォントサイズはJSで設定される */
         }
         /* タイトル */
         h1 {
@@ -83,8 +84,6 @@
             text-align: center;
             margin-top: 20px;
             padding: 15px;
-            background-color: #e8f5e9; /* デフォルトは緑系 */
-            color: #2e7d32; /* 濃い緑 */
             border-radius: 8px;
             font-size: 1.8em;
             font-weight: bold;
@@ -93,6 +92,20 @@
             max-width: 800px;
             margin: 20px auto;
         }
+        /* ステータスメッセージのデフォルト色 */
+        #status-message.status-default {
+            background-color: #e3f2fd; /* 青系 */
+            color: #1565c0; /* 濃い青 */
+        }
+        #status-message.status-occupied {
+            background-color: #fff3e0; /* オレンジ系 */
+            color: #e65100; /* 濃いオレンジ */
+        }
+        #status-message.status-pre-announce {
+            background-color: #e8f5e9; /* 緑系 */
+            color: #2e7d32; /* 濃い緑 */
+        }
+
         /* 現在時刻表示 */
         #current-time {
             position: fixed;
@@ -135,11 +148,48 @@
             cursor: pointer;
             margin-left: 10px; /* タイトルとの間隔 */
         }
+
+        /* テーマ別のスタイル調整 */
+        /* 会議室テーマ (デフォルト) */
+        body.theme-meeting-room #status-message.status-default { background-color: #e3f2fd; color: #1565c0; }
+        body.theme-meeting-room #status-message.status-occupied { background-color: #fff3e0; color: #e65100; }
+        body.theme-meeting-room #status-message.status-pre-announce { background-color: #e8f5e9; color: #2e7d32; }
+
+        /* 受付テーマ */
+        body.theme-reception #status-message.status-default { background-color: #fce4ec; color: #ad1457; } /* ピンク系 */
+        body.theme-reception #status-message.status-occupied { background-color: #ffe0b2; color: #ef6c00; } /* オレンジ系 */
+        body.theme-reception #status-message.status-pre-announce { background-color: #e0f2f7; color: #0277bd; } /* 水色系 */
+        body.theme-reception h1 { color: #ad1457; }
+        body.theme-reception .time { color: #ad1457; }
+
+        /* フリースペーステーマ */
+        body.theme-free-space #status-message.status-default { background-color: #e0f7fa; color: #00838f; } /* シアン系 */
+        body.theme-free-space #status-message.status-occupied { background-color: #f1f8e9; color: #558b2f; } /* ライトグリーン系 */
+        body.theme-free-space #status-message.status-pre-announce { background-color: #ede7f6; color: #5e35b1; } /* 紫系 */
+        body.theme-free-space h1 { color: #00838f; }
+        body.theme-free-space .time { color: #00838f; }
+
+        /* 設定ボタン */
+        #settings-button {
+            position: fixed;
+            top: 10px;
+            left: 10px;
+            background-color: #607d8b; /* グレー */
+            color: white;
+            padding: 8px 15px;
+            border-radius: 5px;
+            font-size: 0.9em;
+            cursor: pointer;
+            border: none;
+            z-index: 1000; /* 他の要素の上に表示 */
+        }
     </style>
 </head>
 <body>
 
-    <h1>今日の会議室スケジュール</h1>
+    <button id="settings-button">設定</button>
+
+    <h1 id="main-title">今日の会議室スケジュール</h1>
     <div id="status-message"></div>
     <div id="action-buttons">
         <button id="book-now-30min">今から30分予約</button>
@@ -151,13 +201,23 @@
 
     <script>
         // ★★★ あなたのGoogle Cloud Platformで取得したAPIキーを入力してください ★★★
-        const API_KEY = 'AIzaSyDUFH1jbIa66NjzSM8I9Xpicwo6I6H2sB8';
+        const API_KEY = 'YOUR_API_KEY';
         
         // ★★★ あなたのGCPプロジェクトで取得したOAuth 2.0 クライアントIDを入力してください ★★★
-        const CLIENT_ID = '155458326593-redrcpnqa2iqapvg8p1kb3cgegeenvse.apps.googleusercontent.com';
+        const CLIENT_ID = 'YOUR_OAUTH_CLIENT_ID.apps.googleusercontent.com';
 
-        // ★★★ 会議室用のGoogleカレンダーIDを入力してください ★★★
-        const CALENDAR_ID = 'kaigishitsu20000101@gmail.com'; // 例: kaigishitsu20000101@gmail.com
+        // ★★★ ローカルストレージから設定を読み込む ★★★
+        const savedSettings = JSON.parse(localStorage.getItem('meetingRoomSettings')) || {};
+
+        const CALENDAR_ID = savedSettings.calendarId || 'your-calendar-id@group.calendar.google.com'; // デフォルト値
+        const CALENDAR_DISPLAY_NAME = savedSettings.calendarDisplayName || '会議室'; // デフォルト値
+        const REFRESH_INTERVAL_MS = (parseInt(savedSettings.refreshInterval) || 60) * 1000; // デフォルト60秒
+        const DISPLAY_THEME = savedSettings.displayTheme || 'meeting-room'; // デフォルトテーマ
+        const PRE_ANNOUNCE_MINUTES = parseInt(savedSettings.preAnounceMinutes) || 15; // デフォルト15分前
+        const PRE_ANNOUNCE_PAIRS = savedSettings.preAnouncePairs || []; // デフォルト空配列
+        const CURRENT_ANNOUNCE_PAIRS = savedSettings.currentAnouncePairs || []; // デフォルト空配列
+        const FONT_SIZE_PX = parseInt(savedSettings.fontSize) || 16; // デフォルト16px
+
 
         const DISCOVERY_DOCS = ["https://www.googleapis.com/discovery/v1/apis/calendar/v3/rest"];
         const SCOPES = 'https://www.googleapis.com/auth/calendar.events'; // イベントの読み書き権限
@@ -166,12 +226,14 @@
         const STATUS_MESSAGE_ELEMENT = document.getElementById('status-message');
         const CURRENT_TIME_ELEMENT = document.getElementById('current-time');
         const BOOK_NOW_30MIN_BUTTON = document.getElementById('book-now-30min');
+        const MAIN_TITLE_ELEMENT = document.getElementById('main-title');
+        const SETTINGS_BUTTON = document.getElementById('settings-button');
 
         let gisInited = false;
         let gapiInited = false;
         let tokenClient;
         let previousEventsDataString = null;
-        let previousStatusMessageData = { message: '', backgroundColor: '', textColor: '' };
+        let previousStatusMessageData = { message: '', statusClass: '' }; // statusClassを追加
 
         // Google APIクライアントライブラリの初期化
         function gapiLoaded() {
@@ -224,6 +286,14 @@
 
         // Google Calendar APIから予定を取得し、表示を更新する関数
         async function fetchCalendarEvents() {
+            // カレンダーIDが設定されていない場合は処理をスキップ
+            if (!CALENDAR_ID || CALENDAR_ID === 'your-calendar-id@group.calendar.google.com') {
+                SCHEDULE_CONTAINER.innerHTML = '<p class="no-events">設定画面でGoogleカレンダーIDを設定してください。</p>';
+                STATUS_MESSAGE_ELEMENT.style.display = 'none';
+                BOOK_NOW_30MIN_BUTTON.disabled = true; // ボタンも無効化
+                return;
+            }
+
             const now = new Date(); // 現在の日時
             const startOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 0, 0, 0);
             const endOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 23, 59, 59);
@@ -332,40 +402,58 @@
             }
 
             let message = '';
-            let backgroundColor = '';
-            let textColor = '';
+            let statusClass = 'status-default'; // デフォルトのクラス
 
             if (currentEvent) {
-                const eventTitle = currentEvent.summary || '会議中';
-                message = `<img src="https://img.icons8.com/ios-filled/50/2e7d32/meeting-room.png" alt="meeting icon" style="vertical-align: middle; margin-right: 10px;">${eventTitle}様、ご利用中です`;
-                backgroundColor = '#fff3e0';
-                textColor = '#e65100';
+                // 当時間の案内名設定を適用
+                let displaySummary = currentEvent.summary || '会議中';
+                // 設定された「カレンダー項目名キーワード」にマッチするものを探す
+                const matchedCurrentAnounce = CURRENT_ANNOUNCE_PAIRS.find(pair => currentEvent.summary && currentEvent.summary.includes(pair.key));
+                
+                if (matchedCurrentAnounce) {
+                    // キーワードを件名から削除し、残った部分（例: 氏名）を抽出
+                    const remainingPart = currentEvent.summary.replace(matchedCurrentAnounce.key, '').trim();
+                    // 抽出した部分と設定された「表示したい後続の文字列」を結合
+                    displaySummary = `${remainingPart}${matchedCurrentAnounce.value}`;
+                }
+                
+                message = `<img src="https://img.icons8.com/ios-filled/50/2e7d32/meeting-room.png" alt="meeting icon" style="vertical-align: middle; margin-right: 10px;">${displaySummary}、ご利用中です`;
+                statusClass = 'status-occupied';
             } else if (nextEvent) {
                 const nextStartTime = new Date(nextEvent.start.dateTime || nextEvent.start.date);
                 const diffMinutes = Math.floor((nextStartTime - now) / (1000 * 60));
-                if (diffMinutes <= 15 && diffMinutes >= 0) {
-                    const eventTitle = nextEvent.summary || 'ご予約';
-                    message = `<img src="https://img.icons8.com/ios-filled/50/2e7d32/handshake.png" alt="welcome icon" style="vertical-align: middle; margin-right: 10px;">${eventTitle}様、ようこそお越しくださいました！`;
-                    backgroundColor = '#e8f5e9';
-                    textColor = '#2e7d32';
+                
+                if (diffMinutes <= PRE_ANNOUNCE_MINUTES && diffMinutes >= 0) {
+                    // 予約があった場合の案内名設定を適用
+                    let displaySummary = nextEvent.summary || 'ご予約';
+                    // 設定された「カレンダー項目名キーワード」にマッチするものを探す
+                    const matchedPreAnounce = PRE_ANNOUNCE_PAIRS.find(pair => nextEvent.summary && nextEvent.summary.includes(pair.key));
+
+                    if (matchedPreAnounce) {
+                        // キーワードを件名から削除し、残った部分（例: 氏名）を抽出
+                        const remainingPart = nextEvent.summary.replace(matchedPreAnounce.key, '').trim();
+                        // 抽出した部分と設定された「表示したい後続の文字列」を結合
+                        displaySummary = `${remainingPart}${matchedPreAnounce.value}`;
+                    }
+
+                    message = `<img src="https://img.icons8.com/ios-filled/50/2e7d32/handshake.png" alt="welcome icon" style="vertical-align: middle; margin-right: 10px;">${displaySummary}！`;
+                    statusClass = 'status-pre-announce';
                 } else {
                     message = `<img src="https://img.icons8.com/ios-filled/50/7f8c8d/clock.png" alt="empty icon" style="vertical-align: middle; margin-right: 10px;">会議室は現在空室です`;
-                    backgroundColor = '#e3f2fd';
-                    textColor = '#1565c0';
+                    statusClass = 'status-default';
                 }
             } else {
                 message = `<img src="https://img.icons8.com/ios-filled/50/7f8c8d/clock.png" alt="empty icon" style="vertical-align: middle; margin-right: 10px;">会議室は現在空室です`;
-                backgroundColor = '#e3f2fd';
-                textColor = '#1565c0';
+                statusClass = 'status-default';
             }
-            return { message: message, backgroundColor: backgroundColor, textColor: textColor };
+            return { message: message, statusClass: statusClass };
         }
 
         // ステータスメッセージを実際にDOMに反映する関数
         function updateStatusMessageDisplay(statusData) {
             STATUS_MESSAGE_ELEMENT.innerHTML = statusData.message;
-            STATUS_MESSAGE_ELEMENT.style.backgroundColor = statusData.backgroundColor;
-            STATUS_MESSAGE_ELEMENT.style.color = statusData.textColor;
+            STATUS_MESSAGE_ELEMENT.className = ''; // クラスをリセット
+            STATUS_MESSAGE_ELEMENT.classList.add(statusData.statusClass); // 新しいクラスを追加
             STATUS_MESSAGE_ELEMENT.style.display = 'block';
         }
 
@@ -384,7 +472,7 @@
             const endTime = new Date(now.getTime() + durationMinutes * 60 * 1000);
 
             const event = {
-                'summary': '臨時会議（今すぐ予約）',
+                'summary': '臨時会議（今すぐ予約）', // 予約時のデフォルト件名
                 'description': '会議室サイネージからの自動予約',
                 'start': {
                     'dateTime': now.toISOString(),
@@ -435,17 +523,29 @@
 
         // ページ読み込み時に実行
         document.addEventListener('DOMContentLoaded', () => {
+            // タイトルとフォントサイズ、テーマの適用
+            document.title = `${CALENDAR_DISPLAY_NAME} スケジュール`;
+            MAIN_TITLE_ELEMENT.textContent = `${CALENDAR_DISPLAY_NAME} スケジュール`;
+            document.body.style.fontSize = `${FONT_SIZE_PX}px`;
+            document.body.classList.add(`theme-${DISPLAY_THEME}`);
+
+
             fetchCalendarEvents();
             updateCurrentTime();
             BOOK_NOW_30MIN_BUTTON.addEventListener('click', handleAuthClick);
             BOOK_NOW_30MIN_BUTTON.disabled = true; // 初期状態では無効
+
+            // 設定ボタンのイベントリスナー
+            SETTINGS_BUTTON.addEventListener('click', () => {
+                window.location.href = 'settings.html'; // 設定画面へ遷移
+            });
         });
 
-        // 1分ごとに更新（カレンダー情報とステータス）
+        // 定期更新
         setInterval(() => {
             fetchCalendarEvents();
             updateCurrentTime();
-        }, 60 * 1000);
+        }, REFRESH_INTERVAL_MS);
     </script>
 
     <script src="https://apis.google.com/js/api.js" onload="gapiLoaded()"></script>
