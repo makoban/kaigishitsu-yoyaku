@@ -183,11 +183,25 @@
             border: none;
             z-index: 1000; /* 他の要素の上に表示 */
         }
+        #service-settings-button {
+            position: fixed;
+            top: 10px;
+            right: 10px;
+            background-color: #8bc34a; /* ライトグリーン */
+            color: white;
+            padding: 8px 15px;
+            border-radius: 5px;
+            font-size: 0.9em;
+            cursor: pointer;
+            border: none;
+            z-index: 1000;
+        }
     </style>
 </head>
 <body>
 
-    <button id="settings-button">設定</button>
+    <button id="settings-button">店舗設定</button>
+    <button id="service-settings-button">事業者設定</button>
 
     <h1 id="main-title">今日の会議室スケジュール</h1>
     <div id="status-message"></div>
@@ -200,14 +214,13 @@
     <div id="current-time"></div>
 
     <script>
-        // ★★★ あなたのGoogle Cloud Platformで取得したAPIキーを入力してください ★★★
-        const API_KEY = 'YOUR_API_KEY';
-        
-        // ★★★ あなたのGCPプロジェクトで取得したOAuth 2.0 クライアントIDを入力してください ★★★
-        const CLIENT_ID = 'YOUR_OAUTH_CLIENT_ID.apps.googleusercontent.com';
+        // ★★★ サービス事業者設定をローカルストレージから読み込む ★★★
+        const serviceSettings = JSON.parse(localStorage.getItem('meetingRoomServiceSettings')) || {};
+        const API_KEY = serviceSettings.apiKey || ''; // APIキーはサービス事業者設定から取得
 
-        // ★★★ ローカルストレージから設定を読み込む ★★★
+        // ★★★ 店舗設定をローカルストレージから読み込む ★★★
         const savedSettings = JSON.parse(localStorage.getItem('meetingRoomSettings')) || {};
+        const CLIENT_ID = savedSettings.clientId || ''; // CLIENT_IDは店舗設定から取得
 
         const CALENDAR_ID = savedSettings.calendarId || 'your-calendar-id@group.calendar.google.com'; // デフォルト値
         const CALENDAR_DISPLAY_NAME = savedSettings.calendarDisplayName || '会議室'; // デフォルト値
@@ -228,6 +241,7 @@
         const BOOK_NOW_30MIN_BUTTON = document.getElementById('book-now-30min');
         const MAIN_TITLE_ELEMENT = document.getElementById('main-title');
         const SETTINGS_BUTTON = document.getElementById('settings-button');
+        const SERVICE_SETTINGS_BUTTON = document.getElementById('service-settings-button'); // 新しいボタン
 
         let gisInited = false;
         let gapiInited = false;
@@ -237,6 +251,13 @@
 
         // Google APIクライアントライブラリの初期化
         function gapiLoaded() {
+            // APIキーとCLIENT_IDが設定されているかチェック
+            if (!API_KEY || !CLIENT_ID) {
+                SCHEDULE_CONTAINER.innerHTML = '<p class="no-events">設定が不足しています。<br>「事業者設定」ボタンと「店舗設定」ボタンから必須項目を設定してください。</p>';
+                STATUS_MESSAGE_ELEMENT.style.display = 'none';
+                BOOK_NOW_30MIN_BUTTON.disabled = true;
+                return; // 以降の処理を中断
+            }
             gapi.load('client', initializeGapiClient);
         }
 
@@ -251,6 +272,11 @@
 
         // Google Identity Services (GIS) クライアントの初期化
         function gisLoaded() {
+            // APIキーとCLIENT_IDが設定されているかチェック
+            if (!API_KEY || !CLIENT_ID) {
+                // gapiLoadedで既にメッセージが出ているのでここでは何もしない
+                return; // 処理を中断
+            }
             tokenClient = google.accounts.oauth2.initTokenClient({
                 client_id: CLIENT_ID,
                 scope: SCOPES,
@@ -286,9 +312,17 @@
 
         // Google Calendar APIから予定を取得し、表示を更新する関数
         async function fetchCalendarEvents() {
+            // APIキーまたはCLIENT_IDが設定されていない場合は処理をスキップ
+            if (!API_KEY || !CLIENT_ID) {
+                 SCHEDULE_CONTAINER.innerHTML = '<p class="no-events">設定が不足しています。<br>「事業者設定」ボタンと「店舗設定」ボタンから必須項目を設定してください。</p>';
+                 STATUS_MESSAGE_ELEMENT.style.display = 'none';
+                 BOOK_NOW_30MIN_BUTTON.disabled = true;
+                 return;
+            }
+
             // カレンダーIDが設定されていない場合は処理をスキップ
             if (!CALENDAR_ID || CALENDAR_ID === 'your-calendar-id@group.calendar.google.com') {
-                SCHEDULE_CONTAINER.innerHTML = '<p class="no-events">設定画面でGoogleカレンダーIDを設定してください。</p>';
+                SCHEDULE_CONTAINER.innerHTML = '<p class="no-events">店舗設定でGoogleカレンダーIDが不足しています。<br>左上の「店舗設定」ボタンから設定してください。</p>';
                 STATUS_MESSAGE_ELEMENT.style.display = 'none';
                 BOOK_NOW_30MIN_BUTTON.disabled = true; // ボタンも無効化
                 return;
@@ -529,6 +563,20 @@
             document.body.style.fontSize = `${FONT_SIZE_PX}px`;
             document.body.classList.add(`theme-${DISPLAY_THEME}`);
 
+            // APIキーとCLIENT_IDが設定されていない場合は警告表示
+            if (!API_KEY || !CLIENT_ID) {
+                SCHEDULE_CONTAINER.innerHTML = '<p class="no-events">設定が不足しています。<br>「事業者設定」ボタンと「店舗設定」ボタンから必須項目を設定してください。</p>';
+                STATUS_MESSAGE_ELEMENT.style.display = 'none';
+                BOOK_NOW_30MIN_BUTTON.disabled = true;
+                return; // 以降のAPI関連処理を中断
+            }
+            // カレンダーIDが設定されていない場合は警告表示
+            if (!CALENDAR_ID || CALENDAR_ID === 'your-calendar-id@group.calendar.google.com') {
+                SCHEDULE_CONTAINER.innerHTML = '<p class="no-events">店舗設定でGoogleカレンダーIDが不足しています。<br>左上の「店舗設定」ボタンから設定してください。</p>';
+                STATUS_MESSAGE_ELEMENT.style.display = 'none';
+                BOOK_NOW_30MIN_BUTTON.disabled = true;
+                return; // 以降のAPI関連処理を中断
+            }
 
             fetchCalendarEvents();
             updateCurrentTime();
@@ -537,7 +585,11 @@
 
             // 設定ボタンのイベントリスナー
             SETTINGS_BUTTON.addEventListener('click', () => {
-                window.location.href = 'settings.html'; // 設定画面へ遷移
+                window.location.href = 'settings.html'; // 店舗設定画面へ遷移
+            });
+            // 事業者設定ボタンのイベントリスナー
+            SERVICE_SETTINGS_BUTTON.addEventListener('click', () => {
+                window.location.href = 'settings_2.html'; // 事業者設定画面へ遷移
             });
         });
 
