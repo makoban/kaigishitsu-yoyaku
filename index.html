@@ -43,7 +43,7 @@
         const CLIENT_ID = '155458326593-redrcpnqa2iqapvg8p1kb3cgegeenvse.apps.googleusercontent.com'; // あなたのOAuth 2.0 クライアントIDに置き換えてください
         const SCOPES = 'https://www.googleapis.com/auth/calendar'; // 書き込み操作とカレンダーリスト取得のため
         const LOCAL_STORAGE_CALENDAR_KEY = 'selectedCalendar'; // localStorageのキー
-        const APP_VERSION = '1.0.0'; // アプリのバージョンをここで定義
+        const APP_VERSION = '1.0.1'; // ★バージョンを更新しました
 
         // --- 画面要素の参照 ---
         const currentCalendarNameSpan = document.getElementById('currentCalendarName');
@@ -56,7 +56,7 @@
         let tokenClient;
         let gapiInited = false;
         let gisInited = false;
-        let pendingAction = null; // 認証後に実行するアクションを保持する変数
+        let pendingAction = null; 
 
         let selectedCalendarId = ''; 
         let selectedCalendarName = ''; 
@@ -96,23 +96,22 @@
                 const storedCalendar = JSON.parse(localStorage.getItem(LOCAL_STORAGE_CALENDAR_KEY));
                 console.log("checkSettingsAndLoad: localStorageから取得したカレンダー設定 =", storedCalendar); 
 
-                // バージョン表示
-                if (appVersionSpan) {
+                // アプリ起動時にバージョンを設定
+                if (appVersionSpan) { // 要素が存在するか確認
                     appVersionSpan.textContent = APP_VERSION;
                 }
 
                 if (storedCalendar && storedCalendar.id && storedCalendar.name) {
                     selectedCalendarId = storedCalendar.id;
                     selectedCalendarName = storedCalendar.name;
-                    currentCalendarNameSpan.textContent = selectedCalendarName; // カレンダー名を表示
-                    fetchAndDisplayEvents(); // イベントをロード
+                    currentCalendarNameSpan.textContent = selectedCalendarName; 
+                    fetchAndDisplayEvents(); 
                 } else {
-                    // 設定がない場合、設定画面へリダイレクト
                     alert('カレンダーが設定されていません。設定画面へ移動します。');
                     window.location.href = 'settings.html';
-                    return; // リダイレクトするのでここで終了
+                    return; 
                 }
-                updateButtonStates(); // ボタンの状態を更新
+                updateButtonStates(); 
             }
         }
 
@@ -123,11 +122,11 @@
                 console.error("認証エラー:", resp);
                 alert(`認証に失敗しました: ${resp.error}`);
                 pendingAction = null;
-                updateButtonStates(); // ボタンの状態を更新
+                updateButtonStates(); 
                 return;
             }
             console.log("認証成功:", resp);
-            updateButtonStates(); // ボタンの状態を更新
+            updateButtonStates(); 
 
             if (pendingAction) {
                 const actionToPerform = pendingAction;
@@ -277,12 +276,10 @@
 
         loadEventsButton.addEventListener('click', fetchAndDisplayEvents);
         
-        // 設定ボタンで設定画面へリダイレクト
         goToSettingsButton.addEventListener('click', () => {
             window.location.href = 'settings.html';
         });
 
-        // 30分予約ボタンのクリックイベント
         book30MinButton.addEventListener('click', async () => {
             if (gapi.client.getToken() === null) {
                 pendingAction = create30MinEvent; 
