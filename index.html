@@ -17,14 +17,14 @@
     <div id="status">読み込み中...</div>
     <ul id="events"></ul>
     <button id="reserveBtn">今から30分予約</button>
-    <button onclick="location.href='settings.html'">設定</button>
+    <!-- 設定ボタン削除 -->
     <script src="https://apis.google.com/js/api.js" async defer></script>
     <script>
         const API_KEY = 'AIzaSyDUFH1jbIa66NjzSM8I9Xpicwo6I6H2sB8';  // 制限付きAPIキー
-        const CLIENT_ID = 'kaigishitsu20000101@gmail.com';  // 制限付きOAuthクライアントID
+        const CLIENT_ID = '155458326593-redrcpnqa2iqapvg8p1kb3cgegeenvse.apps.googleusercontent.com';  // 制限付きOAuthクライアントID
         const DISCOVERY_DOC = 'https://www.googleapis.com/discovery/v1/apis/calendar/v3/rest';
         const SCOPES = 'https://www.googleapis.com/auth/calendar.events';
-        let calendarId = localStorage.getItem('calendarId') || 'kaigishitsu20000101@gmail.com';
+        const calendarId = 'kabushikigaisyatest@gmail.com';  // ハードコード
 
         function initGapi() {
             gapi.load('client:auth2', () => {
@@ -55,7 +55,8 @@
                 const data = await response.json();
                 const cachedEvents = JSON.parse(localStorage.getItem('cachedEvents') || '[]');
                 if (JSON.stringify(data.items) === JSON.stringify(cachedEvents)) {
-                    return;  // 変更なし: インデント確認
+                    console.log('No change');  // return代替でログ出力、早期return
+                    return;
                 }
                 localStorage.setItem('cachedEvents', JSON.stringify(data.items));
                 displayEvents(data.items);
