@@ -21,7 +21,7 @@ function init() {
     if (!calendarId || !proxyUrl || !clientId) {
       alert('設定が必要です');
       window.location.href = 'settings.html';
-      return;  // ここは関数内なのでOK
+      return;  // 関数内OK
     }
 
     function loadEvents() {
@@ -29,12 +29,11 @@ function init() {
         .then(res => res.json())
         .then(events => {
           const eventsDiv = document.getElementById('events');
-          const oldContent = eventsDiv.innerHTML;
           let newContent = '';
           events.forEach(event => {
             newContent += `<p>${new Date(event.start.dateTime).toLocaleString()} - ${new Date(event.end.dateTime).toLocaleString()}: ${event.summary} <button onclick="deleteEvent('${event.id}')">削除</button></p>`;
           });
-          if (newContent !== oldContent) eventsDiv.innerHTML = newContent;
+          if (newContent !== eventsDiv.innerHTML) eventsDiv.innerHTML = newContent;
           localStorage.setItem('cachedEvents', JSON.stringify(events));
         })
         .catch(() => {
@@ -44,7 +43,7 @@ function init() {
     }
 
     loadEvents();
-    setInterval(loadEvents, 60000);  // 1分更新
+    setInterval(loadEvents, 60000);
 
     document.getElementById('reserveBtn').addEventListener('click', () => {
       gapi.load('client:auth2', () => {
