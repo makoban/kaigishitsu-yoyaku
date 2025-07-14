@@ -1,17 +1,129 @@
 <!DOCTYPE html>
 <html lang="ja">
 <head>
-  <meta charset="UTF-8">
-  <title>会議室サイネージ</title>
-  <link rel="stylesheet" href="style.css">
-  <script src="https://apis.google.com/js/api.js"></script>
-  <script src="https://accounts.google.com/gsi/client"></script>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>会議室予約表示</title>
+    <style>
+        body { font-family: Arial, sans-serif; text-align: center; background-color: #f0f0f0; margin: 0; padding: 20px; }
+        #status { font-size: 2em; margin: 20px; }
+        #events { list-style: none; padding: 0; }
+        #events li { background: #fff; margin: 10px; padding: 10px; border: 1px solid #ddd; }
+        button { font-size: 1.5em; margin: 10px; }
+    </style>
 </head>
 <body>
-  <h1 id="roomName">会議室利用状況</h1>
-  <div id="events"></div>
-  <button id="reserveBtn">今から30分予約</button>
-  <button id="settingsBtn">設定</button>
-  <script src="script.js"></script>
+    <h1>会議室利用状況</h1>
+    <div id="status">読み込み中...</div>
+    <ul id="events"></ul>
+    <button id="reserveBtn">今から30分予約</button>
+    <button onclick="location.href='settings.html'">設定</button>
+    <script src="https://apis.google.com/js/api.js" async defer></script>
+    <script>
+        const API_KEY = 'your-api-key-here';  // 制限付きAPIキー
+        const CLIENT_ID = 'your-client-id-here';  // 制限付きOAuthクライアントID
+        const DISCOVERY_DOC = 'https://www.googleapis.com/discovery/v1/apis/calendar/v3/rest';
+        const SCOPES = 'https://www.googleapis.com/auth/calendar.events';
+        let calendarId = localStorage.getItem('calendarId') || 'kaigishitsu20000101@gmail.com';
+
+        function initGapi() {
+            gapi.load('client:auth2', () => {
+                gapi.client.init({
+                    apiKey: API_KEY,
+                    clientId: CLIENT_ID,
+                    discoveryDocs: [DISCOVERY_DOC],
+                    scope: SCOPES
+                }).then(() => {
+                    gapi.auth2.getAuthInstance().isSignedIn.listen(updateSigninStatus);
+                    fetchEvents();
+                    setInterval(fetchEvents, 60000);  // 1分更新
+                });
+            });
+        }
+
+        async function fetchEvents() {
+            const now = new Date();
+            const timeMin = now.toISOString();
+            const timeMax = new Date(now.setDate(now.getDate() + 1)).toISOString();
+            const url = `https://www.googleapis.com/calendar/v3/calendars/${encodeURIComponent(calendarId)}/events?key=${API_KEY}&timeMin=${timeMin}&timeMax=${timeMax}&singleEvents=true&orderBy=startTime`;
+            
+            try {
+                const response = await fetch(url);
+                if (!response.ok) throw new Error('APIエラー');
+                const data = await response.json();
+                const cachedEvents = JSON.parse(localStorage.getItem('cachedEvents') || '[]');
+                if (JSON.stringify(data.items) === JSON.stringify(cachedEvents)) return;  // 変更なし
+                localStorage.setItem('cachedEvents', JSON.stringify(data.items));
+                displayEvents(data.items);
+            } catch (error) {
+                console.error(error);
+                const cachedEvents = JSON.parse(localStorage.getItem('cachedEvents') || '[]');
+                if (cachedEvents.length) displayEvents(cachedEvents);
+            }
+        }
+
+        function displayEvents(events) {
+            const eventsList = document.getElementById('events');
+            eventsList.innerHTML = '';
+            const now = new Date();
+            let statusMsg = '空室です。';
+            events.forEach(event => {
+                const start = new Date(event.start.dateTime);
+                const end = new Date(event.end.dateTime);
+                const li = document.createElement('li');
+                li.textContent = `${event.summary} (${start.toLocaleTimeString()} - ${end.toLocaleTimeString()})`;
+                const deleteBtn = document.createElement('button');
+                deleteBtn.textContent = '削除';
+                deleteBtn.onclick = () => deleteEvent(event.id);
+                li.appendChild(deleteBtn);
+                eventsList.appendChild(li);
+                if (start <= now && now < end) statusMsg = '会議中です。';
+                else if (end < now + 15*60*1000) statusMsg = '次の予約まで15分以内です。';
+            });
+            document.getElementById('status').textContent = statusMsg;
+        }
+
+        async function createReservation() {
+            if (!gapi.auth2.getAuthInstance().isSignedIn.get()) {
+                await gapi.auth2.getAuthInstance().signIn();
+            }
+            const event = {
+                summary: '即時予約',
+                start: { dateTime: new Date().toISOString() },
+                end: { dateTime: new Date(Date.now() + 30*60*1000).toISOString() }
+            };
+            try {
+                await gapi.client.calendar.events.insert({
+                    calendarId: calendarId,
+                    resource: event
+                });
+                fetchEvents();
+            } catch (error) {
+                console.error(error);
+            }
+        }
+
+        async function deleteEvent(eventId) {
+            if (!gapi.auth2.getAuthInstance().isSignedIn.get()) {
+                await gapi.auth2.getAuthInstance().signIn();
+            }
+            try {
+                await gapi.client.calendar.events.delete({
+                    calendarId: calendarId,
+                    eventId: eventId
+                });
+                fetchEvents();
+            } catch (error) {
+                console.error(error);
+            }
+        }
+
+        function updateSigninStatus(isSignedIn) {
+            // 認証状態更新（必要に応じて）
+        }
+
+        document.getElementById('reserveBtn').onclick = createReservation;
+        initGapi();
+    </script>
 </body>
 </html>
