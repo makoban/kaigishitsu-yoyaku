@@ -1,16 +1,28 @@
 <!DOCTYPE html>
 <html lang="ja">
 <head>
-  <meta charset="UTF-8">
-  <title>設定</title>
-  <link rel="stylesheet" href="style.css">
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>設定</title>
+    <style>
+        body { font-family: Arial, sans-serif; padding: 20px; }
+        label { display: block; margin: 10px 0; }
+    </style>
 </head>
 <body>
-  <h1>設定</h1>
-  <label>カレンダーID: <input id="calendarId" type="text"></label><br>
-  <label>Cloud Functions URL: <input id="proxyUrl" type="text"></label><br>
-  <label>OAuth Client ID: <input id="clientId" type="text"></label><br>
-  <button id="saveBtn">保存</button>
-  <script src="script.js"></script>
+    <h1>会議室設定</h1>
+    <form id="settingsForm">
+        <label>カレンダーID: <input type="text" id="calendarId" value="kaigishitsu20000101@gmail.com"></label>
+        <!-- 他の設定項目: 表示名、更新頻度、テーマなど追加可能 -->
+        <button type="submit">保存</button>
+    </form>
+    <script>
+        document.getElementById('settingsForm').onsubmit = function(e) {
+            e.preventDefault();
+            localStorage.setItem('calendarId', document.getElementById('calendarId').value);
+            alert('設定を保存しました。');
+            location.href = 'index.html';
+        };
+    </script>
 </body>
 </html>
