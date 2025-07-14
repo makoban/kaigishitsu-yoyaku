@@ -26,6 +26,7 @@
     </style>
 </head>
 <body>
+    
     <div id="main-screen" class="hidden">
         <h1>会議室の今日の予定</h1>
         <p>表示中のカレンダー: <span id="currentCalendarName">未設定</span></p>
@@ -42,6 +43,7 @@
     <div id="settings-screen" class="hidden">
         <h1>設定</h1>
         <p>Googleアカウントを認証し、表示するカレンダーを選択してください。</p>
+        
         <div class="auth-status" id="authStatus">未認証</div>
         <button id="authGoogleButton">Googleアカウントで認証</button>
         <button id="signOutButton" class="hidden">ログアウト</button>
@@ -59,21 +61,17 @@
     <script async defer src="https://accounts.google.com/gsi/client" onload="gisLoaded()"></script>
 
     <script>
-        // *** ここにAPIキーとクライアントIDを設定します ***
         const API_KEY = 'AIzaSyDUFH1jbIa66NjzSM8I9Xpicwo6I6H2sB8'; // あなたのAPIキーに置き換えてください
         const CLIENT_ID = '155458326593-redrcpnqa2iqapvg8p1kb3cgegeenvse.apps.googleusercontent.com'; // あなたのOAuth 2.0 クライアントIDに置き換えてください
         
-        // APIスコープ (カレンダーの読み取り、書き込み、カレンダーリストの取得)
-        const SCOPES = 'https://www.googleapis.com/auth/calendar https://www.googleapis.com/auth/calendar.events'; 
-        // calendar.eventsは古いスコープなのでcalendarだけで十分な場合が多いですが、念のため
-        // https://www.googleapis.com/auth/calendar.readonly はカレンダーリスト取得にも使えますが、書き込みにはcalendarが必要です。
+        const SCOPES = 'https://www.googleapis.com/auth/calendar'; 
 
-        const LOCAL_STORAGE_CALENDAR_KEY = 'selectedCalendar'; // localStorageのキー
+        const LOCAL_STORAGE_CALENDAR_KEY = 'selectedCalendar'; 
 
         let tokenClient;
         let gapiInited = false;
         let gisInited = false;
-        let pendingAction = null; // 認証後に実行するアクションを保持する変数
+        let pendingAction = null; 
 
         // 各画面要素の参照
         const mainScreen = document.getElementById('main-screen');
@@ -91,21 +89,15 @@
         const saveSettingsButton = document.getElementById('saveSettingsButton');
         const backToMainButton = document.getElementById('backToMainButton');
 
-        let selectedCalendarId = ''; // 現在選択されているカレンダーID
-        let selectedCalendarName = ''; // 現在選択されているカレンダー名
+        let selectedCalendarId = ''; 
+        let selectedCalendarName = ''; 
 
         // --- 初期化処理 ---
 
-        /**
-         * Google APIクライアントライブラリがロードされたときに呼び出されます。
-         */
         function gapiLoaded() {
             gapi.load('client', initializeGapiClient);
         }
 
-        /**
-         * gapiクライアントを初期化します。
-         */
         async function initializeGapiClient() {
             await gapi.client.init({
                 apiKey: API_KEY,
@@ -113,12 +105,9 @@
             });
             gapiInited = true;
             console.log("gapi client initialized.");
-            checkAndNavigate(); // 初期化後に画面遷移をチェック
+            checkAndNavigate(); 
         }
 
-        /**
-         * Google Identity Servicesライブラリがロードされたときに呼び出されます。
-         */
         function gisLoaded() {
             tokenClient = google.accounts.oauth2.initTokenClient({
                 client_id: CLIENT_ID,
@@ -127,24 +116,22 @@
             });
             gisInited = true;
             console.log("gis client initialized.");
-            checkAndNavigate(); // 初期化後に画面遷移をチェック
+            checkAndNavigate(); 
         }
 
-        /**
-         * gapiとgisの両方が初期化されたら、保存された設定に基づいて画面を切り替えます。
-         */
         function checkAndNavigate() {
             if (gapiInited && gisInited) {
                 const storedCalendar = JSON.parse(localStorage.getItem(LOCAL_STORAGE_CALENDAR_KEY));
+                console.log("checkAndNavigate: localStorageから取得したカレンダー設定 =", storedCalendar); 
                 if (storedCalendar && storedCalendar.id && storedCalendar.name) {
                     selectedCalendarId = storedCalendar.id;
                     selectedCalendarName = storedCalendar.name;
-                    showMainScreen();
+                    showMainScreen(); 
                 } else {
-                    showSettingsScreen();
+                    showSettingsScreen(); 
                 }
-                updateAuthStatus(); // 認証状態を更新
-                updateButtonStates(); // ボタンの状態を更新
+                updateAuthStatus(); 
+                updateButtonStates(); 
             }
         }
 
@@ -154,21 +141,18 @@
             mainScreen.classList.remove('hidden');
             settingsScreen.classList.add('hidden');
             currentCalendarNameSpan.textContent = selectedCalendarName;
-            fetchAndDisplayEvents(); // メイン画面表示時にイベントを読み込む
+            fetchAndDisplayEvents(); 
         }
 
         function showSettingsScreen() {
             mainScreen.classList.add('hidden');
             settingsScreen.classList.remove('hidden');
-            updateAuthStatus(); // 設定画面表示時に認証状態を更新
-            updateCalendarListUI(); // カレンダーリストUIを更新
+            updateAuthStatus(); 
+            // updateCalendarListUI(); // ★ ここを削除：設定画面表示時の自動カレンダーリスト取得をやめる
         }
 
         // --- 認証関連 ---
 
-        /**
-         * 認証コールバック処理。認証成功後に保留中のアクションを実行します。
-         */
         async function handleAuthCallback(resp) {
             if (resp.error !== undefined) {
                 console.error("認証エラー:", resp);
@@ -179,36 +163,26 @@
                 return;
             }
             console.log("認証成功:", resp);
-            updateAuthStatus(); // 認証成功後に認証状態を更新
-            updateButtonStates(); // ボタンの状態を更新
+            updateAuthStatus(); 
+            updateButtonStates(); 
 
-            // 保留中のアクションがあれば実行
             if (pendingAction) {
                 const actionToPerform = pendingAction;
                 pendingAction = null;
                 await actionToPerform();
             } else {
                 // 認証ボタンからの認証の場合、カレンダーリストを自動で取得
-                await fetchCalendarList();
+                await fetchCalendarList(); 
             }
         }
 
-        /**
-         * 認証フローを開始します。
-         */
+        // handleAuthClick 関数はauthGoogleButtonのクリックで呼び出されます。
+        // これ自体は認証フローを開始しますが、直後にカレンダーリスト取得を伴うよう変更。
         function handleAuthClick() {
-            if (gapi.client.getToken() === null) {
-                // トークンがない場合、認証フローを開始
-                tokenClient.requestAccessToken({prompt: 'consent'});
-            } else {
-                // 既存のトークンがある場合、そのまま利用
-                tokenClient.requestAccessToken({prompt: ''});
-            }
+            pendingAction = fetchCalendarList; // ★ 認証後にカレンダーリスト取得を保留アクションに設定
+            tokenClient.requestAccessToken({prompt: ''}); 
         }
 
-        /**
-         * ログアウトします。
-         */
         function handleSignoutClick() {
             const token = gapi.client.getToken();
             if (token !== null) {
@@ -216,58 +190,67 @@
                 gapi.client.setToken('');
                 updateAuthStatus();
                 updateButtonStates();
-                calendarSelectionArea.classList.add('hidden'); // カレンダー選択エリアを非表示に
-                calendarListSelect.innerHTML = ''; // リストをクリア
-                localStorage.removeItem(LOCAL_STORAGE_CALENDAR_KEY); // 保存されたカレンダー設定も削除
+                calendarSelectionArea.classList.add('hidden'); 
+                calendarListSelect.innerHTML = ''; 
+                localStorage.removeItem(LOCAL_STORAGE_CALENDAR_KEY); 
                 selectedCalendarId = '';
                 selectedCalendarName = '';
                 alert("ログアウトしました。保存されたカレンダー設定も削除されました。");
+                showSettingsScreen(); 
             }
         }
 
-        /**
-         * 認証状態に基づいてUIを更新します。
-         */
         function updateAuthStatus() {
             if (gapi.client.getToken() === null) {
                 authStatusDiv.textContent = '未認証';
                 authStatusDiv.className = 'auth-status unauthenticated';
                 authGoogleButton.classList.remove('hidden');
                 signOutButton.classList.add('hidden');
+                // 未認証時はカレンダー選択エリアも非表示にする
+                calendarSelectionArea.classList.add('hidden'); // ★ 追加
+                calendarListSelect.innerHTML = ''; // ★ 追加
             } else {
                 authStatusDiv.textContent = '認証済み';
                 authStatusDiv.className = 'auth-status authenticated';
                 authGoogleButton.classList.add('hidden');
                 signOutButton.classList.remove('hidden');
+                // 認証済みなら、カレンダーリストUIを更新（自動取得ではないがボタン表示のため）
+                calendarSelectionArea.classList.remove('hidden'); // ★ 認証済みなら表示する
+                // fetchCalendarList(); // ★ ここでは自動取得しない
             }
         }
 
         // --- カレンダーリストの取得と表示 ---
 
-        /**
-         * 認証済みアカウントに紐づくカレンダーのリストを取得し、ドロップダウンに表示します。
-         */
         async function fetchCalendarList() {
             if (gapi.client.getToken() === null) {
+                // ここには到達しないはずだが、念のため。
                 alert('カレンダーリストを取得するにはGoogleアカウントでの認証が必要です。');
                 return;
             }
 
             calendarListSelect.innerHTML = '<option>カレンダーを読み込み中...</option>';
-            calendarSelectionArea.classList.remove('hidden');
+            calendarSelectionArea.classList.remove('hidden'); // ロード中は表示
 
             try {
                 const response = await gapi.client.calendar.calendarList.list();
                 const calendars = response.result.items;
 
-                calendarListSelect.innerHTML = ''; // 既存のオプションをクリア
+                calendarListSelect.innerHTML = ''; 
 
                 if (calendars.length > 0) {
                     calendars.forEach(calendar => {
+                        if (
+                            calendar.id === 'ja.japanese#holiday@group.v.calendar.google.com' || 
+                            calendar.id === 'contacts@group.v.calendar.google.com' 
+                        ) {
+                            console.log("除外されたカレンダー:", calendar.summary, "(ID:", calendar.id, ")");
+                            return; 
+                        }
+                        
                         const option = document.createElement('option');
                         option.value = calendar.id;
-                        option.textContent = calendar.summary;
-                        // 現在設定されているカレンダーがあれば選択状態にする
+                        option.textContent = calendar.summary; 
                         if (calendar.id === selectedCalendarId) {
                             option.selected = true;
                         }
@@ -286,24 +269,11 @@
             }
         }
 
-        /**
-         * 設定画面のカレンダーリストUIの状態を更新します。
-         */
-        function updateCalendarListUI() {
-            if (gapi.client.getToken() !== null) {
-                calendarSelectionArea.classList.remove('hidden');
-                fetchCalendarList(); // 認証済みならカレンダーリストを自動で読み込む
-            } else {
-                calendarSelectionArea.classList.add('hidden');
-                calendarListSelect.innerHTML = '';
-            }
-        }
+        // updateCalendarListUI は不要になったため削除（または、カレンダーリスト表示・非表示のみを担うようにする）
+        // function updateCalendarListUI() { /* 削除 */ }
 
         // --- 設定の保存 ---
 
-        /**
-         * 選択されたカレンダーを設定として保存し、メイン画面に遷移します。
-         */
         function saveSettings() {
             const selectedOption = calendarListSelect.options[calendarListSelect.selectedIndex];
             if (selectedOption && selectedOption.value) {
@@ -322,23 +292,16 @@
 
         // --- メイン画面の機能 (既存ロジックの修正) ---
 
-        /**
-         * ボタンの表示状態を更新します。（メイン画面用）
-         */
         function updateButtonStates() {
-            // 30分予約ボタンの表示を更新
             if (gapi.client.getToken() === null) {
                 book30MinButton.textContent = '認証必要：30分予約';
-                book30MinButton.style.backgroundColor = '#ffc107'; // 注意を促す色
+                book30MinButton.style.backgroundColor = '#ffc107'; 
             } else {
                 book30MinButton.textContent = '30分予約';
-                book30MinButton.style.backgroundColor = ''; // デフォルトの色に戻す
+                book30MinButton.style.backgroundColor = ''; 
             }
         }
 
-        /**
-         * カレンダーイベントをフェッチして表示します。
-         */
         async function fetchAndDisplayEvents() {
             const eventsDiv = document.getElementById('calendar-events');
             eventsDiv.innerHTML = '<p>読み込み中...</p>';
@@ -361,7 +324,7 @@
                 tomorrow.setDate(today.getDate() + 1);
 
                 const response = await gapi.client.calendar.events.list({
-                    'calendarId': selectedCalendarId, // 設定されたカレンダーIDを使用
+                    'calendarId': selectedCalendarId, 
                     'timeMin': today.toISOString(),
                     'timeMax': tomorrow.toISOString(),
                     'showDeleted': false,
@@ -414,19 +377,15 @@
             }
         }
 
-        /**
-         * 現在時刻から30分間の緊急会議イベントを作成します。
-         */
         async function create30MinEvent() {
             if (!selectedCalendarId) {
                 alert('カレンダーが設定されていません。設定画面から選択してください。');
                 return;
             }
 
-            // 認証済みであることを前提とする（この関数は認証後に呼び出されるため）
             if (gapi.client.getToken() === null) {
                 console.error("認証されていない状態でcreate30MinEventが呼び出されました。");
-                alert("認証が必要です。再度ボタンをクリックしてください。");
+                alert("認証が必要です。再度ボタンをクリックしてください。"); 
                 return;
             }
 
@@ -448,12 +407,12 @@
 
             try {
                 const response = await gapi.client.calendar.events.insert({
-                    'calendarId': selectedCalendarId, // 設定されたカレンダーIDを使用
+                    'calendarId': selectedCalendarId, 
                     'resource': event,
                 });
                 console.log('イベントが作成されました:', response.result);
                 alert(`カレンダー「${selectedCalendarName}」に30分間の緊急会議が予約されました！`);
-                fetchAndDisplayEvents(); // イベント作成後、カレンダーを再読み込みして表示を更新
+                fetchAndDisplayEvents(); 
             } catch (err) {
                 console.error('イベントの作成中にエラーが発生しました:', err);
                 alert(`イベントの作成に失敗しました: ${err.message || JSON.stringify(err)}`);
@@ -464,22 +423,21 @@
 
         // メイン画面のボタン
         loadEventsButton.addEventListener('click', fetchAndDisplayEvents);
-        goToSettingsButton.addEventListener('click', showSettingsScreen);
+        goToSettingsButton.addEventListener('click', showSettingsScreen); // 設定ボタンで設定画面へ遷移
 
         // 30分予約ボタンのクリックイベント (メイン画面)
         book30MinButton.addEventListener('click', async () => {
             if (gapi.client.getToken() === null) {
-                // 未認証の場合、認証フローを開始し、認証後にcreate30MinEventを実行
-                pendingAction = create30MinEvent; // 認証後に実行するアクションをセット
-                tokenClient.requestAccessToken({prompt: 'consent'}); // 認証ダイアログを表示
+                pendingAction = create30MinEvent; 
+                tokenClient.requestAccessToken({prompt: ''}); // 認証ダイアログを表示
             } else {
-                // 認証済みの場合、直接create30MinEventを実行
                 await create30MinEvent();
             }
         });
 
         // 設定画面のボタン
-        authGoogleButton.addEventListener('click', handleAuthClick);
+        // 「Googleアカウントで認証」ボタンがクリックされたときに認証フローを開始し、カレンダーリストを取得する
+        authGoogleButton.addEventListener('click', handleAuthClick); 
         signOutButton.addEventListener('click', handleSignoutClick);
         saveSettingsButton.addEventListener('click', saveSettings);
         backToMainButton.addEventListener('click', showMainScreen);
