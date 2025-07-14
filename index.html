@@ -52,7 +52,9 @@
                 if (!response.ok) throw new Error('APIエラー');
                 const data = await response.json();
                 const cachedEvents = JSON.parse(localStorage.getItem('cachedEvents') || '[]');
-                if (JSON.stringify(data.items) === JSON.stringify(cachedEvents)) return;  // 変更なし
+                if (JSON.stringify(data.items) === JSON.stringify(cachedEvents)) {
+                    return;  // 変更なし: ここがline 23付近。関数内に確実に配置
+                }
                 localStorage.setItem('cachedEvents', JSON.stringify(data.items));
                 displayEvents(data.items);
             } catch (error) {
