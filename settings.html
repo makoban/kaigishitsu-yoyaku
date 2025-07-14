@@ -14,23 +14,21 @@
         button { padding: 8px 15px; cursor: pointer; margin-right: 5px; }
         #calendarListSelect { width: 100%; padding: 8px; margin-top: 10px; margin-bottom: 10px; }
         .hidden { display: none; }
-        .auth-status { margin-top: 10px; font-size: 0.9em; color: #555; }
-        .auth-status.authenticated { color: green; }
-        .auth-status.unauthenticated { color: red; }
+        .account-status { margin-top: 10px; font-size: 0.9em; color: #555; }
+        .account-status.selected { color: green; }
+        .account-status.not-selected { color: red; }
         #authenticatedAccountEmail { font-weight: bold; margin-left: 5px; } /* メールアドレスの強調と間隔 */
+        .settings-section { margin-top: 20px; padding-top: 15px; border-top: 1px solid #eee; }
     </style>
 </head>
 <body>
     <div id="settings-screen">
         <h1>設定</h1>
-        <p>Googleアカウントを認証し、表示するカレンダーを選択してください。</p>
+        <p>Googleアカウントを選択し、表示するカレンダーを設定してください。</p>
         
-        <div class="auth-status" id="authStatus">未認証</div>
-        <span id="authenticatedAccountEmail" class="hidden"></span> <button id="authGoogleButton">Googleアカウントで認証</button>
-        <button id="signOutButton" class="hidden">ログアウト</button>
-        
-        <div id="calendarSelectionArea" class="hidden">
-            <h2>利用可能なカレンダー</h2>
+        <div class="account-status" id="accountStatus">未選択</div> <span id="authenticatedAccountEmail" class="hidden"></span> 
+        <button id="selectGoogleAccountButton">Googleアカウントを選択</button> <button id="signOutButton" class="hidden">アカウントを解除</button> <div class="settings-section" id="calendarSelectionArea" class="hidden"> <h2>利用可能なカレンダー</h2>
+            <p>アカウント選択後、ここに表示されるカレンダーから、メイン画面で表示するカレンダーを選んでください。</p>
             <select id="calendarListSelect" size="10">
                 </select>
             <button id="refreshCalendarListButton">カレンダーリストを更新</button> 
@@ -44,16 +42,16 @@
 
     <script>
         // --- 設定値（共通） ---
-        const API_KEY = 'AIzaSyDUFH1jbIa66NjzSM8I9Xpicwo6I6H2sB8'; // あなたのAPIキーに置き換えてください
-        const CLIENT_ID = '155458326593-redrcpnqa2iqapvg8p1kb3cgegeenvse.apps.googleusercontent.com'; // あなたのOAuth 2.0 クライアントIDに置き換えてください
-        const SCOPES = 'https://www.googleapis.com/auth/calendar'; // 書き込み操作とカレンダーリスト取得のため
-        const LOCAL_STORAGE_CALENDAR_KEY = 'selectedCalendar'; // localStorageのキー
-        const APP_VERSION = '1.0.1'; // アプリのバージョンをここで定義 (index.htmlと一致させる)
+        const API_KEY = 'AIzaSyDUFH1jbIa66NjzSM8I9Xpicwo6I6H2sB8'; 
+        const CLIENT_ID = '155458326593-redrcpnqa2iqapvg8p1kb3cgegeenvse.apps.googleusercontent.com'; 
+        const SCOPES = 'https://www.googleapis.com/auth/calendar'; 
+        const LOCAL_STORAGE_CALENDAR_KEY = 'selectedCalendar'; 
+        const APP_VERSION = '1.0.2'; // (index.htmlと一致させる)
 
         // --- 画面要素の参照 ---
-        const authStatusDiv = document.getElementById('authStatus');
+        const accountStatusDiv = document.getElementById('accountStatus'); // id変更
         const authenticatedAccountEmailSpan = document.getElementById('authenticatedAccountEmail');
-        const authGoogleButton = document.getElementById('authGoogleButton');
+        const selectGoogleAccountButton = document.getElementById('selectGoogleAccountButton'); // id変更
         const signOutButton = document.getElementById('signOutButton');
         const calendarSelectionArea = document.getElementById('calendarSelectionArea');
         const calendarListSelect = document.getElementById('calendarListSelect');
@@ -101,32 +99,30 @@
          */
         function checkExistingAuthAndUI() {
             if (gapiInited && gisInited) {
-                // localStorageから既存の設定をロード（メイン画面へのリダイレクト判定とは別）
                 const storedCalendar = JSON.parse(localStorage.getItem(LOCAL_STORAGE_CALENDAR_KEY));
                 if (storedCalendar && storedCalendar.id && storedCalendar.name) {
                     selectedCalendarId = storedCalendar.id;
                     selectedCalendarName = storedCalendar.name;
                 }
-                updateAuthStatus(); // UIの認証状態を更新
+                updateAccountStatusUI(); // UIの認証状態を更新
             }
         }
 
-        // --- 認証関連 ---
+        // --- アカウント選択・認証関連 ---
 
         async function handleAuthCallback(resp) {
             if (resp.error !== undefined) {
-                console.error("認証エラー:", resp);
-                alert(`認証に失敗しました: ${resp.error}`);
+                console.error("アカウント選択エラー:", resp);
+                alert(`アカウントの選択に失敗しました: ${resp.error}`);
                 pendingAction = null;
-                updateAuthStatus();
+                updateAccountStatusUI();
                 return;
             }
-            console.log("認証成功:", resp);
+            console.log("アカウント選択成功:", resp);
             
             // 認証成功時にユーザー情報を取得 (IDトークンからメールアドレス)
             const token = gapi.client.getToken();
             if (token && token.id_token) {
-                // IDトークンをデコードしてメールアドレスを取得 (簡易的な方法、本番ではサーバーサイドでの検証が望ましい)
                 try {
                     const base64Url = token.id_token.split('.')[1];
                     const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
@@ -134,8 +130,8 @@
                         return '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2);
                     }).join(''));
                     const idTokenData = JSON.parse(jsonPayload);
-                    authenticatedAccountEmailSpan.textContent = `(${idTokenData.email})`; // メールアドレスを表示
-                    authenticatedAccountEmailSpan.classList.remove('hidden'); // 表示
+                    authenticatedAccountEmailSpan.textContent = `(${idTokenData.email})`; 
+                    authenticatedAccountEmailSpan.classList.remove('hidden'); 
                 } catch (e) {
                     console.error("IDトークン解析エラー:", e);
                     authenticatedAccountEmailSpan.textContent = `(メールアドレス取得失敗)`;
@@ -143,29 +139,31 @@
                 }
             }
 
-            updateAuthStatus(); 
+            updateAccountStatusUI(); 
 
             if (pendingAction) {
                 const actionToPerform = pendingAction;
                 pendingAction = null;
                 await actionToPerform();
             } else {
-                // 認証ボタンからの認証の場合、カレンダーリストを自動で取得
+                // アカウント選択ボタンからの遷移の場合、カレンダーリストを自動で取得
                 await fetchCalendarList(); 
             }
         }
 
-        function handleAuthClick() {
-            pendingAction = fetchCalendarList; // 認証後にカレンダーリスト取得を保留アクションに設定
+        // handleAuthClickからselectGoogleAccountClickに変更
+        function selectGoogleAccountClick() {
+            pendingAction = fetchCalendarList; // アカウント選択後にカレンダーリスト取得を保留アクションに設定
             tokenClient.requestAccessToken({prompt: ''}); 
         }
 
-        function handleSignoutClick() {
+        // handleSignoutClickからsignOutClickに変更
+        function signOutClick() {
             const token = gapi.client.getToken();
             if (token !== null) {
                 google.accounts.oauth2.revoke(token.access_token);
                 gapi.client.setToken('');
-                updateAuthStatus();
+                updateAccountStatusUI();
                 calendarSelectionArea.classList.add('hidden'); 
                 calendarListSelect.innerHTML = ''; 
                 localStorage.removeItem(LOCAL_STORAGE_CALENDAR_KEY); 
@@ -173,31 +171,29 @@
                 selectedCalendarName = '';
                 authenticatedAccountEmailSpan.textContent = ''; 
                 authenticatedAccountEmailSpan.classList.add('hidden'); 
-                alert("ログアウトしました。保存されたカレンダー設定も削除されました。");
-                // ログアウト後は設定画面に留まる
+                alert("アカウントが解除されました。保存されたカレンダー設定も削除されました。");
             }
         }
 
         /**
-         * 認証状態に基づいてUIを更新します。
+         * アカウント選択状態に基づいてUIを更新します。（「認証」という言葉を避ける）
          */
-        function updateAuthStatus() {
+        function updateAccountStatusUI() { // 関数名変更
             if (gapi.client.getToken() === null) {
-                authStatusDiv.textContent = '未認証';
-                authStatusDiv.className = 'auth-status unauthenticated';
-                authGoogleButton.classList.remove('hidden');
+                accountStatusDiv.textContent = 'アカウント未選択'; // 文言変更
+                accountStatusDiv.className = 'account-status not-selected'; // class名変更
+                selectGoogleAccountButton.classList.remove('hidden'); 
                 signOutButton.classList.add('hidden');
                 calendarSelectionArea.classList.add('hidden'); 
                 calendarListSelect.innerHTML = ''; 
                 authenticatedAccountEmailSpan.classList.add('hidden'); 
             } else {
-                authStatusDiv.textContent = '認証済み';
-                authStatusDiv.className = 'auth-status authenticated';
-                authGoogleButton.classList.add('hidden');
+                accountStatusDiv.textContent = 'アカウント選択済み'; // 文言変更
+                accountStatusDiv.className = 'account-status selected'; // class名変更
+                selectGoogleAccountButton.classList.add('hidden'); 
                 signOutButton.classList.remove('hidden');
                 calendarSelectionArea.classList.remove('hidden'); 
                 
-                // 認証済みであれば、メールアドレスを再表示（既に認証されていれば）
                 const token = gapi.client.getToken();
                 if (token && token.id_token) {
                     try {
@@ -220,7 +216,7 @@
 
         async function fetchCalendarList() {
             if (gapi.client.getToken() === null) {
-                alert('カレンダーリストを取得するにはGoogleアカウントで認証してください。');
+                alert('カレンダーリストを取得するにはGoogleアカウントを選択してください。'); // 文言修正
                 return;
             }
 
@@ -285,11 +281,11 @@
         // --- イベントリスナーの設定 ---
 
         // 設定画面のボタン
-        authGoogleButton.addEventListener('click', handleAuthClick); 
-        signOutButton.addEventListener('click', handleSignoutClick);
+        selectGoogleAccountButton.addEventListener('click', selectGoogleAccountClick); // 関数名変更
+        signOutButton.addEventListener('click', signOutClick); // 関数名変更
         refreshCalendarListButton.addEventListener('click', async () => { 
             if (gapi.client.getToken() === null) {
-                alert('カレンダーリストを更新するにはGoogleアカウントで認証してください。');
+                alert('カレンダーリストを更新するにはGoogleアカウントを選択してください。'); // 文言修正
             } else {
                 await fetchCalendarList();
             }
