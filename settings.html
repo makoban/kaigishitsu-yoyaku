@@ -17,7 +17,7 @@
         .auth-status { margin-top: 10px; font-size: 0.9em; color: #555; }
         .auth-status.authenticated { color: green; }
         .auth-status.unauthenticated { color: red; }
-        #authenticatedAccountEmail { font-weight: bold; } /* メールアドレスの強調 */
+        #authenticatedAccountEmail { font-weight: bold; margin-left: 5px; } /* メールアドレスの強調と間隔 */
     </style>
 </head>
 <body>
@@ -48,7 +48,7 @@
         const CLIENT_ID = '155458326593-redrcpnqa2iqapvg8p1kb3cgegeenvse.apps.googleusercontent.com'; // あなたのOAuth 2.0 クライアントIDに置き換えてください
         const SCOPES = 'https://www.googleapis.com/auth/calendar'; // 書き込み操作とカレンダーリスト取得のため
         const LOCAL_STORAGE_CALENDAR_KEY = 'selectedCalendar'; // localStorageのキー
-        const APP_VERSION = '1.0.0'; // アプリのバージョンをここで定義
+        const APP_VERSION = '1.0.1'; // アプリのバージョンをここで定義 (index.htmlと一致させる)
 
         // --- 画面要素の参照 ---
         const authStatusDiv = document.getElementById('authStatus');
@@ -82,7 +82,7 @@
             });
             gapiInited = true;
             console.log("gapi client initialized.");
-            checkExistingAuthAndUI(); // 認証状態を確認し、UIを更新
+            checkExistingAuthAndUI(); 
         }
 
         function gisLoaded() {
@@ -93,7 +93,7 @@
             });
             gisInited = true;
             console.log("gis client initialized.");
-            checkExistingAuthAndUI(); // 認証状態を確認し、UIを更新
+            checkExistingAuthAndUI(); 
         }
 
         /**
@@ -108,7 +108,6 @@
                     selectedCalendarName = storedCalendar.name;
                 }
                 updateAuthStatus(); // UIの認証状態を更新
-                // ページロード時にカレンダーリストは自動で取得しない（「Googleアカウントで認証」ボタンが押されたときのみ）
             }
         }
 
@@ -127,14 +126,21 @@
             // 認証成功時にユーザー情報を取得 (IDトークンからメールアドレス)
             const token = gapi.client.getToken();
             if (token && token.id_token) {
-                const base64Url = token.id_token.split('.')[1];
-                const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
-                const jsonPayload = decodeURIComponent(atob(base64).split('').map(function(c) {
-                    return '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2);
-                }).join(''));
-                const idTokenData = JSON.parse(jsonPayload);
-                authenticatedAccountEmailSpan.textContent = `(${idTokenData.email})`; 
-                authenticatedAccountEmailSpan.classList.remove('hidden'); 
+                // IDトークンをデコードしてメールアドレスを取得 (簡易的な方法、本番ではサーバーサイドでの検証が望ましい)
+                try {
+                    const base64Url = token.id_token.split('.')[1];
+                    const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
+                    const jsonPayload = decodeURIComponent(atob(base64).split('').map(function(c) {
+                        return '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2);
+                    }).join(''));
+                    const idTokenData = JSON.parse(jsonPayload);
+                    authenticatedAccountEmailSpan.textContent = `(${idTokenData.email})`; // メールアドレスを表示
+                    authenticatedAccountEmailSpan.classList.remove('hidden'); // 表示
+                } catch (e) {
+                    console.error("IDトークン解析エラー:", e);
+                    authenticatedAccountEmailSpan.textContent = `(メールアドレス取得失敗)`;
+                    authenticatedAccountEmailSpan.classList.remove('hidden');
+                }
             }
 
             updateAuthStatus(); 
@@ -190,6 +196,7 @@
                 authGoogleButton.classList.add('hidden');
                 signOutButton.classList.remove('hidden');
                 calendarSelectionArea.classList.remove('hidden'); 
+                
                 // 認証済みであれば、メールアドレスを再表示（既に認証されていれば）
                 const token = gapi.client.getToken();
                 if (token && token.id_token) {
@@ -213,7 +220,6 @@
 
         async function fetchCalendarList() {
             if (gapi.client.getToken() === null) {
-                // このルートは通常、handleAuthClick経由で認証後に来るため、ここに到達するべきではない
                 alert('カレンダーリストを取得するにはGoogleアカウントで認証してください。');
                 return;
             }
@@ -270,7 +276,7 @@
                     name: selectedCalendarName
                 }));
                 alert(`カレンダー「${selectedCalendarName}」が設定されました。`);
-                window.location.href = 'index.html'; // メイン画面へリダイレクト
+                window.location.href = 'index.html'; 
             } else {
                 alert('表示するカレンダーを選択してください。');
             }
@@ -281,7 +287,7 @@
         // 設定画面のボタン
         authGoogleButton.addEventListener('click', handleAuthClick); 
         signOutButton.addEventListener('click', handleSignoutClick);
-        refreshCalendarListButton.addEventListener('click', async () => { // カレンダーリスト更新ボタン
+        refreshCalendarListButton.addEventListener('click', async () => { 
             if (gapi.client.getToken() === null) {
                 alert('カレンダーリストを更新するにはGoogleアカウントで認証してください。');
             } else {
@@ -290,7 +296,6 @@
         });
         saveSettingsButton.addEventListener('click', saveSettings);
         
-        // メイン画面へ戻るボタン
         backToMainButton.addEventListener('click', () => {
             window.location.href = 'index.html';
         });
