@@ -12,8 +12,7 @@
         .event-location { font-size: 0.8em; color: #777; }
         .no-events { color: #888; }
         #calendarIdInput { width: 300px; padding: 8px; margin-right: 10px; }
-        button { padding: 8px 15px; cursor: pointer; margin-right: 5px; } /* ボタン間のスペースを追加 */
-        #authorize_button, #signout_button { display: none; } /* 初期状態では非表示 */
+        button { padding: 8px 15px; cursor: pointer; margin-right: 5px; }
     </style>
 </head>
 <body>
@@ -21,8 +20,9 @@
 
     <div>
         <label for="calendarIdInput">カレンダーID:</label>
-        <input type="text" id="calendarIdInput" placeholder="カレンダーIDを入力してください" value="kaigishitsu20000101@gmail.com"> <button id="loadEventsButton">予定を読み込む</button>
-        <button id="authorize_button">Googleアカウントで認証</button> <button id="signout_button">ログアウト</button> <button id="book30MinButton">30分予約</button> </div>
+        <input type="text" id="calendarIdInput" placeholder="カレンダーIDを入力してください" value="kaigishitsu20000101@gmail.com">
+        <button id="loadEventsButton">予定を読み込む</button>
+        <button id="book30MinButton">30分予約</button> </div>
 
     <div id="calendar-events">
         <p class="no-events">ここに今日の予定が表示されます。</p>
@@ -32,20 +32,16 @@
     <script async defer src="https://accounts.google.com/gsi/client" onload="gisLoaded()"></script>
 
     <script>
-        // *** ここにAPIキーとクライアントIDを設定します ***
         const API_KEY = 'AIzaSyDUFH1jbIa66NjzSM8I9Xpicwo6I6H2sB8'; // あなたのAPIキーに置き換えてください
         const CLIENT_ID = '155458326593-redrcpnqa2iqapvg8p1kb3cgegeenvse.apps.googleusercontent.com'; // あなたのOAuth 2.0 クライアントIDに置き換えてください
-
-        // APIスコープ (読み取りと書き込み)
         const SCOPES = 'https://www.googleapis.com/auth/calendar'; // 書き込み権限のためにスコープを変更
 
         let tokenClient;
         let gapiInited = false;
         let gisInited = false;
+        let pendingAction = null; // 認証後に実行するアクションを保持する変数
 
-        const authorizeButton = document.getElementById('authorize_button');
-        const signoutButton = document.getElementById('signout_button');
-        const book30MinButton = document.getElementById('book30MinButton'); // 30分予約ボタン
+        const book30MinButton = document.getElementById('book30MinButton');
 
         /**
          * Google APIクライアントライブラリがロードされたときに呼び出されます。
@@ -64,7 +60,7 @@
             });
             gapiInited = true;
             console.log("gapi client initialized.");
-            maybeEnableButtons();
+            updateButtonStates(); // 初期化後にボタンの状態を更新
         }
 
         /**
@@ -74,61 +70,52 @@
             tokenClient = google.accounts.oauth2.initTokenClient({
                 client_id: CLIENT_ID,
                 scope: SCOPES,
-                callback: '', // ここは後で設定
+                callback: handleAuthCallback, // 認証コールバック関数を設定
             });
             gisInited = true;
             console.log("gis client initialized.");
-            maybeEnableButtons();
+            updateButtonStates(); // 初期化後にボタンの状態を更新
         }
 
         /**
-         * gapiとgisの両方が初期化されたらボタンを有効にします。
+         * 認証コールバック処理。認証成功後に保留中のアクションを実行します。
          */
-        function maybeEnableButtons() {
-            if (gapiInited && gisInited) {
-                authorizeButton.style.display = 'block';
-                book30MinButton.style.display = 'block'; // 30分予約ボタンも表示
+        async function handleAuthCallback(resp) {
+            if (resp.error !== undefined) {
+                console.error("認証エラー:", resp);
+                alert(`認証に失敗しました: ${resp.error}`);
+                pendingAction = null; // エラー時は保留中のアクションをクリア
+                updateButtonStates();
+                return;
+            }
+            console.log("認証成功:", resp);
+            updateButtonStates(); // 認証成功後にボタンの状態を更新
+
+            // 保留中のアクションがあれば実行
+            if (pendingAction) {
+                const actionToPerform = pendingAction;
+                pendingAction = null; // アクション実行前にクリア
+                await actionToPerform();
             }
         }
 
         /**
-         * 認証フローを開始します。
+         * ボタンの表示状態を更新します。
          */
-        function handleAuthClick() {
-            tokenClient.callback = async (resp) => {
-                if (resp.error !== undefined) {
-                    throw (resp);
-                }
-                authorizeButton.style.display = 'none';
-                signoutButton.style.display = 'block';
-                book30MinButton.style.display = 'block'; // 認証後も表示
-                console.log("認証成功:", resp);
-                // 認証成功後、必要であればカレンダーイベントを自動で読み込む
-                // fetchAndDisplayEvents();
-            };
+        function updateButtonStates() {
+            if (!gapiInited || !gisInited) {
+                // API/GISがまだ初期化されていない場合は何もしない
+                return;
+            }
 
             if (gapi.client.getToken() === null) {
-                // トークンがない場合、認証フローを開始
-                tokenClient.requestAccessToken({prompt: 'consent'});
+                // 未認証の場合
+                book30MinButton.textContent = '認証必要：30分予約';
+                book30MinButton.style.backgroundColor = '#ffc107'; // 注意を促す色
             } else {
-                // 既存のトークンがある場合、そのまま利用
-                tokenClient.requestAccessToken({prompt: ''});
-            }
-        }
-
-        /**
-         * ログアウトします。
-         */
-        function handleSignoutClick() {
-            const token = gapi.client.getToken();
-            if (token !== null) {
-                google.accounts.oauth2.revoke(token.access_token);
-                gapi.client.setToken('');
-                authorizeButton.style.display = 'block';
-                signoutButton.style.display = 'none';
-                book30MinButton.style.display = 'none'; // ログアウトしたら非表示
-                document.getElementById('calendar-events').innerHTML = '<p class="no-events">ログアウトしました。</p>';
-                console.log("ログアウトしました。");
+                // 認証済みの場合
+                book30MinButton.textContent = '30分予約';
+                book30MinButton.style.backgroundColor = ''; // デフォルトの色に戻す
             }
         }
 
@@ -149,13 +136,6 @@
                 eventsDiv.innerHTML = '<p style="color: red;">APIクライアントがまだ初期化されていません。しばらくお待ちください。</p>';
                 console.error("gapi client not initialized.");
                 return;
-            }
-
-            // 読み取り操作のため、認証は必須ではないが、認証済みであればトークンを利用
-            // gapi.client.getToken() が null でないことを確認する
-            if (gapi.client.getToken() === null) {
-                // 認証されていない場合は、読み込み専用のAPIキーで試みる
-                console.log("認証されていません。APIキーで読み込みを試みます。");
             }
 
             try {
@@ -228,8 +208,11 @@
                 return;
             }
 
+            // 認証済みであることを前提とする（この関数は認証後に呼び出されるため）
             if (gapi.client.getToken() === null) {
-                alert('30分予約にはGoogleアカウントでの認証が必要です。「Googleアカウントで認証」ボタンをクリックしてください。');
+                // ここに到達した場合はロジックエラーの可能性
+                console.error("認証されていない状態でcreate30MinEventが呼び出されました。");
+                alert("認証が必要です。再度ボタンをクリックしてください。");
                 return;
             }
 
@@ -241,7 +224,7 @@
                 'summary': '緊急会議 (30分)',
                 'start': {
                     'dateTime': start.toISOString(),
-                    'timeZone': Intl.DateTimeFormat().resolvedOptions().timeZone, // 現在のタイムゾーン
+                    'timeZone': Intl.DateTimeFormat().resolvedOptions().timeZone,
                 },
                 'end': {
                     'dateTime': end.toISOString(),
@@ -256,8 +239,7 @@
                 });
                 console.log('イベントが作成されました:', response.result);
                 alert('30分間の緊急会議が予約されました！');
-                // イベント作成後、カレンダーを再読み込みして表示を更新
-                fetchAndDisplayEvents();
+                fetchAndDisplayEvents(); // イベント作成後、カレンダーを再読み込みして表示を更新
             } catch (err) {
                 console.error('イベントの作成中にエラーが発生しました:', err);
                 alert(`イベントの作成に失敗しました: ${err.message || JSON.stringify(err)}`);
@@ -271,9 +253,18 @@
                 fetchAndDisplayEvents();
             }
         });
-        authorizeButton.addEventListener('click', handleAuthClick);
-        signoutButton.addEventListener('click', handleSignoutClick);
-        book30MinButton.addEventListener('click', create30MinEvent); // 30分予約ボタンのイベントリスナー
+
+        // 30分予約ボタンのクリックイベント
+        book30MinButton.addEventListener('click', async () => {
+            if (gapi.client.getToken() === null) {
+                // 未認証の場合、認証フローを開始し、認証後にcreate30MinEventを実行
+                pendingAction = create30MinEvent; // 認証後に実行するアクションをセット
+                tokenClient.requestAccessToken({prompt: 'consent'}); // 認証ダイアログを表示
+            } else {
+                // 認証済みの場合、直接create30MinEventを実行
+                await create30MinEvent();
+            }
+        });
     </script>
 </body>
 </html>
