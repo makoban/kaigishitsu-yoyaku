@@ -43,7 +43,7 @@
         const CLIENT_ID = '155458326593-redrcpnqa2iqapvg8p1kb3cgegeenvse.apps.googleusercontent.com'; // あなたのOAuth 2.0 クライアントIDに置き換えてください
         const SCOPES = 'https://www.googleapis.com/auth/calendar'; // 書き込み操作とカレンダーリスト取得のため
         const LOCAL_STORAGE_CALENDAR_KEY = 'selectedCalendar'; // localStorageのキー
-        const APP_VERSION = '1.0.1'; // ★バージョンを更新しました
+        const APP_VERSION = '1.0.2'; // ★バージョンを更新しました
 
         // --- 画面要素の参照 ---
         const currentCalendarNameSpan = document.getElementById('currentCalendarName');
@@ -97,7 +97,7 @@
                 console.log("checkSettingsAndLoad: localStorageから取得したカレンダー設定 =", storedCalendar); 
 
                 // アプリ起動時にバージョンを設定
-                if (appVersionSpan) { // 要素が存在するか確認
+                if (appVersionSpan) { 
                     appVersionSpan.textContent = APP_VERSION;
                 }
 
@@ -142,7 +142,7 @@
          */
         function updateButtonStates() {
             if (gapi.client.getToken() === null) {
-                book30MinButton.textContent = '認証必要：30分予約';
+                book30MinButton.textContent = 'アカウント選択：30分予約'; // 文言を修正
                 book30MinButton.style.backgroundColor = '#ffc107'; 
             } else {
                 book30MinButton.textContent = '30分予約';
@@ -238,7 +238,7 @@
 
             if (gapi.client.getToken() === null) {
                 console.error("認証されていない状態でcreate30MinEventが呼び出されました。");
-                alert("認証が必要です。再度ボタンをクリックしてください。"); 
+                alert("アカウント選択が必要です。再度ボタンをクリックしてください。"); // 文言を修正
                 return;
             }
 
