@@ -20,11 +20,11 @@
     <!-- 設定ボタン削除 -->
     <script src="https://apis.google.com/js/api.js" async defer></script>
     <script>
-        const API_KEY = 'AIzaSyDUFH1jbIa66NjzSM8I9Xpicwo6I6H2sB8';  // 制限付きAPIキー
-        const CLIENT_ID = '155458326593-redrcpnqa2iqapvg8p1kb3cgegeenvse.apps.googleusercontent.com';  // 制限付きOAuthクライアントID
+        const API_KEY = 'your-api-key-here';  // Restricted API key
+        const CLIENT_ID = 'your-client-id-here';  // Restricted OAuth client ID
         const DISCOVERY_DOC = 'https://www.googleapis.com/discovery/v1/apis/calendar/v3/rest';
         const SCOPES = 'https://www.googleapis.com/auth/calendar.events';
-        const calendarId = 'kabushikigaisyatest@gmail.com';  // ハードコード
+        const calendarId = 'kabushikigaisyatest@gmail.com';  // Hardcoded
 
         function initGapi() {
             gapi.load('client:auth2', () => {
@@ -36,7 +36,7 @@
                 }).then(() => {
                     gapi.auth2.getAuthInstance().isSignedIn.listen(updateSigninStatus);
                     fetchEvents();
-                    setInterval(fetchEvents, 60000);  // 1分更新
+                    setInterval(fetchEvents, 60000);  // 1 min update
                 });
             });
         }
@@ -50,12 +50,12 @@
             try {
                 const response = await fetch(url);
                 if (!response.ok) {
-                    throw new Error('APIエラー');
+                    throw new Error('API error');
                 }
                 const data = await response.json();
                 const cachedEvents = JSON.parse(localStorage.getItem('cachedEvents') || '[]');
                 if (JSON.stringify(data.items) === JSON.stringify(cachedEvents)) {
-                    console.log('No change');  // return代替でログ出力、早期return
+                    console.log('No change');  // Alternative for logging, early return
                     return;
                 }
                 localStorage.setItem('cachedEvents', JSON.stringify(data.items));
@@ -129,7 +129,7 @@
         }
 
         function updateSigninStatus(isSignedIn) {
-            // 認証状態更新（必要に応じて）
+            // Update sign-in status if needed
         }
 
         document.getElementById('reserveBtn').onclick = createReservation;
