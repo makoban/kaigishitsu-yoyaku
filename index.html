@@ -20,8 +20,8 @@
     <button onclick="location.href='settings.html'">設定</button>
     <script src="https://apis.google.com/js/api.js" async defer></script>
     <script>
-        const API_KEY = 'AIzaSyDUFH1jbIa66NjzSM8I9Xpicwo6I6H2sB8';  // 制限付きAPIキー
-        const CLIENT_ID = 'kaigishitsu20000101@gmail.com';  // 制限付きOAuthクライアントID
+        const API_KEY = 'your-api-key-here';  // 制限付きAPIキー
+        const CLIENT_ID = 'your-client-id-here';  // 制限付きOAuthクライアントID
         const DISCOVERY_DOC = 'https://www.googleapis.com/discovery/v1/apis/calendar/v3/rest';
         const SCOPES = 'https://www.googleapis.com/auth/calendar.events';
         let calendarId = localStorage.getItem('calendarId') || 'kaigishitsu20000101@gmail.com';
@@ -49,18 +49,22 @@
             
             try {
                 const response = await fetch(url);
-                if (!response.ok) throw new Error('APIエラー');
+                if (!response.ok) {
+                    throw new Error('APIエラー');
+                }
                 const data = await response.json();
                 const cachedEvents = JSON.parse(localStorage.getItem('cachedEvents') || '[]');
                 if (JSON.stringify(data.items) === JSON.stringify(cachedEvents)) {
-                    return;  // 変更なし: ここがline 23付近。関数内に確実に配置
+                    return;  // 変更なし: インデント確認
                 }
                 localStorage.setItem('cachedEvents', JSON.stringify(data.items));
                 displayEvents(data.items);
             } catch (error) {
                 console.error(error);
                 const cachedEvents = JSON.parse(localStorage.getItem('cachedEvents') || '[]');
-                if (cachedEvents.length) displayEvents(cachedEvents);
+                if (cachedEvents.length > 0) {
+                    displayEvents(cachedEvents);
+                }
             }
         }
 
@@ -79,8 +83,11 @@
                 deleteBtn.onclick = () => deleteEvent(event.id);
                 li.appendChild(deleteBtn);
                 eventsList.appendChild(li);
-                if (start <= now && now < end) statusMsg = '会議中です。';
-                else if (end < now + 15*60*1000) statusMsg = '次の予約まで15分以内です。';
+                if (start <= now && now < end) {
+                    statusMsg = '会議中です。';
+                } else if (start - now < 15 * 60 * 1000 && start > now) {
+                    statusMsg = '次の予約まで15分以内です。';
+                }
             });
             document.getElementById('status').textContent = statusMsg;
         }
