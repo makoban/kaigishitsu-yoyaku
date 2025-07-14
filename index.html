@@ -1,168 +1,159 @@
 <!DOCTYPE html>
-<html lang="ja">
+<html>
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>会議室予約表示</title>
+    <title>今日の会議室予定</title>
+    <meta charset="utf-8">
     <style>
-        body { font-family: Arial, sans-serif; text-align: center; background-color: #f0f0f0; margin: 0; padding: 20px; }
-        #status { font-size: 2em; margin: 20px; }
-        #events { list-style: none; padding: 0; }
-        #events li { background: #fff; margin: 10px; padding: 10px; border: 1px solid #ddd; }
-        button { font-size: 1.5em; margin: 10px; }
+        body { font-family: 'Arial', sans-serif; margin: 20px; }
+        #calendar-events { border: 1px solid #ccc; padding: 15px; margin-top: 20px; }
+        .event-item { margin-bottom: 10px; padding: 8px; background-color: #f9f9f9; border-left: 5px solid #007bff; }
+        .event-title { font-weight: bold; }
+        .event-time { font-size: 0.9em; color: #555; }
+        .event-location { font-size: 0.8em; color: #777; }
+        .no-events { color: #888; }
+        #calendarIdInput { width: 300px; padding: 8px; margin-right: 10px; }
+        button { padding: 8px 15px; cursor: pointer; }
     </style>
 </head>
 <body>
-    <h1>会議室利用状況2</h1>
-    <div id="status">読み込み中...</div>
-    <ul id="events"></ul>
-    <button id="reserveBtn">今から30分予約</button>
-    <script async defer src="https://apis.google.com/js/api.js" onload="gapiLoaded()"></script>
-    <script async defer src="https://accounts.google.com/gsi/client" onload="gisLoaded()"></script>
+    <h1>会議室の今日の予定</h1>
+
+    <div>
+        <label for="calendarIdInput">カレンダーID:</label>
+        <input type="text" id="calendarIdInput" placeholder="カレンダーIDを入力してください">
+        <button id="loadEventsButton">予定を読み込む</button>
+    </div>
+
+    <div id="calendar-events">
+        <p class="no-events">ここに今日の予定が表示されます。</p>
+    </div>
+
+    <script async defer src="https://apis.google.com/js/api.js" onload="this.onload=function(){};handleClientLoad()" onreadystatechange="if (this.readyState === 'complete') this.onload()"></script>
+
     <script>
-        const API_KEY = 'AIzaSyDUFH1jbIa66NjzSM8I9Xpicwo6I6H2sB8';  // Restricted API key
-        const CLIENT_ID = '155458326593-redrcpnqa2iqapvg8p1kb3cgegeenvse.apps.googleusercontent.com';  // Restricted OAuth client ID
-        const DISCOVERY_DOC = 'https://www.googleapis.com/discovery/v1/apis/calendar/v3/rest';
-        const SCOPES = 'https://www.googleapis.com/auth/calendar.events';
-        const calendarId = 'kabushikigaisyatest@gmail.com';  // Hardcoded
+        // *** ここにAPIキーとクライアントIDを設定します ***
+        // APIキーはGoogle Cloud Consoleで作成し、制限を設定してください。
+        const API_KEY = 'AIzaSyDUFH1jbIa66NjzSM8I9Xpicwo6I6H2sB8'; // あなたのAPIキーに置き換えてください
+
+        // OAuth 2.0 クライアントIDは、イベントの作成・削除など書き込み操作が必要な場合に設定します。
+        // 今回の「閲覧のみ」の要件では必須ではありませんが、将来的な拡張のために残しています。
+        const CLIENT_ID = 'YOUR_OAUTH_CLIENT_ID'; // あなたのOAuth 2.0 クライアントIDに置き換えてください (任意)
+
+        // APIスコープ (読み取り専用)
+        const SCOPES = 'https://www.googleapis.com/auth/calendar.readonly';
 
         let gapiInited = false;
         let gisInited = false;
-        let tokenClient;
 
-        function gapiLoaded() {
+        /**
+         * Google APIクライアントライブラリがロードされたときに呼び出されます。
+         */
+        function handleClientLoad() {
             gapi.load('client', initializeGapiClient);
         }
 
+        /**
+         * gapiクライアントを初期化します。
+         */
         async function initializeGapiClient() {
             await gapi.client.init({
                 apiKey: API_KEY,
-                discoveryDocs: [DISCOVERY_DOC]
+                discoveryDocs: ['https://www.googleapis.com/discovery/v1/apis/calendar/v3/rest'],
             });
             gapiInited = true;
-            maybeEnableButtons();
-            fetchEvents();  // 初回呼び出し
-            setInterval(fetchEvents, 60000);
+            console.log("gapi client initialized.");
+            // 初期表示ではカレンダーID入力後にボタンで読み込むため、自動読み込みはしない
         }
 
-        function gisLoaded() {
-            tokenClient = google.accounts.oauth2.initTokenClient({
-                client_id: CLIENT_ID,
-                scope: SCOPES,
-                callback: ''  // Placeholder
-            });
-            gisInited = true;
-            maybeEnableButtons();
-        }
+        /**
+         * カレンダーイベントをフェッチして表示します。
+         */
+        async function fetchAndDisplayEvents() {
+            const calendarId = document.getElementById('calendarIdInput').value.trim();
+            const eventsDiv = document.getElementById('calendar-events');
+            eventsDiv.innerHTML = '<p>読み込み中...</p>'; // 読み込み中の表示
 
-        function maybeEnableButtons() {
-            if (gapiInited && gisInited) {
-                // ボタン有効化（任意）
+            if (!calendarId) {
+                eventsDiv.innerHTML = '<p class="no-events">カレンダーIDを入力してください。</p>';
+                return;
             }
-        }
 
-        async function fetchEvents() {
-            const now = new Date();
-            const timeMin = now.toISOString();
-            const timeMax = new Date(now.setDate(now.getDate() + 1)).toISOString();
-            const url = `https://www.googleapis.com/calendar/v3/calendars/${encodeURIComponent(calendarId)}/events?key=${API_KEY}&timeMin=${timeMin}&timeMax=${timeMax}&singleEvents=true&orderBy=startTime`;
-            
+            if (!gapiInited) {
+                eventsDiv.innerHTML = '<p style="color: red;">APIクライアントがまだ初期化されていません。しばらくお待ちください。</p>';
+                console.error("gapi client not initialized.");
+                return;
+            }
+
             try {
-                const response = await fetch(url);
-                if (!response.ok) {
-                    throw new Error('API error');
-                }
-                const data = await response.json();
-                const cachedEvents = JSON.parse(localStorage.getItem('cachedEvents') || '[]');
-                const hasChange = JSON.stringify(data.items) !== JSON.stringify(cachedEvents);
-                if (!hasChange) return;
-                localStorage.setItem('cachedEvents', JSON.stringify(data.items));
-                displayEvents(data.items);
-            } catch (error) {
-                console.error(error);
-                const cachedEvents = JSON.parse(localStorage.getItem('cachedEvents') || '[]');
-                if (cachedEvents.length > 0) {
-                    displayEvents(cachedEvents);
-                } else {
-                    document.getElementById('status').textContent = 'オフライン: データなし';
-                }
-            }
-        }
+                // 今日の日付を取得し、その日のイベントを取得するための時間範囲を設定
+                const today = new Date();
+                today.setHours(0, 0, 0, 0); // 今日の始まり
+                const tomorrow = new Date(today);
+                tomorrow.setDate(today.getDate() + 1); // 今日の終わり (翌日の始まり)
 
-        function displayEvents(events) {
-            const eventsList = document.getElementById('events');
-            eventsList.innerHTML = '';
-            const now = new Date();
-            let statusMsg = '空室です。';
-            events.forEach(event => {
-                const start = new Date(event.start.dateTime);
-                const end = new Date(event.end.dateTime);
-                const li = document.createElement('li');
-                li.textContent = `${event.summary} (${start.toLocaleTimeString()} - ${end.toLocaleTimeString()})`;
-                const deleteBtn = document.createElement('button');
-                deleteBtn.textContent = '削除';
-                deleteBtn.onclick = () => deleteEvent(event.id);
-                li.appendChild(deleteBtn);
-                eventsList.appendChild(li);
-                if (start <= now && now < end) {
-                    statusMsg = '会議中です。';
-                } else if (start - now < 15 * 60 * 1000 && start > now) {
-                    statusMsg = '次の予約まで15分以内です。';
-                }
-            });
-            document.getElementById('status').textContent = statusMsg;
-        }
-
-        async function handleAuth() {
-            return new Promise((resolve, reject) => {
-                tokenClient.callback = (resp) => {
-                    if (resp.error) reject(resp);
-                    else resolve();
-                };
-                if (gapi.client.getToken() === null) {
-                    tokenClient.requestAccessToken({prompt: 'consent'});
-                } else {
-                    tokenClient.requestAccessToken({prompt: ''});
-                }
-            });
-        }
-
-        async function createReservation() {
-            if (!gapi.client.getToken()) {
-                await handleAuth();
-            }
-            const event = {
-                summary: '即時予約',
-                start: { dateTime: new Date().toISOString() },
-                end: { dateTime: new Date(Date.now() + 30*60*1000).toISOString() }
-            };
-            try {
-                await gapi.client.calendar.events.insert({
-                    calendarId: calendarId,
-                    resource: event
+                const response = await gapi.client.calendar.events.list({
+                    'calendarId': calendarId,
+                    'timeMin': today.toISOString(),
+                    'timeMax': tomorrow.toISOString(),
+                    'showDeleted': false,
+                    'singleEvents': true,
+                    'orderBy': 'startTime',
                 });
-                fetchEvents();
-            } catch (error) {
-                console.error(error);
+
+                const events = response.result.items;
+                eventsDiv.innerHTML = ''; // クリア
+
+                if (events.length > 0) {
+                    events.forEach(event => {
+                        const start = event.start.dateTime || event.start.date;
+                        const end = event.end.dateTime || event.end.date;
+
+                        const eventItem = document.createElement('div');
+                        eventItem.className = 'event-item';
+
+                        const title = document.createElement('div');
+                        title.className = 'event-title';
+                        title.textContent = event.summary || 'タイトルなし';
+                        eventItem.appendChild(title);
+
+                        const time = document.createElement('div');
+                        time.className = 'event-time';
+                        if (event.start.dateTime) { // 時刻情報がある場合 (終日イベントではない場合)
+                            const startDate = new Date(start);
+                            const endDate = new Date(end);
+                            time.textContent = `${startDate.toLocaleTimeString()} - ${endDate.toLocaleTimeString()}`;
+                        } else { // 終日イベントの場合
+                            time.textContent = '終日';
+                        }
+                        eventItem.appendChild(time);
+
+                        if (event.location) {
+                            const location = document.createElement('div');
+                            location.className = 'event-location';
+                            location.textContent = `場所: ${event.location}`;
+                            eventItem.appendChild(location);
+                        }
+
+                        eventsDiv.appendChild(eventItem);
+                    });
+                } else {
+                    eventsDiv.innerHTML = '<p class="no-events">今日の予定はありません。</p>';
+                }
+            } catch (err) {
+                console.error('カレンダーイベントの取得中にエラーが発生しました:', err);
+                eventsDiv.innerHTML = `<p style="color: red;">エラーが発生しました: ${err.message || JSON.stringify(err)}</p>`;
             }
         }
 
-        async function deleteEvent(eventId) {
-            if (!gapi.client.getToken()) {
-                await handleAuth();
-            }
-            try {
-                await gapi.client.calendar.events.delete({
-                    calendarId: calendarId,
-                    eventId: eventId
-                });
-                fetchEvents();
-            } catch (error) {
-                console.error(error);
-            }
-        }
+        // ボタンクリックイベントリスナー
+        document.getElementById('loadEventsButton').addEventListener('click', fetchAndDisplayEvents);
 
-        document.getElementById('reserveBtn').onclick = createReservation;
+        // Enterキーでのイベント読み込み
+        document.getElementById('calendarIdInput').addEventListener('keypress', function(e) {
+            if (e.key === 'Enter') {
+                fetchAndDisplayEvents();
+            }
+        });
     </script>
 </body>
 </html>
