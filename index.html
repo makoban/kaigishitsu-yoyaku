@@ -99,7 +99,7 @@
 
     <div id="container">
         <div id="calendar_list_container" class="panel">
-            <h2>利用可能なカレンダー</h2>
+            <h2>自分で作成したカレンダー</h2>
             <ul id="calendar_list">
                 <li>ボタンをクリックして認証を開始してください。</li>
             </ul>
@@ -159,10 +159,8 @@
                         console.error('GISトークンクライアントエラー:', error);
                         displayError('認証エラーが発生しました。コンソールを確認してください。');
                     }
-                    // ★ `Cross-Origin-Opener-Policy` エラーが続く場合は、
-                    // ★ 以下のどちらか、または両方を試してください。
-                    // ux_mode: 'redirect',
-                    // redirect_uri: 'https://makoban.github.io'
+                    // ux_mode: 'redirect', // クロスオリジンエラーが続く場合は有効化を検討
+                    // redirect_uri: 'https://makoban.github.io' // OAuth設定の承認済みリダイレクトURIと一致させる
                 });
 
                 document.getElementById('authorize_button').disabled = false;
@@ -189,18 +187,21 @@
 
             try {
                 const response = await gapi.client.calendar.calendarList.list();
-                const calendars = response.result.items;
+                const allCalendars = response.result.items;
 
-                if (calendars && calendars.length > 0) {
-                    calendars.forEach(calendar => {
+                // オーナー権限を持つカレンダーのみをフィルタリング
+                const ownedCalendars = allCalendars.filter(calendar => calendar.accessRole === 'owner');
+
+                if (ownedCalendars && ownedCalendars.length > 0) {
+                    ownedCalendars.forEach(calendar => {
                         const li = document.createElement('li');
                         li.innerHTML = `
-                            <span>${calendar.summary} (${calendar.id})</span>
+                            <span>${calendar.summary}</span>
                             <button class="select-button" data-calendar-id="${calendar.id}" data-calendar-summary="${calendar.summary}">選択</button>
                         `;
                         calendarListUl.appendChild(li);
                     });
-                    console.log('カレンダーリストを正常に表示しました:', calendars);
+                    console.log('オーナーカレンダーリストを正常に表示しました:', ownedCalendars);
 
                     // 各「選択」ボタンにイベントリスナーを追加
                     document.querySelectorAll('.select-button').forEach(button => {
@@ -214,9 +215,9 @@
                     });
                 } else {
                     const li = document.createElement('li');
-                    li.textContent = 'Googleアカウントに紐づくカレンダーが見つかりませんでした。';
+                    li.textContent = '自分で作成したカレンダーが見つかりませんでした。';
                     calendarListUl.appendChild(li);
-                    console.log('カレンダーが見つかりませんでした。');
+                    console.log('オーナーカレンダーが見つかりませんでした。');
                 }
             } catch (err) {
                 console.error('カレンダーリストの取得エラー:', err.result ? err.result.error : err);
@@ -242,7 +243,7 @@
                     'showDeleted': false,
                     'singleEvents': true,
                     'orderBy': 'startTime',
-                    'maxResults': 20 // 取得するイベントの最大数を設定
+                    'maxResults': 20
                 });
 
                 const events = response.result.items;
@@ -252,18 +253,29 @@
                         const start = event.start.dateTime || event.start.date;
                         const end = event.end.dateTime || event.end.date;
 
+                        // 開始日時と終了日時をフォーマット
+                        const startDate = new Date(start).toLocaleDateString('ja-JP');
                         const startTime = new Date(start).toLocaleTimeString('ja-JP', { hour: '2-digit', minute: '2-digit' });
                         const endTime = new Date(end).toLocaleTimeString('ja-JP', { hour: '2-digit', minute: '2-digit' });
-                        const eventDate = new Date(start).toLocaleDateString('ja-JP');
 
                         const li = document.createElement('li');
                         li.className = 'event-item';
-                        li.innerHTML = `
-                            <div>
-                                <span class="event-time">${eventDate} ${startTime} - ${endTime}</span>
-                                <span class="event-summary">${event.summary || 'タイトルなし'}</span>
-                            </div>
-                        `;
+                        // 全日イベントの場合の表示調整
+                        if (event.start.date && !event.start.dateTime) { // 全日イベントの場合
+                             li.innerHTML = `
+                                <div>
+                                    <span class="event-time">${startDate} (終日)</span>
+                                    <span class="event-summary">${event.summary || 'タイトルなし'}</span>
+                                </div>
+                            `;
+                        } else {
+                            li.innerHTML = `
+                                <div>
+                                    <span class="event-time">${startDate} ${startTime} - ${endTime}</span>
+                                    <span class="event-summary">${event.summary || 'タイトルなし'}</span>
+                                </div>
+                            `;
+                        }
                         eventListUl.appendChild(li);
                     });
                     console.log(`イベントを正常に表示しました (${calendarId}):`, events);
