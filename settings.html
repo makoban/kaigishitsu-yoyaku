@@ -23,15 +23,13 @@
 </head>
 <body>
     <div id="settings-screen">
-        <h1>設定</h1> <p>Googleアカウントと表示するカレンダーを設定してください。</p> <div class="account-info-display" id="accountInfoDisplay">Googleアカウントが選択されていません</div> 
+        <h1>設定</h1> <p>Googleアカウントを選択し、表示するカレンダーを設定してください。</p> <div class="account-info-display" id="accountInfoDisplay">Googleアカウントが選択されていません</div> 
         <span id="accountEmailDisplay" class="hidden"></span> 
         
-        <button id="goToMainForAccountButton">Googleアカウントを選択・変更</button> 
-
-        <div class="settings-section" id="calendarSelectionArea"> 
-            <h2>利用可能なカレンダー</h2> <p>ここに表示されるカレンダーから、メイン画面で表示するカレンダーを選んでください。</p>
+        <button id="goToMainForAccountButton">Googleアカウントを選択・変更</button> <div class="settings-section" id="calendarSelectionArea"> 
+            <h2>利用可能なカレンダー</h2> <p>Googleアカウントが選択されている場合、ここに表示されるカレンダーからメイン画面で表示するカレンダーを選んでください。</p>
             <select id="calendarListSelect" size="10">
-                <option>Googleアカウントを選択してください。</option> </select>
+                <option>Googleアカウントをメイン画面で選択してください。</option> </select>
             <button id="confirmCalendarButton">カレンダー確定</button> 
         </div>
         <button id="backToMainButton">戻る</button> 
@@ -48,8 +46,8 @@
         // --- 画面要素の参照 ---
         const accountInfoDisplayDiv = document.getElementById('accountInfoDisplay'); 
         const accountEmailDisplaySpan = document.getElementById('accountEmailDisplay'); 
-        const goToMainForAccountButton = document.getElementById('goToMainForAccountButton'); // 新しいボタン
-        const calendarSelectionArea = document.getElementById('calendarSelectionArea');
+        const goToMainForAccountButton = document.getElementById('goToMainForAccountButton'); 
+        const calendarSelectionArea = document.getElementById('calendarSelectionArea'); // この要素は常に存在すると仮定
         const calendarListSelect = document.getElementById('calendarListSelect');
         const confirmCalendarButton = document.getElementById('confirmCalendarButton'); 
         const backToMainButton = document.getElementById('backToMainButton');
@@ -72,6 +70,7 @@
 
         /**
          * 設定画面のUIをlocalStorageの情報に基づいて更新します。
+         * OAuth認証はメイン画面で行われるため、ここではlocalStorageの情報を表示するのみ。
          */
         function updateSettingsPageUI() {
             const storedEmail = localStorage.getItem(LOCAL_STORAGE_ACCOUNT_EMAIL_KEY);
@@ -125,7 +124,7 @@
             // Googleアカウントが選択されていない状態ではカレンダー確定できないようにする
             const storedEmail = localStorage.getItem(LOCAL_STORAGE_ACCOUNT_EMAIL_KEY);
             if (!storedEmail) {
-                alert('先にGoogleアカウントを選択してください。');
+                alert('先にGoogleアカウントを選択してください。（メイン画面に移動後、「Googleアカウントを選択」ボタンをクリック）');
                 return;
             }
 
@@ -146,6 +145,7 @@
         // --- イベントリスナーの設定 ---
         
         goToMainForAccountButton.addEventListener('click', () => {
+            // アカウント選択はメイン画面で行うことを促し、メイン画面へ移動
             alert('Googleアカウントの選択はメイン画面で行います。メイン画面に移動後、「Googleアカウントを選択」ボタンをクリックしてください。');
             window.location.href = 'index.html';
         });
