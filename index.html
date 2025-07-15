@@ -1,549 +1,197 @@
 <!DOCTYPE html>
 <html>
 <head>
-    <title>会議室予約表示アプリ</title>
-    <meta charset="utf-8">
+    <title>Google カレンダーリスト表示</title>
+    <script src="https://apis.google.com/js/api.js"></script>
+    <script src="https://accounts.google.com/gsi/client"></script>
     <style>
-        body { font-family: 'Arial', sans-serif; margin: 20px; }
-        #main-content {
-            border: 1px solid #eee;
-            padding: 20px;
-            margin-bottom: 20px;
-            box-shadow: 2px 2px 5px rgba(0,0,0,0.1);
-        }
-        #calendar-events { border: 1px solid #ccc; padding: 15px; margin-top: 20px; }
-        .event-item { margin-bottom: 10px; padding: 8px; background-color: #f9f9f9; border-left: 5px solid #007bff; }
-        .event-title { font-weight: bold; }
-        .event-time { font-size: 0.9em; color: #555; }
-        .event-location { font-size: 0.8em; color: #777; }
-        .no-events { color: #888; }
-        button { padding: 8px 15px; cursor: pointer; margin-right: 5px; }
-
-        /* 設定メニューのスタイル */
-        #settings-menu {
-            position: fixed; /* 画面に固定 */
-            top: 0;
-            right: 0;
-            width: 300px; /* メニューの幅 */
-            height: 100%;
-            background-color: #f8f8f8;
-            border-left: 1px solid #ccc;
-            box-shadow: -2px 0 5px rgba(0,0,0,0.1);
-            transform: translateX(100%); /* 初期状態は右に隠す */
-            transition: transform 0.3s ease-in-out; /* スライドアニメーション */
-            padding: 20px;
-            box-sizing: border-box;
-            z-index: 1000; /* 他の要素より手前に表示 */
-            overflow-y: auto; /* メニューが長い場合にスクロール可能に */
-        }
-        #settings-menu.open {
-            transform: translateX(0); /* 表示状態 */
-        }
-        #menu-toggle-button {
-            position: fixed;
-            top: 10px;
-            right: 10px;
-            background-color: #007bff;
+        body { font-family: Arial, sans-serif; margin: 20px; background-color: #f4f4f4; color: #333; }
+        h1, h2 { color: #0056b3; }
+        #authorize_button {
+            padding: 12px 25px;
+            font-size: 18px;
+            background-color: #4285f4; /* Google Blue */
             color: white;
             border: none;
             border-radius: 5px;
-            padding: 10px 15px;
             cursor: pointer;
-            z-index: 1001; /* メニューボタンをメニューより手前に */
+            transition: background-color 0.3s ease;
         }
-        .settings-section { margin-top: 20px; padding-top: 15px; border-top: 1px solid #eee; }
-        .account-info-display { margin-top: 10px; font-size: 0.9em; color: #555; } 
-        .account-info-display.set { color: green; }
-        .account-info-display.unset { color: red; }
-        #accountEmailDisplay { font-weight: bold; margin-left: 5px; } 
+        #authorize_button:hover {
+            background-color: #357ae8;
+        }
+        #authorize_button:disabled {
+            background-color: #a0a0a0;
+            cursor: not-allowed;
+        }
+        #calendar_list_container {
+            margin-top: 30px;
+            padding: 20px;
+            background-color: #ffffff;
+            border: 1px solid #ddd;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        #calendar_list_container ul {
+            list-style-type: disc; /* リストの先頭に点を表示 */
+            padding-left: 25px;
+        }
+        #calendar_list_container li {
+            margin-bottom: 10px;
+            line-height: 1.5;
+            color: #555;
+        }
+        .error-message {
+            color: red;
+            font-weight: bold;
+            margin-top: 15px;
+        }
     </style>
 </head>
 <body>
-    <div id="main-content">
-        <h1>会議室の今日の予定</h1>
-        <p>表示中のカレンダー: <span id="currentCalendarName">未設定</span></p>
-        <p>バージョン: <span id="appVersion"></span></p>
-        <p>最終更新日: <span id="lastDeployDate"></span></p> 
-        
-        <div>
-            <button id="book30MinButton">強制30分予約</button>
-            <button id="loadEventsButton">更新</button>
-            </div>
-        
-        <h2>スケジュール一覧</h2>
-        <div id="calendar-events">
-            <p class="no-events">ここに今日の予定が表示されます。</p>
-        </div>
+    <h1>Google カレンダーリスト表示</h1>
+
+    <p>以下のボタンをクリックしてGoogleアカウントを選択し、利用可能なカレンダーを表示します。</p>
+    <button id="authorize_button" disabled>Googleアカウントを選択</button>
+
+    <div id="calendar_list_container">
+        <h2>利用可能なカレンダー</h2>
+        <ul id="calendar_list">
+            <li>ボタンをクリックして認証を開始してください。</li>
+        </ul>
+        <p id="error_display" class="error-message"></p>
     </div>
 
-    <button id="menu-toggle-button">設定</button>
-    <div id="settings-menu">
-        <h2>設定</h2>
-        <p>Googleアカウントを選択し、表示するカレンダーを設定してください。</p>
-        
-        <div class="account-info-display" id="accountInfoDisplay">Googleアカウントが選択されていません</div> 
-        <span id="accountEmailDisplay" class="hidden"></span> 
-        
-        <button id="selectGoogleAccountButton">Googleアカウント選択</button>
-        <button id="clearAccountSettingsButton">アカウント設定を解除</button>
-
-        <div class="settings-section" id="calendarSelectionArea"> 
-            <h2>利用可能なカレンダー</h2>
-            <p>Googleアカウント選択後、ここに表示されるカレンダーから、メイン画面で表示するカレンダーを選んでください。</p>
-            <select id="calendarListSelect" size="10">
-                <option>Googleアカウントを選択してください。</option>
-            </select>
-            <button id="confirmCalendarButton">カレンダー確定</button> 
-        </div>
-        <button id="closeSettingsButton">閉じる</button> </div>
-
-    <script async defer src="https://apis.google.com/js/api.js" onload="gapiLoaded()"></script>
-    <script async defer src="https://accounts.google.com/gsi/client" onload="gisLoaded()"></script>
-
     <script>
-        // --- 設定値（共通） ---
-        const API_KEY = 'AIzaSyDUFH1jbIa66NjzSM8I9Xpicwo6I6H2sB8'; 
-        const CLIENT_ID = '155458326593-redrcpnqa2iqapvg8p1kb3cgegeenvse.apps.googleusercontent.com'; 
-        const SCOPES = 'https://www.googleapis.com/auth/calendar'; 
-        const LOCAL_STORAGE_CALENDAR_KEY = 'selectedCalendar'; 
-        const LOCAL_STORAGE_ACCOUNT_EMAIL_KEY = 'authenticatedAccountEmail'; 
-        const LOCAL_STORAGE_CALENDAR_LIST_KEY = 'calendarList'; 
-        const APP_VERSION = '1.0.7'; 
-        const LAST_DEPLOY_DATE = '2025/07/15 21:50 JST'; // ★デプロイ日時を更新
+        // ★★★ ここをあなたの情報に置き換えてください ★★★
+        const CLIENT_ID = 'あなたのOAuth 2.0 クライアントID'; // 例: 123456789012-xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx.apps.googleusercontent.com
+        const API_KEY = 'あなたのAPIキー';           // 例: AIzaSyB_xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
+        // ★★★ ここまで ★★★
 
-        // --- 画面要素の参照 ---
-        const currentCalendarNameSpan = document.getElementById('currentCalendarName');
-        const appVersionSpan = document.getElementById('appVersion');
-        const lastDeployDateSpan = document.getElementById('lastDeployDate'); 
-        const loadEventsButton = document.getElementById('loadEventsButton');
-        const book30MinButton = document.getElementById('book30MinButton');
-        const calendarEventsDiv = document.getElementById('calendar-events');
+        const DISCOVERY_DOCS = ["https://www.googleapis.com/discovery/v1/apis/calendar/v3/rest"];
+        const SCOPES = 'https://www.googleapis.com/auth/calendar.readonly'; // カレンダーの読み取り専用スコープ
 
-        // 設定メニュー関連要素
-        const menuToggleButton = document.getElementById('menu-toggle-button');
-        const settingsMenu = document.getElementById('settings-menu');
-        const closeSettingsButton = document.getElementById('closeSettingsButton');
+        let tokenClient; // Google Identity Services (GIS) のトークンクライアント
 
-        // 設定メニュー内の要素
-        const accountInfoDisplayDiv = document.getElementById('accountInfoDisplay'); 
-        const accountEmailDisplaySpan = document.getElementById('accountEmailDisplay'); 
-        const selectGoogleAccountButton = document.getElementById('selectGoogleAccountButton');
-        const clearAccountSettingsButton = document.getElementById('clearAccountSettingsButton');
-        const calendarSelectionArea = document.getElementById('calendarSelectionArea');
-        const calendarListSelect = document.getElementById('calendarListSelect');
-        const confirmCalendarButton = document.getElementById('confirmCalendarButton'); 
+        // HTMLコンテンツの読み込みが完了したら初期化処理を開始
+        document.addEventListener('DOMContentLoaded', () => {
+            const authorizeButton = document.getElementById('authorize_button');
+            authorizeButton.onclick = handleAuthClick; // ボタンクリック時のイベントを設定
 
-        let tokenClient;
-        let gapiInited = false;
-        let gisInited = false;
-        let pendingAction = null; 
+            // gapiクライアントライブラリのロードと初期化
+            gapi.load('client', initGapiClient);
+        });
 
-        let selectedCalendarId = ''; 
-        let selectedCalendarName = ''; 
-
-        // --- 初期化処理 ---
-
-        function gapiLoaded() {
-            gapi.load('client', initializeGapiClient);
-        }
-
-        async function initializeGapiClient() {
-            await gapi.client.init({
+        // gapiクライアントの初期化関数
+        function initGapiClient() {
+            gapi.client.init({
                 apiKey: API_KEY,
-                discoveryDocs: ['https://www.googleapis.com/discovery/v1/apis/calendar/v3/rest'],
+                discoveryDocs: DISCOVERY_DOCS,
+            }).then(() => {
+                console.log('gapi client initialized.');
+
+                // GISトークンクライアントの初期化 (OAuth 2.0認証フローを管理)
+                tokenClient = google.accounts.oauth2.initTokenClient({
+                    client_id: CLIENT_ID,
+                    scope: SCOPES,
+                    // アクセストークン取得後のコールバック関数
+                    callback: (tokenResponse) => {
+                        if (tokenResponse && tokenResponse.access_token) {
+                            gapi.client.setToken(tokenResponse); // 取得したトークンをgapiクライアントに設定
+                            console.log('アクセストークンを取得しました:', tokenResponse);
+                            displayMessage('カレンダーリストを読み込み中...');
+                            listCalendars(); // カレンダーリストの取得と表示を開始
+                        } else {
+                            console.error('アクセストークンの取得に失敗しました。', tokenResponse);
+                            displayError('Googleアカウントの認証に失敗しました。再度お試しください。');
+                        }
+                    },
+                    // エラー発生時のコールバック関数
+                    error_callback: (error) => {
+                        console.error('GISトークンクライアントエラー:', error);
+                        displayError('認証エラーが発生しました。コンソールを確認してください。');
+                    }
+                    // ★ `Cross-Origin-Opener-Policy` エラーが続く場合は、
+                    // ★ 以下のどちらか、または両方を試してください。
+                    // ux_mode: 'redirect', // ポップアップではなくリダイレクトを使用
+                    // redirect_uri: 'https://makoban.github.io' // OAuth設定の承認済みリダイレクトURIと一致させる
+                });
+
+                // 認証ボタンを有効にする
+                document.getElementById('authorize_button').disabled = false;
+
+            }).catch(err => {
+                console.error('gapiクライアントの初期化エラー:', err);
+                displayError('APIクライアントの初期化に失敗しました。APIキーまたはネットワーク接続を確認してください。');
             });
-            gapiInited = true;
-            console.log("gapi client initialized.");
-            checkSettingsAndLoad(); 
         }
 
-        function gisLoaded() {
-            tokenClient = google.accounts.oauth2.initTokenClient({
-                client_id: CLIENT_ID,
-                scope: SCOPES,
-                callback: handleAuthCallback,
-            });
-            gisInited = true;
-            console.log("gis client initialized.");
-            checkSettingsAndLoad(); 
-        }
-
-        /**
-         * gapiとgisの両方が初期化されたら、保存された設定に基づいて表示をロードします。
-         */
-        function checkSettingsAndLoad() {
-            if (gapiInited && gisInited) {
-                const storedCalendar = JSON.parse(localStorage.getItem(LOCAL_STORAGE_CALENDAR_KEY));
-                console.log("checkSettingsAndLoad: localStorageから取得したカレンダー設定 =", storedCalendar); 
-
-                // アプリ起動時にバージョンとデプロイ日を設定
-                if (appVersionSpan) { 
-                    appVersionSpan.textContent = APP_VERSION;
-                }
-                if (lastDeployDateSpan) { 
-                    lastDeployDateSpan.textContent = LAST_DEPLOY_DATE;
-                }
-
-                if (storedCalendar && storedCalendar.id && storedCalendar.name) {
-                    selectedCalendarId = storedCalendar.id;
-                    selectedCalendarName = storedCalendar.name;
-                    currentCalendarNameSpan.textContent = selectedCalendarName; 
-                    fetchAndDisplayEvents(); 
-                } else {
-                    // カレンダー未設定の場合、設定メニューを開く
-                    alert('表示するカレンダーが設定されていません。設定メニューから設定してください。');
-                    currentCalendarNameSpan.textContent = '未設定';
-                    calendarEventsDiv.innerHTML = '<p class="no-events">カレンダーが設定されていません。設定メニューから選択してください。</p>';
-                    openSettingsMenu(); // メニューを自動で開く
-                }
-                updateButtonStates(); // 予約ボタンの状態更新
-                updateSettingsMenuUI(); // 設定メニュー内のUI更新
+        // 認証ボタンクリック時の処理
+        function handleAuthClick() {
+            if (tokenClient) {
+                tokenClient.requestAccessToken(); // アクセストークンを要求して認証フローを開始
+            } else {
+                console.error('トークンクライアントが初期化されていません。');
+                displayError('認証クライアントが準備できていません。ページをリロードしてください。');
             }
         }
 
-        // --- 認証コールバック (予約など書き込み操作用 およびカレンダーリスト取得用) ---
-        async function handleAuthCallback(resp) {
-            if (resp.error !== undefined) {
-                console.error("認証エラー:", resp);
-                alert(`Googleアカウントの選択に失敗しました: ${resp.error}`); 
-                pendingAction = null;
-                localStorage.removeItem(LOCAL_STORAGE_ACCOUNT_EMAIL_KEY);
-                localStorage.removeItem(LOCAL_STORAGE_CALENDAR_LIST_KEY);
-                // localStorage.removeItem(LOCAL_STORAGE_CALENDAR_KEY); // ここではカレンダーはクリアしない
-                // selectedCalendarId = ''; selectedCalendarName = '';
-                updateButtonStates(); 
-                updateSettingsMenuUI(); // 設定メニュー内のUI更新
-                return;
-            }
-            console.log("Googleアカウント選択成功:", resp);
-            
-            const token = gapi.client.getToken();
-            if (token && token.id_token) {
-                try {
-                    const base64Url = token.id_token.split('.')[1];
-                    const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
-                    const jsonPayload = decodeURIComponent(atob(base64).split('').map(function(c) {
-                        return '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2);
-                    }).join(''));
-                    const idTokenData = JSON.parse(jsonPayload);
-                    localStorage.setItem(LOCAL_STORAGE_ACCOUNT_EMAIL_KEY, idTokenData.email);
-                } catch (e) {
-                    console.error("IDトークン解析エラー:", e);
-                }
-            }
-
-            await fetchAndStoreCalendarList();
-
-            updateButtonStates(); 
-            updateSettingsMenuUI(); // 設定メニュー内のUI更新
-
-            if (pendingAction) {
-                const actionToPerform = pendingAction;
-                pendingAction = null;
-                await actionToPerform();
-            }
-        }
-
-        /**
-         * 認証済みアカウントに紐づくカレンダーのリストを取得し、localStorageに保存します。
-         */
-        async function fetchAndStoreCalendarList() {
-            if (gapi.client.getToken() === null) {
-                console.error("カレンダーリストの取得にはGoogleアカウントの選択が必要です。");
-                return;
-            }
+        // カレンダーリストを取得して表示する関数
+        async function listCalendars() {
+            const calendarListUl = document.getElementById('calendar_list');
+            const errorDisplay = document.getElementById('error_display');
+            calendarListUl.innerHTML = ''; // 既存のリストをクリア
+            errorDisplay.textContent = ''; // エラーメッセージをクリア
 
             try {
+                // Google Calendar API からカレンダーリストを取得
                 const response = await gapi.client.calendar.calendarList.list();
                 const calendars = response.result.items;
-                
-                const filteredCalendars = calendars.filter(calendar => {
-                    return !(
-                        calendar.id === 'ja.japanese#holiday@group.v.calendar.google.com' || 
-                        calendar.id === 'contacts@group.v.calendar.google.com' 
-                    );
-                }).map(calendar => ({
-                    id: calendar.id,
-                    name: calendar.summary
-                }));
 
-                localStorage.setItem(LOCAL_STORAGE_CALENDAR_LIST_KEY, JSON.stringify(filteredCalendars));
-                console.log("カレンダーリストをlocalStorageに保存しました:", filteredCalendars);
-
-            } catch (err) {
-                console.error('カレンダーリストの取得中にエラーが発生しました:', err);
-                alert(`カレンダーリストの取得に失敗しました: ${err.message || JSON.stringify(err)}`);
-                localStorage.removeItem(LOCAL_STORAGE_CALENDAR_LIST_KEY);
-            }
-        }
-
-        // --- メイン画面の機能 ---
-
-        /**
-         * 予約ボタンの表示状態を更新します。
-         */
-        function updateButtonStates() {
-            if (gapi.client.getToken() === null) {
-                book30MinButton.textContent = 'アカウント選択：強制30分予約'; 
-                book30MinButton.style.backgroundColor = '#ffc107'; 
-            } else {
-                book30MinButton.textContent = '強制30分予約'; 
-                book30MinButton.style.backgroundColor = ''; 
-            }
-        }
-
-        /**
-         * カレンダーイベントをフェッチして表示します。
-         */
-        async function fetchAndDisplayEvents() {
-            calendarEventsDiv.innerHTML = '<p>読み込み中...</p>';
-
-            if (!selectedCalendarId) {
-                calendarEventsDiv.innerHTML = '<p class="no-events">カレンダーが設定されていません。設定メニューから選択してください。</p>';
-                return;
-            }
-
-            if (!gapiInited) {
-                calendarEventsDiv.innerHTML = '<p style="color: red;">APIクライアントがまだ初期化されていません。しばらくお待ちください。</p>';
-                console.error("gapi client not initialized.");
-                return;
-            }
-
-            try {
-                const today = new Date();
-                today.setHours(0, 0, 0, 0);
-                const tomorrow = new Date(today);
-                tomorrow.setDate(today.getDate() + 1);
-
-                const response = await gapi.client.calendar.events.list({
-                    'calendarId': selectedCalendarId, 
-                    'timeMin': today.toISOString(),
-                    'timeMax': tomorrow.toISOString(),
-                    'showDeleted': false,
-                    'singleEvents': true,
-                    'orderBy': 'startTime',
-                });
-
-                const events = response.result.items;
-                calendarEventsDiv.innerHTML = '';
-
-                if (events.length > 0) {
-                    events.forEach(event => {
-                        const start = event.start.dateTime || event.start.date;
-                        const end = event.end.dateTime || event.end.date;
-
-                        const eventItem = document.createElement('div');
-                        eventItem.className = 'event-item';
-
-                        const title = document.createElement('div');
-                        title.className = 'event-title';
-                        title.textContent = event.summary || 'タイトルなし';
-                        eventItem.appendChild(title);
-
-                        const time = document.createElement('div');
-                        time.className = 'event-time';
-                        if (event.start.dateTime) {
-                            const startDate = new Date(start);
-                            const endDate = new Date(end);
-                            time.textContent = `${startDate.toLocaleTimeString()} - ${endDate.toLocaleTimeString()}`;
+                if (calendars && calendars.length > 0) {
+                    calendars.forEach(calendar => {
+                        const li = document.createElement('li');
+                        li.textContent = `ID: ${calendar.id} - サマリー: ${calendar.summary}`;
+                        if (calendar.accessRole === 'owner') {
+                            li.textContent += ' (オーナー)';
                         } else {
-                            time.textContent = '終日';
+                            li.textContent += ` (アクセス権: ${calendar.accessRole})`;
                         }
-                        eventItem.appendChild(time);
-
-                        if (event.location) {
-                            const location = document.createElement('div');
-                            location.className = 'event-location';
-                            location.textContent = `場所: ${event.location}`;
-                            eventItem.appendChild(location);
-                        }
-
-                        calendarEventsDiv.appendChild(eventItem);
+                        calendarListUl.appendChild(li);
                     });
+                    console.log('カレンダーリストを正常に表示しました:', calendars);
+                    displayMessage('カレンダーリストの表示が完了しました。');
                 } else {
-                    calendarEventsDiv.innerHTML = '<p class="no-events">今日の予定はありません。</p>';
+                    const li = document.createElement('li');
+                    li.textContent = 'Googleアカウントに紐づくカレンダーが見つかりませんでした。';
+                    calendarListUl.appendChild(li);
+                    console.log('カレンダーが見つかりませんでした。');
+                    displayMessage('カレンダーが見つかりませんでした。');
                 }
             } catch (err) {
-                console.error('カレンダーイベントの取得中にエラーが発生しました:', err);
-                calendarEventsDiv.innerHTML = `<p style="color: red;">エラーが発生しました: ${err.message || JSON.stringify(err)}</p>`;
+                console.error('カレンダーリストの取得エラー:', err.result ? err.result.error : err);
+                const errorMessage = `カレンダーの取得中にエラーが発生しました: ${err.result && err.result.error && err.result.error.message ? err.result.error.message : err.message}`;
+                calendarListUl.innerHTML = `<li>${errorMessage}</li>`;
+                displayError(errorMessage);
             }
         }
 
-        /**
-         * 現在時刻から30分間の緊急会議イベントを作成します。
-         */
-        async function create30MinEvent() {
-            if (!selectedCalendarId) {
-                alert('カレンダーが設定されていません。設定メニューから選択してください。');
-                return;
+        // メッセージを表示するヘルパー関数
+        function displayMessage(msg) {
+            const calendarListUl = document.getElementById('calendar_list');
+            // 一時的なメッセージ表示用なので、リストが空の場合のみ追加
+            if (calendarListUl.children.length === 0 || calendarListUl.children[0].textContent.includes('ボタンをクリック')) {
+                 calendarListUl.innerHTML = `<li>${msg}</li>`;
             }
-
-            if (gapi.client.getToken() === null) {
-                console.error("認証されていない状態でcreate30MinEventが呼び出されました。");
-                alert("Googleアカウントの選択が必要です。再度ボタンをクリックしてください。"); 
-                return;
-            }
-
-            const now = new Date();
-            const start = new Date(now);
-            const end = new Date(now.getTime() + 30 * 60 * 1000);
-
-            const event = {
-                'summary': '緊急会議 (30分)',
-                'start': {
-                    'dateTime': start.toISOString(),
-                    'timeZone': Intl.DateTimeFormat().resolvedOptions().timeZone,
-                },
-                'end': {
-                    'dateTime': end.toISOString(),
-                    'timeZone': Intl.DateTimeFormat().resolvedOptions().timeZone,
-                },
-            };
-
-            try {
-                const response = await gapi.client.calendar.events.insert({
-                    'calendarId': selectedCalendarId, 
-                    'resource': event,
-                });
-                console.log('イベントが作成されました:', response.result);
-                alert(`カレンダー「${selectedCalendarName}」に30分間の緊急会議が予約されました！`);
-                fetchAndDisplayEvents(); 
-            } catch (err) {
-                console.error('イベントの作成中にエラーが発生しました:', err);
-                alert(`イベントの作成に失敗しました: ${err.message || JSON.stringify(err)}`);
-            }
+            console.log("メッセージ:", msg);
         }
 
-        // --- 設定メニュー関連 ---
-        
-        function openSettingsMenu() {
-            settingsMenu.classList.add('open');
-            // メニューが開かれたときに最新の認証状態とカレンダーリストを更新
-            updateSettingsMenuUI();
+        // エラーメッセージを表示するヘルパー関数
+        function displayError(msg) {
+            const errorDisplay = document.getElementById('error_display');
+            errorDisplay.textContent = `エラー: ${msg}`;
+            console.error("表示エラー:", msg);
         }
-
-        function closeSettingsMenu() {
-            settingsMenu.classList.remove('open');
-        }
-
-        /**
-         * 設定メニュー内のUIをlocalStorageの情報に基づいて更新します。
-         */
-        function updateSettingsMenuUI() {
-            const storedEmail = localStorage.getItem(LOCAL_STORAGE_ACCOUNT_EMAIL_KEY);
-            const storedCalendarList = JSON.parse(localStorage.getItem(LOCAL_STORAGE_CALENDAR_LIST_KEY));
-
-            if (storedEmail) {
-                accountInfoDisplayDiv.textContent = 'Googleアカウント選択済み:'; 
-                accountInfoDisplayDiv.className = 'account-info-display set'; 
-                accountEmailDisplaySpan.textContent = `(${storedEmail})`;
-                accountEmailDisplaySpan.classList.remove('hidden');
-                
-                // 保存されているカレンダーリストを表示
-                displayCalendarListInMenu(storedCalendarList);
-
-            } else {
-                accountInfoDisplayDiv.textContent = 'Googleアカウントが選択されていません'; 
-                accountInfoDisplayDiv.className = 'account-info-display unset'; 
-                accountEmailDisplaySpan.classList.add('hidden');
-                calendarListSelect.innerHTML = '<option>Googleアカウントを選択してください。</option>'; 
-            }
-        }
-
-        /**
-         * localStorageから取得したカレンダーリストをメニュー内のドロップダウンに表示します。
-         */
-        function displayCalendarListInMenu(calendars) {
-            calendarListSelect.innerHTML = ''; 
-
-            if (calendars && calendars.length > 0) {
-                calendars.forEach(calendar => {
-                    const option = document.createElement('option');
-                    option.value = calendar.id;
-                    option.textContent = calendar.name; 
-                    if (calendar.id === selectedCalendarId) {
-                        option.selected = true;
-                    }
-                    calendarListSelect.appendChild(option);
-                });
-            } else {
-                const option = document.createElement('option');
-                option.textContent = '利用可能なカレンダーが見つかりませんでした。';
-                option.disabled = true;
-                calendarListSelect.appendChild(option);
-            }
-        }
-
-        /**
-         * 選択されたカレンダーを設定として保存し、メニューを閉じます。
-         */
-        function saveSettingsAndCloseMenu() {
-            const selectedOption = calendarListSelect.options[calendarListSelect.selectedIndex];
-            const storedEmail = localStorage.getItem(LOCAL_STORAGE_ACCOUNT_EMAIL_KEY);
-
-            if (!storedEmail) {
-                alert('先にGoogleアカウントを選択してください。');
-                return;
-            }
-
-            if (selectedOption && selectedOption.value) {
-                selectedCalendarId = selectedOption.value;
-                selectedCalendarName = selectedOption.textContent;
-                localStorage.setItem(LOCAL_STORAGE_CALENDAR_KEY, JSON.stringify({
-                    id: selectedCalendarId,
-                    name: selectedCalendarName
-                }));
-                alert(`カレンダー「${selectedCalendarName}」が設定されました。`);
-                currentCalendarNameSpan.textContent = selectedCalendarName; // メイン画面のカレンダー名を更新
-                fetchAndDisplayEvents(); // メイン画面の予定を更新
-                closeSettingsMenu(); 
-            } else {
-                alert('表示するカレンダーを選択してください。');
-            }
-        }
-
-        // --- イベントリスナーの設定 ---
-
-        loadEventsButton.addEventListener('click', fetchAndDisplayEvents);
-        book30MinButton.addEventListener('click', async () => {
-            if (gapi.client.getToken() === null) {
-                pendingAction = create30MinEvent; 
-                tokenClient.requestAccessToken({prompt: ''}); 
-            } else {
-                await create30MinEvent();
-            }
-        });
-
-        // メニューボタン
-        menuToggleButton.addEventListener('click', openSettingsMenu);
-        closeSettingsButton.addEventListener('click', closeSettingsMenu);
-
-        // 設定メニュー内のボタン
-        selectGoogleAccountButton.addEventListener('click', () => {
-            tokenClient.requestAccessToken({prompt: ''}); // Googleアカウント選択（OAuth認証）フローを開始
-        });
-
-        clearAccountSettingsButton.addEventListener('click', () => { 
-            const token = gapi.client.getToken();
-            if (token !== null) {
-                google.accounts.oauth2.revoke(token.access_token);
-                gapi.client.setToken(''); 
-            }
-            localStorage.removeItem(LOCAL_STORAGE_ACCOUNT_EMAIL_KEY);
-            localStorage.removeItem(LOCAL_STORAGE_CALENDAR_LIST_KEY);
-            localStorage.removeItem(LOCAL_STORAGE_CALENDAR_KEY); 
-            selectedCalendarId = ''; 
-            selectedCalendarName = '';
-            alert("Googleアカウントとカレンダー設定が解除されました。");
-            // UIを更新
-            updateSettingsMenuUI(); // メニュー内のUIを更新
-            updateButtonStates(); // メイン画面のボタンも更新
-            // カレンダー表示をリセット
-            currentCalendarNameSpan.textContent = '未設定';
-            calendarEventsDiv.innerHTML = '<p class="no-events">アカウント設定が解除されたため、カレンダー設定が必要です。</p>';
-        });
-
-        confirmCalendarButton.addEventListener('click', saveSettingsAndCloseMenu);
     </script>
 </body>
 </html>
