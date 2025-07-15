@@ -124,8 +124,12 @@
         const DISCOVERY_DOCS = ["https://www.googleapis.com/discovery/v1/apis/calendar/v3/rest"];
         const SCOPES = 'https://www.googleapis.com/auth/calendar.readonly'; // カレンダーの読み取り専用スコープ
 
+        const LOCAL_STORAGE_CALENDAR_ID_KEY = 'selectedCalendarId';
+        const LOCAL_STORAGE_CALENDAR_SUMMARY_KEY = 'selectedCalendarSummary';
+
         let tokenClient; // Google Identity Services (GIS) のトークンクライアント
         let selectedCalendarId = null; // 選択されたカレンダーIDを保持する変数
+        let selectedCalendarSummary = null; // 選択されたカレンダーのサマリーを保持する変数
 
         // HTMLコンテンツの読み込みが完了したら初期化処理を開始
         document.addEventListener('DOMContentLoaded', () => {
@@ -149,7 +153,8 @@
                         if (tokenResponse && tokenResponse.access_token) {
                             gapi.client.setToken(tokenResponse);
                             console.log('アクセストークンを取得しました:', tokenResponse);
-                            listCalendars(); // 認証成功後、カレンダーリストを表示
+                            // アクセストークン取得後、カレンダーリストを取得し、保存済みのカレンダーがあれば表示
+                            listCalendarsAndLoadSaved(); 
                         } else {
                             console.error('アクセストークンの取得に失敗しました。', tokenResponse);
                             displayError('Googleアカウントの認証に失敗しました。再度お試しください。');
@@ -180,7 +185,8 @@
             }
         }
 
-        async function listCalendars() {
+        // カレンダーリストを取得し、localStorageに保存されたカレンダーがあればそれを表示する関数
+        async function listCalendarsAndLoadSaved() {
             const calendarListUl = document.getElementById('calendar_list');
             calendarListUl.innerHTML = ''; // 既存のリストをクリア
             displayError(''); // エラーメッセージをクリア
@@ -189,7 +195,6 @@
                 const response = await gapi.client.calendar.calendarList.list();
                 const allCalendars = response.result.items;
 
-                // オーナー権限を持つカレンダーのみをフィルタリング
                 const ownedCalendars = allCalendars.filter(calendar => calendar.accessRole === 'owner');
 
                 if (ownedCalendars && ownedCalendars.length > 0) {
@@ -206,13 +211,35 @@
                     // 各「選択」ボタンにイベントリスナーを追加
                     document.querySelectorAll('.select-button').forEach(button => {
                         button.onclick = (event) => {
-                            selectedCalendarId = event.target.dataset.calendarId;
-                            const selectedCalendarSummary = event.target.dataset.calendarSummary;
+                            const newSelectedId = event.target.dataset.calendarId;
+                            const newSelectedSummary = event.target.dataset.calendarSummary;
+                            
+                            // localStorageに選択されたカレンダーを保存
+                            localStorage.setItem(LOCAL_STORAGE_CALENDAR_ID_KEY, newSelectedId);
+                            localStorage.setItem(LOCAL_STORAGE_CALENDAR_SUMMARY_KEY, newSelectedSummary);
+
+                            selectedCalendarId = newSelectedId;
+                            selectedCalendarSummary = newSelectedSummary;
                             document.getElementById('selected_calendar_info').textContent = `選択中のカレンダー: ${selectedCalendarSummary}`;
-                            console.log('カレンダーが選択されました:', selectedCalendarId);
+                            console.log('カレンダーが選択され、保存されました:', selectedCalendarId);
                             listEvents(selectedCalendarId); // イベントリストを取得して表示
                         };
                     });
+
+                    // localStorageから保存されたカレンダーIDを読み込み、あれば自動的にイベントを表示
+                    const savedCalendarId = localStorage.getItem(LOCAL_STORAGE_CALENDAR_ID_KEY);
+                    const savedCalendarSummary = localStorage.getItem(LOCAL_STORAGE_CALENDAR_SUMMARY_KEY);
+
+                    if (savedCalendarId && savedCalendarSummary) {
+                        selectedCalendarId = savedCalendarId;
+                        selectedCalendarSummary = savedCalendarSummary;
+                        document.getElementById('selected_calendar_info').textContent = `選択中のカレンダー: ${selectedCalendarSummary} (前回選択)`;
+                        console.log('保存されたカレンダーを読み込みました:', selectedCalendarId);
+                        listEvents(selectedCalendarId);
+                    } else {
+                        document.getElementById('selected_calendar_info').textContent = 'カレンダーが選択されていません。リストから選択してください。';
+                    }
+
                 } else {
                     const li = document.createElement('li');
                     li.textContent = '自分で作成したカレンダーが見つかりませんでした。';
