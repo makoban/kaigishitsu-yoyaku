@@ -14,26 +14,26 @@
         button { padding: 8px 15px; cursor: pointer; margin-right: 5px; }
         #calendarListSelect { width: 100%; padding: 8px; margin-top: 10px; margin-bottom: 10px; }
         .hidden { display: none; }
-        .account-info-display { margin-top: 10px; font-size: 0.9em; color: #555; } /* クラス名変更 */
+        .account-info-display { margin-top: 10px; font-size: 0.9em; color: #555; } 
         .account-info-display.set { color: green; }
         .account-info-display.unset { color: red; }
-        #accountEmailDisplay { font-weight: bold; margin-left: 5px; } /* id名変更 */
+        #accountEmailDisplay { font-weight: bold; margin-left: 5px; } 
         .settings-section { margin-top: 20px; padding-top: 15px; border-top: 1px solid #eee; }
     </style>
 </head>
 <body>
     <div id="settings-screen">
-        <h1>カレンダー設定</h1> <p>メイン画面でGoogleアカウントを選択した後、ここで表示するカレンダーを設定してください。</p> <div class="account-info-display" id="accountInfoDisplay">Googleアカウントが選択されていません</div> 
+        <h1>カレンダー設定</h1> <p>メイン画面でGoogleアカウントを選択した後、ここで表示するカレンダーを設定してください。</p>
+        
+        <div class="account-info-display" id="accountInfoDisplay">Googleアカウントが選択されていません</div> 
         <span id="accountEmailDisplay" class="hidden"></span> 
         
-        <div class="settings-section" id="calendarSelectionArea"> <h2>利用可能なカレンダー</h2>
-            <p>ここに表示されるカレンダーから、メイン画面で表示するカレンダーを選んでください。</p>
+        <div class="settings-section" id="calendarSelectionArea"> 
+            <h2>利用可能なカレンダー</h2> <p>ここに表示されるカレンダーから、メイン画面で表示するカレンダーを選んでください。</p>
             <select id="calendarListSelect" size="10">
                 <option>Googleアカウントを選択してください。</option> </select>
-            <button id="saveSettingsButton">このカレンダーに設定</button>
-        </div>
-        <button id="backToMainButton">メイン画面に戻る</button>
-    </div>
+            <button id="confirmCalendarButton">カレンダー確定</button> </div>
+        <button id="backToMainButton">戻る</button> </div>
 
     <script>
         // --- 設定値（共通） ---
@@ -44,11 +44,11 @@
         const APP_VERSION = '1.0.4'; 
 
         // --- 画面要素の参照 ---
-        const accountInfoDisplayDiv = document.getElementById('accountInfoDisplay'); // id変更
-        const accountEmailDisplaySpan = document.getElementById('accountEmailDisplay'); // id変更
+        const accountInfoDisplayDiv = document.getElementById('accountInfoDisplay'); 
+        const accountEmailDisplaySpan = document.getElementById('accountEmailDisplay'); 
         const calendarSelectionArea = document.getElementById('calendarSelectionArea');
         const calendarListSelect = document.getElementById('calendarListSelect');
-        const saveSettingsButton = document.getElementById('saveSettingsButton');
+        const confirmCalendarButton = document.getElementById('confirmCalendarButton'); // id変更
         const backToMainButton = document.getElementById('backToMainButton');
 
         let selectedCalendarId = ''; 
@@ -75,8 +75,8 @@
             const storedCalendarList = JSON.parse(localStorage.getItem(LOCAL_STORAGE_CALENDAR_LIST_KEY));
 
             if (storedEmail) {
-                accountInfoDisplayDiv.textContent = 'Googleアカウント選択済み:'; // 文言変更
-                accountInfoDisplayDiv.className = 'account-info-display set'; // class名変更
+                accountInfoDisplayDiv.textContent = 'Googleアカウント選択済み:'; 
+                accountInfoDisplayDiv.className = 'account-info-display set'; 
                 accountEmailDisplaySpan.textContent = `(${storedEmail})`;
                 accountEmailDisplaySpan.classList.remove('hidden');
                 
@@ -84,10 +84,10 @@
                 displayCalendarList(storedCalendarList);
 
             } else {
-                accountInfoDisplayDiv.textContent = 'Googleアカウントが選択されていません'; // 文言変更
-                accountInfoDisplayDiv.className = 'account-info-display unset'; // class名変更
+                accountInfoDisplayDiv.textContent = 'Googleアカウントが選択されていません'; 
+                accountInfoDisplayDiv.className = 'account-info-display unset'; 
                 accountEmailDisplaySpan.classList.add('hidden');
-                calendarListSelect.innerHTML = '<option>Googleアカウントをメイン画面で選択してください。</option>'; // デフォルト表示
+                calendarListSelect.innerHTML = '<option>Googleアカウントをメイン画面で選択してください。</option>'; 
             }
         }
 
@@ -95,7 +95,7 @@
          * localStorageから取得したカレンダーリストをドロップダウンに表示します。
          */
         function displayCalendarList(calendars) {
-            calendarListSelect.innerHTML = ''; // 既存のオプションをクリア
+            calendarListSelect.innerHTML = ''; 
 
             if (calendars && calendars.length > 0) {
                 calendars.forEach(calendar => {
@@ -136,16 +136,12 @@
         // --- イベントリスナーの設定 ---
         
         // 設定の保存ボタン
-        saveSettingsButton.addEventListener('click', saveSettings);
+        confirmCalendarButton.addEventListener('click', saveSettings); // id変更
         
         // メイン画面へ戻るボタン
         backToMainButton.addEventListener('click', () => {
             window.location.href = 'index.html';
         });
-
-        // settings.html では認証ボタンは直接存在しないため、関連リスナーは不要
-        // カレンダーリスト更新ボタンも、直接APIを叩けないため、動作を削除
-        // ユーザーがカレンダーリストを更新したい場合は、メイン画面でアカウント選択を促す形にする
     </script>
 </body>
 </html>
