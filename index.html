@@ -153,40 +153,65 @@
                         if (tokenResponse && tokenResponse.access_token) {
                             gapi.client.setToken(tokenResponse);
                             console.log('アクセストークンを取得しました:', tokenResponse);
-                            // アクセストークン取得後、カレンダーリストを取得し、保存済みのカレンダーがあれば表示
-                            listCalendarsAndLoadSaved(); 
+                            
+                            // 認証後、localStorageからカレンダーIDを読み込み、イベントを表示
+                            const savedCalendarId = localStorage.getItem(LOCAL_STORAGE_CALENDAR_ID_KEY);
+                            const savedCalendarSummary = localStorage.getItem(LOCAL_STORAGE_CALENDAR_SUMMARY_KEY);
+
+                            if (savedCalendarId && savedCalendarSummary) {
+                                selectedCalendarId = savedCalendarId;
+                                selectedCalendarSummary = savedCalendarSummary;
+                                document.getElementById('selected_calendar_info').textContent = `選択中のカレンダー: ${selectedCalendarSummary} (前回選択)`;
+                                console.log('保存されたカレンダーを読み込みました:', selectedCalendarId);
+                                listEvents(selectedCalendarId);
+                            } else {
+                                // 保存されたカレンダーがなければ、カレンダーリストを表示し、ユーザーに選択を促す
+                                listCalendars(); 
+                                document.getElementById('selected_calendar_info').textContent = 'カレンダーが選択されていません。リストから選択してください。';
+                            }
+                            
                         } else {
                             console.error('アクセストークンの取得に失敗しました。', tokenResponse);
                             displayError('Googleアカウントの認証に失敗しました。再度お試しください。');
+                            // 失敗時は認証ボタンを再度有効にする
+                            document.getElementById('authorize_button').disabled = false;
                         }
                     },
                     error_callback: (error) => {
                         console.error('GISトークンクライアントエラー:', error);
                         displayError('認証エラーが発生しました。コンソールを確認してください。');
+                        // エラー時は認証ボタンを再度有効にする
+                        document.getElementById('authorize_button').disabled = false;
                     }
                     // ux_mode: 'redirect', // クロスオリジンエラーが続く場合は有効化を検討
                     // redirect_uri: 'https://makoban.github.io' // OAuth設定の承認済みリダイレクトURIと一致させる
                 });
 
-                document.getElementById('authorize_button').disabled = false;
+                // ★ここに自動認証のロジックを追加★
+                // ページロード時に、有効なセッションがあれば自動的にトークンをリクエスト
+                // prompt: '' でサイレント認証を試みる。これにより、2回目以降のアクセスでアカウント選択をスキップ可能。
+                tokenClient.requestAccessToken({ prompt: '' }); 
 
             }).catch(err => {
                 console.error('gapiクライアントの初期化エラー:', err);
                 displayError('APIクライアントの初期化に失敗しました。APIキーまたはネットワーク接続を確認してください。');
+                document.getElementById('authorize_button').disabled = false;
             });
         }
 
+        // handleAuthClick 関数は、手動で認証ボタンが押されたときのみ呼ばれる
         function handleAuthClick() {
+            // 手動認証時はアカウント選択画面を出すことを強制する (prompt: 'select_account')
+            // これにより、ユーザーが別のアカウントを選び直すことが可能。
             if (tokenClient) {
-                tokenClient.requestAccessToken();
+                tokenClient.requestAccessToken({ prompt: 'select_account' }); 
             } else {
                 console.error('トークンクライアントが初期化されていません。');
                 displayError('認証クライアントが準備できていません。ページをリロードしてください。');
             }
         }
-
-        // カレンダーリストを取得し、localStorageに保存されたカレンダーがあればそれを表示する関数
-        async function listCalendarsAndLoadSaved() {
+        
+        async function listCalendars() {
             const calendarListUl = document.getElementById('calendar_list');
             calendarListUl.innerHTML = ''; // 既存のリストをクリア
             displayError(''); // エラーメッセージをクリア
@@ -195,6 +220,7 @@
                 const response = await gapi.client.calendar.calendarList.list();
                 const allCalendars = response.result.items;
 
+                // オーナー権限を持つカレンダーのみをフィルタリング
                 const ownedCalendars = allCalendars.filter(calendar => calendar.accessRole === 'owner');
 
                 if (ownedCalendars && ownedCalendars.length > 0) {
@@ -225,20 +251,6 @@
                             listEvents(selectedCalendarId); // イベントリストを取得して表示
                         };
                     });
-
-                    // localStorageから保存されたカレンダーIDを読み込み、あれば自動的にイベントを表示
-                    const savedCalendarId = localStorage.getItem(LOCAL_STORAGE_CALENDAR_ID_KEY);
-                    const savedCalendarSummary = localStorage.getItem(LOCAL_STORAGE_CALENDAR_SUMMARY_KEY);
-
-                    if (savedCalendarId && savedCalendarSummary) {
-                        selectedCalendarId = savedCalendarId;
-                        selectedCalendarSummary = savedCalendarSummary;
-                        document.getElementById('selected_calendar_info').textContent = `選択中のカレンダー: ${selectedCalendarSummary} (前回選択)`;
-                        console.log('保存されたカレンダーを読み込みました:', selectedCalendarId);
-                        listEvents(selectedCalendarId);
-                    } else {
-                        document.getElementById('selected_calendar_info').textContent = 'カレンダーが選択されていません。リストから選択してください。';
-                    }
 
                 } else {
                     const li = document.createElement('li');
