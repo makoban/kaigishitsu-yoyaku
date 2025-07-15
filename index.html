@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html>
 <head>
-    <title>Google カレンダーリスト表示</title>
+    <title>会議室予約表示（グーグルカレンダー連携）</title>
     <script src="https://apis.google.com/js/api.js"></script>
     <script src="https://accounts.google.com/gsi/client"></script>
     <style>
@@ -24,43 +24,96 @@
             background-color: #a0a0a0;
             cursor: not-allowed;
         }
-        #calendar_list_container {
+        #container {
+            display: flex;
+            gap: 20px;
             margin-top: 30px;
+        }
+        .panel {
+            flex: 1;
             padding: 20px;
             background-color: #ffffff;
             border: 1px solid #ddd;
             border-radius: 8px;
             box-shadow: 0 2px 4px rgba(0,0,0,0.1);
         }
-        #calendar_list_container ul {
-            list-style-type: disc; /* リストの先頭に点を表示 */
-            padding-left: 25px;
+        .panel ul {
+            list-style-type: none; /* デフォルトのリストスタイルを削除 */
+            padding: 0;
         }
-        #calendar_list_container li {
+        .panel li {
             margin-bottom: 10px;
             line-height: 1.5;
             color: #555;
+            display: flex;
+            align-items: center; /* アイテムを縦方向中央揃え */
+            justify-content: space-between; /* 要素を両端に配置 */
+            padding: 8px 0;
+            border-bottom: 1px dashed #eee; /* リストアイテム間の区切り線 */
+        }
+        .panel li:last-child {
+            border-bottom: none; /* 最後のアイテムは区切り線なし */
+        }
+        .select-button {
+            padding: 5px 10px;
+            font-size: 14px;
+            background-color: #28a745; /* Green */
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            transition: background-color 0.3s ease;
+        }
+        .select-button:hover {
+            background-color: #218838;
         }
         .error-message {
             color: red;
             font-weight: bold;
             margin-top: 15px;
         }
+        .event-item {
+            display: block;
+            margin-bottom: 8px;
+            font-size: 15px;
+        }
+        .event-time {
+            font-weight: bold;
+            color: #0056b3;
+            margin-right: 10px;
+        }
+        .event-summary {
+            color: #333;
+        }
+        .no-events {
+            font-style: italic;
+            color: #777;
+        }
     </style>
 </head>
 <body>
-    <h1>Google カレンダーリスト表示</h1>
+    <h1>会議室予約表示</h1>
 
     <p>以下のボタンをクリックしてGoogleアカウントを選択し、利用可能なカレンダーを表示します。</p>
     <button id="authorize_button" disabled>Googleアカウントを選択</button>
 
-    <div id="calendar_list_container">
-        <h2>利用可能なカレンダー</h2>
-        <ul id="calendar_list">
-            <li>ボタンをクリックして認証を開始してください。</li>
-        </ul>
-        <p id="error_display" class="error-message"></p>
+    <div id="container">
+        <div id="calendar_list_container" class="panel">
+            <h2>利用可能なカレンダー</h2>
+            <ul id="calendar_list">
+                <li>ボタンをクリックして認証を開始してください。</li>
+            </ul>
+        </div>
+
+        <div id="event_list_container" class="panel">
+            <h2>選択されたカレンダーのイベント</h2>
+            <p id="selected_calendar_info">カレンダーが選択されていません。</p>
+            <ul id="event_list">
+                <li>ここにイベントが表示されます。</li>
+            </ul>
+        </div>
     </div>
+    <p id="error_display" class="error-message"></p>
 
     <script>
         // ★★★ ここをあなたの情報に置き換えてください ★★★
@@ -72,17 +125,16 @@
         const SCOPES = 'https://www.googleapis.com/auth/calendar.readonly'; // カレンダーの読み取り専用スコープ
 
         let tokenClient; // Google Identity Services (GIS) のトークンクライアント
+        let selectedCalendarId = null; // 選択されたカレンダーIDを保持する変数
 
         // HTMLコンテンツの読み込みが完了したら初期化処理を開始
         document.addEventListener('DOMContentLoaded', () => {
             const authorizeButton = document.getElementById('authorize_button');
-            authorizeButton.onclick = handleAuthClick; // ボタンクリック時のイベントを設定
+            authorizeButton.onclick = handleAuthClick;
 
-            // gapiクライアントライブラリのロードと初期化
             gapi.load('client', initGapiClient);
         });
 
-        // gapiクライアントの初期化関数
         function initGapiClient() {
             gapi.client.init({
                 apiKey: API_KEY,
@@ -90,34 +142,29 @@
             }).then(() => {
                 console.log('gapi client initialized.');
 
-                // GISトークンクライアントの初期化 (OAuth 2.0認証フローを管理)
                 tokenClient = google.accounts.oauth2.initTokenClient({
                     client_id: CLIENT_ID,
                     scope: SCOPES,
-                    // アクセストークン取得後のコールバック関数
                     callback: (tokenResponse) => {
                         if (tokenResponse && tokenResponse.access_token) {
-                            gapi.client.setToken(tokenResponse); // 取得したトークンをgapiクライアントに設定
+                            gapi.client.setToken(tokenResponse);
                             console.log('アクセストークンを取得しました:', tokenResponse);
-                            displayMessage('カレンダーリストを読み込み中...');
-                            listCalendars(); // カレンダーリストの取得と表示を開始
+                            listCalendars(); // 認証成功後、カレンダーリストを表示
                         } else {
                             console.error('アクセストークンの取得に失敗しました。', tokenResponse);
                             displayError('Googleアカウントの認証に失敗しました。再度お試しください。');
                         }
                     },
-                    // エラー発生時のコールバック関数
                     error_callback: (error) => {
                         console.error('GISトークンクライアントエラー:', error);
                         displayError('認証エラーが発生しました。コンソールを確認してください。');
                     }
                     // ★ `Cross-Origin-Opener-Policy` エラーが続く場合は、
                     // ★ 以下のどちらか、または両方を試してください。
-                    // ux_mode: 'redirect', // ポップアップではなくリダイレクトを使用
-                    // redirect_uri: 'https://makoban.github.io' // OAuth設定の承認済みリダイレクトURIと一致させる
+                    // ux_mode: 'redirect',
+                    // redirect_uri: 'https://makoban.github.io'
                 });
 
-                // 認証ボタンを有効にする
                 document.getElementById('authorize_button').disabled = false;
 
             }).catch(err => {
@@ -126,71 +173,122 @@
             });
         }
 
-        // 認証ボタンクリック時の処理
         function handleAuthClick() {
             if (tokenClient) {
-                tokenClient.requestAccessToken(); // アクセストークンを要求して認証フローを開始
+                tokenClient.requestAccessToken();
             } else {
                 console.error('トークンクライアントが初期化されていません。');
                 displayError('認証クライアントが準備できていません。ページをリロードしてください。');
             }
         }
 
-        // カレンダーリストを取得して表示する関数
         async function listCalendars() {
             const calendarListUl = document.getElementById('calendar_list');
-            const errorDisplay = document.getElementById('error_display');
             calendarListUl.innerHTML = ''; // 既存のリストをクリア
-            errorDisplay.textContent = ''; // エラーメッセージをクリア
+            displayError(''); // エラーメッセージをクリア
 
             try {
-                // Google Calendar API からカレンダーリストを取得
                 const response = await gapi.client.calendar.calendarList.list();
                 const calendars = response.result.items;
 
                 if (calendars && calendars.length > 0) {
                     calendars.forEach(calendar => {
                         const li = document.createElement('li');
-                        li.textContent = `ID: ${calendar.id} - サマリー: ${calendar.summary}`;
-                        if (calendar.accessRole === 'owner') {
-                            li.textContent += ' (オーナー)';
-                        } else {
-                            li.textContent += ` (アクセス権: ${calendar.accessRole})`;
-                        }
+                        li.innerHTML = `
+                            <span>${calendar.summary} (${calendar.id})</span>
+                            <button class="select-button" data-calendar-id="${calendar.id}" data-calendar-summary="${calendar.summary}">選択</button>
+                        `;
                         calendarListUl.appendChild(li);
                     });
                     console.log('カレンダーリストを正常に表示しました:', calendars);
-                    displayMessage('カレンダーリストの表示が完了しました。');
+
+                    // 各「選択」ボタンにイベントリスナーを追加
+                    document.querySelectorAll('.select-button').forEach(button => {
+                        button.onclick = (event) => {
+                            selectedCalendarId = event.target.dataset.calendarId;
+                            const selectedCalendarSummary = event.target.dataset.calendarSummary;
+                            document.getElementById('selected_calendar_info').textContent = `選択中のカレンダー: ${selectedCalendarSummary}`;
+                            console.log('カレンダーが選択されました:', selectedCalendarId);
+                            listEvents(selectedCalendarId); // イベントリストを取得して表示
+                        };
+                    });
                 } else {
                     const li = document.createElement('li');
                     li.textContent = 'Googleアカウントに紐づくカレンダーが見つかりませんでした。';
                     calendarListUl.appendChild(li);
                     console.log('カレンダーが見つかりませんでした。');
-                    displayMessage('カレンダーが見つかりませんでした。');
                 }
             } catch (err) {
                 console.error('カレンダーリストの取得エラー:', err.result ? err.result.error : err);
-                const errorMessage = `カレンダーの取得中にエラーが発生しました: ${err.result && err.result.error && err.result.error.message ? err.result.error.message : err.message}`;
-                calendarListUl.innerHTML = `<li>${errorMessage}</li>`;
-                displayError(errorMessage);
+                displayError(`カレンダーリストの取得中にエラーが発生しました: ${err.result && err.result.error && err.result.error.message ? err.result.error.message : err.message}`);
             }
         }
 
-        // メッセージを表示するヘルパー関数
-        function displayMessage(msg) {
-            const calendarListUl = document.getElementById('calendar_list');
-            // 一時的なメッセージ表示用なので、リストが空の場合のみ追加
-            if (calendarListUl.children.length === 0 || calendarListUl.children[0].textContent.includes('ボタンをクリック')) {
-                 calendarListUl.innerHTML = `<li>${msg}</li>`;
+        async function listEvents(calendarId) {
+            const eventListUl = document.getElementById('event_list');
+            eventListUl.innerHTML = ''; // 既存のイベントリストをクリア
+            displayError(''); // エラーメッセージをクリア
+
+            // 現在時刻を基準に、前2時間と後12時間の期間を設定
+            const now = new Date();
+            const timeMin = new Date(now.getTime() - (2 * 60 * 60 * 1000)).toISOString(); // 2時間前
+            const timeMax = new Date(now.getTime() + (12 * 60 * 60 * 1000)).toISOString(); // 12時間後
+
+            try {
+                const response = await gapi.client.calendar.events.list({
+                    'calendarId': calendarId,
+                    'timeMin': timeMin,
+                    'timeMax': timeMax,
+                    'showDeleted': false,
+                    'singleEvents': true,
+                    'orderBy': 'startTime',
+                    'maxResults': 20 // 取得するイベントの最大数を設定
+                });
+
+                const events = response.result.items;
+
+                if (events && events.length > 0) {
+                    events.forEach(event => {
+                        const start = event.start.dateTime || event.start.date;
+                        const end = event.end.dateTime || event.end.date;
+
+                        const startTime = new Date(start).toLocaleTimeString('ja-JP', { hour: '2-digit', minute: '2-digit' });
+                        const endTime = new Date(end).toLocaleTimeString('ja-JP', { hour: '2-digit', minute: '2-digit' });
+                        const eventDate = new Date(start).toLocaleDateString('ja-JP');
+
+                        const li = document.createElement('li');
+                        li.className = 'event-item';
+                        li.innerHTML = `
+                            <div>
+                                <span class="event-time">${eventDate} ${startTime} - ${endTime}</span>
+                                <span class="event-summary">${event.summary || 'タイトルなし'}</span>
+                            </div>
+                        `;
+                        eventListUl.appendChild(li);
+                    });
+                    console.log(`イベントを正常に表示しました (${calendarId}):`, events);
+                } else {
+                    const li = document.createElement('li');
+                    li.className = 'no-events';
+                    li.textContent = '指定された期間にイベントが見つかりませんでした。';
+                    eventListUl.appendChild(li);
+                    console.log(`イベントが見つかりませんでした (${calendarId})。`);
+                }
+            } catch (err) {
+                console.error(`イベントの取得エラー (${calendarId}):`, err.result ? err.result.error : err);
+                displayError(`イベントの取得中にエラーが発生しました: ${err.result && err.result.error && err.result.error.message ? err.result.error.message : err.message}`);
+                const li = document.createElement('li');
+                li.className = 'error-message';
+                li.textContent = 'イベントの読み込みに失敗しました。';
+                eventListUl.appendChild(li);
             }
-            console.log("メッセージ:", msg);
         }
 
         // エラーメッセージを表示するヘルパー関数
         function displayError(msg) {
             const errorDisplay = document.getElementById('error_display');
-            errorDisplay.textContent = `エラー: ${msg}`;
-            console.error("表示エラー:", msg);
+            errorDisplay.textContent = msg ? `エラー: ${msg}` : '';
+            if (msg) console.error("表示エラー:", msg);
         }
     </script>
 </body>
