@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html>
 <head>
-    <title>会議室予約表示アプリ - 設定</title>
+    <title>会議室予約表示アプリ - カレンダー設定</title>
     <meta charset="utf-8">
     <style>
         body { font-family: 'Arial', sans-serif; margin: 20px; }
@@ -14,23 +14,22 @@
         button { padding: 8px 15px; cursor: pointer; margin-right: 5px; }
         #calendarListSelect { width: 100%; padding: 8px; margin-top: 10px; margin-bottom: 10px; }
         .hidden { display: none; }
-        .account-status-display { margin-top: 10px; font-size: 0.9em; color: #555; } /* クラス名変更 */
-        .account-status-display.selected { color: green; }
-        .account-status-display.not-selected { color: red; }
-        #displayedAccountEmail { font-weight: bold; margin-left: 5px; } /* id名変更 */
+        .account-info-display { margin-top: 10px; font-size: 0.9em; color: #555; } /* クラス名変更 */
+        .account-info-display.set { color: green; }
+        .account-info-display.unset { color: red; }
+        #accountEmailDisplay { font-weight: bold; margin-left: 5px; } /* id名変更 */
         .settings-section { margin-top: 20px; padding-top: 15px; border-top: 1px solid #eee; }
     </style>
 </head>
 <body>
     <div id="settings-screen">
-        <h1>設定</h1>
-        <p>表示するGoogleカレンダーを設定してください。</p> <div class="account-status-display" id="accountStatusDisplay">Googleアカウントが選択されていません</div> <span id="displayedAccountEmail" class="hidden"></span> 
+        <h1>カレンダー設定</h1> <p>メイン画面でGoogleアカウントを選択した後、ここで表示するカレンダーを設定してください。</p> <div class="account-info-display" id="accountInfoDisplay">Googleアカウントが選択されていません</div> 
+        <span id="accountEmailDisplay" class="hidden"></span> 
         
-        <button id="selectGoogleAccountButton">Googleアカウントを選択・変更</button> <button id="clearAccountSettingsButton" class="hidden">アカウント設定を解除</button> <div class="settings-section" id="calendarSelectionArea" class="hidden"> 
-            <h2>利用可能なカレンダー</h2>
+        <div class="settings-section" id="calendarSelectionArea"> <h2>利用可能なカレンダー</h2>
             <p>ここに表示されるカレンダーから、メイン画面で表示するカレンダーを選んでください。</p>
             <select id="calendarListSelect" size="10">
-                </select>
+                <option>Googleアカウントを選択してください。</option> </select>
             <button id="saveSettingsButton">このカレンダーに設定</button>
         </div>
         <button id="backToMainButton">メイン画面に戻る</button>
@@ -42,13 +41,11 @@
         const LOCAL_STORAGE_CALENDAR_KEY = 'selectedCalendar'; 
         const LOCAL_STORAGE_ACCOUNT_EMAIL_KEY = 'authenticatedAccountEmail'; 
         const LOCAL_STORAGE_CALENDAR_LIST_KEY = 'calendarList'; 
-        const APP_VERSION = '1.0.3'; 
+        const APP_VERSION = '1.0.4'; 
 
         // --- 画面要素の参照 ---
-        const accountStatusDisplayDiv = document.getElementById('accountStatusDisplay'); // id変更
-        const displayedAccountEmailSpan = document.getElementById('displayedAccountEmail'); // id変更
-        const selectGoogleAccountButton = document.getElementById('selectGoogleAccountButton'); 
-        const clearAccountSettingsButton = document.getElementById('clearAccountSettingsButton'); // id変更
+        const accountInfoDisplayDiv = document.getElementById('accountInfoDisplay'); // id変更
+        const accountEmailDisplaySpan = document.getElementById('accountEmailDisplay'); // id変更
         const calendarSelectionArea = document.getElementById('calendarSelectionArea');
         const calendarListSelect = document.getElementById('calendarListSelect');
         const saveSettingsButton = document.getElementById('saveSettingsButton');
@@ -67,7 +64,6 @@
                 selectedCalendarId = storedCalendar.id;
                 selectedCalendarName = storedCalendar.name;
             }
-
             updateSettingsPageUI(); // 設定画面のUIを更新
         }
 
@@ -79,25 +75,19 @@
             const storedCalendarList = JSON.parse(localStorage.getItem(LOCAL_STORAGE_CALENDAR_LIST_KEY));
 
             if (storedEmail) {
-                accountStatusDisplayDiv.textContent = 'アカウント選択済み';
-                accountStatusDisplayDiv.className = 'account-status-display selected';
-                displayedAccountEmailSpan.textContent = `(${storedEmail})`;
-                displayedAccountEmailSpan.classList.remove('hidden');
-                selectGoogleAccountButton.classList.add('hidden');
-                clearAccountSettingsButton.classList.remove('hidden');
-                calendarSelectionArea.classList.remove('hidden');
-
+                accountInfoDisplayDiv.textContent = 'Googleアカウント選択済み:'; // 文言変更
+                accountInfoDisplayDiv.className = 'account-info-display set'; // class名変更
+                accountEmailDisplaySpan.textContent = `(${storedEmail})`;
+                accountEmailDisplaySpan.classList.remove('hidden');
+                
                 // 保存されているカレンダーリストを表示
                 displayCalendarList(storedCalendarList);
 
             } else {
-                accountStatusDisplayDiv.textContent = 'Googleアカウントが選択されていません';
-                accountStatusDisplayDiv.className = 'account-status-display not-selected';
-                displayedAccountEmailSpan.classList.add('hidden');
-                selectGoogleAccountButton.classList.remove('hidden');
-                clearAccountSettingsButton.classList.add('hidden');
-                calendarSelectionArea.classList.add('hidden');
-                calendarListSelect.innerHTML = '<option>Googleアカウントを選択してください。</option>'; // デフォルト表示
+                accountInfoDisplayDiv.textContent = 'Googleアカウントが選択されていません'; // 文言変更
+                accountInfoDisplayDiv.className = 'account-info-display unset'; // class名変更
+                accountEmailDisplaySpan.classList.add('hidden');
+                calendarListSelect.innerHTML = '<option>Googleアカウントをメイン画面で選択してください。</option>'; // デフォルト表示
             }
         }
 
@@ -111,8 +101,7 @@
                 calendars.forEach(calendar => {
                     const option = document.createElement('option');
                     option.value = calendar.id;
-                    option.textContent = calendar.name; // nameプロパティを使用
-                    // 現在設定されているカレンダーがあれば選択状態にする
+                    option.textContent = calendar.name; 
                     if (calendar.id === selectedCalendarId) {
                         option.selected = true;
                     }
@@ -126,38 +115,8 @@
             }
         }
 
-        // --- イベントリスナーの設定 ---
+        // --- 設定の保存 ---
 
-        // Googleアカウントを選択・変更ボタン
-        selectGoogleAccountButton.addEventListener('click', () => {
-            // メイン画面にOAuth認証とカレンダーリスト取得を委譲
-            // メイン画面で認証後、設定画面に戻るようにする
-            // 認証後に設定画面へ戻ることを示すフラグをlocalStorageにセットするなど工夫が必要だが、
-            // 今回はシンプルに、メイン画面の認証が完了すればsettings.htmlへリダイレクト
-            alert('Googleアカウントを選択するためにメイン画面に移動します。「アカウント選択：30分予約」ボタンをクリックしてください。');
-            window.location.href = 'index.html'; 
-        });
-
-        // アカウント設定を解除ボタン
-        clearAccountSettingsButton.addEventListener('click', () => {
-            localStorage.removeItem(LOCAL_STORAGE_ACCOUNT_EMAIL_KEY);
-            localStorage.removeItem(LOCAL_STORAGE_CALENDAR_LIST_KEY);
-            localStorage.removeItem(LOCAL_STORAGE_CALENDAR_KEY); // 設定済みカレンダーもクリア
-            selectedCalendarId = '';
-            selectedCalendarName = '';
-            alert('アカウント設定とカレンダー設定が解除されました。');
-            updateSettingsPageUI(); // UIを更新
-        });
-
-        // カレンダーリストを更新ボタン（この画面では不要になるが、残す場合は動作を考慮）
-        // settings.htmlでは直接カレンダーリストを更新できないため、ボタンの動作を考える
-        // 例えば、再度メイン画面にリダイレクトして認証を促すなど
-        refreshCalendarListButton.addEventListener('click', () => {
-            alert('カレンダーリストを更新するには、一度Googleアカウントを選択し直すか、メイン画面で予約操作を行って認証を更新してください。');
-            // 必要であれば、window.location.href = 'index.html'; でメイン画面にリダイレクト
-        });
-
-        // 設定の保存
         function saveSettings() {
             const selectedOption = calendarListSelect.options[calendarListSelect.selectedIndex];
             if (selectedOption && selectedOption.value) {
@@ -173,11 +132,20 @@
                 alert('表示するカレンダーを選択してください。');
             }
         }
+
+        // --- イベントリスナーの設定 ---
+        
+        // 設定の保存ボタン
         saveSettingsButton.addEventListener('click', saveSettings);
         
+        // メイン画面へ戻るボタン
         backToMainButton.addEventListener('click', () => {
             window.location.href = 'index.html';
         });
+
+        // settings.html では認証ボタンは直接存在しないため、関連リスナーは不要
+        // カレンダーリスト更新ボタンも、直接APIを叩けないため、動作を削除
+        // ユーザーがカレンダーリストを更新したい場合は、メイン画面でアカウント選択を促す形にする
     </script>
 </body>
 </html>
