@@ -150,6 +150,7 @@
                     client_id: CLIENT_ID,
                     scope: SCOPES,
                     callback: (tokenResponse) => {
+                        console.log('--- tokenClient callback executed ---');
                         if (tokenResponse && tokenResponse.access_token) {
                             gapi.client.setToken(tokenResponse);
                             console.log('アクセストークンを取得しました:', tokenResponse);
@@ -158,16 +159,24 @@
                             const savedCalendarId = localStorage.getItem(LOCAL_STORAGE_CALENDAR_ID_KEY);
                             const savedCalendarSummary = localStorage.getItem(LOCAL_STORAGE_CALENDAR_SUMMARY_KEY);
 
+                            console.log('localStorageから読み込んだID:', savedCalendarId);
+                            console.log('localStorageから読み込んだSummary:', savedCalendarSummary);
+
                             if (savedCalendarId && savedCalendarSummary) {
                                 selectedCalendarId = savedCalendarId;
                                 selectedCalendarSummary = savedCalendarSummary;
                                 document.getElementById('selected_calendar_info').textContent = `選択中のカレンダー: ${selectedCalendarSummary} (前回選択)`;
-                                console.log('保存されたカレンダーを読み込みました:', selectedCalendarId);
+                                console.log('✅ 保存されたカレンダーを読み込みました。イベントを自動表示します:', selectedCalendarId);
                                 listEvents(selectedCalendarId);
+                                // 自動表示が成功したら認証ボタンを無効化
+                                document.getElementById('authorize_button').disabled = true;
                             } else {
+                                console.log('ℹ️ localStorageに保存されたカレンダーが見つかりませんでした。カレンダーリストを表示します。');
                                 // 保存されたカレンダーがなければ、カレンダーリストを表示し、ユーザーに選択を促す
                                 listCalendars(); 
                                 document.getElementById('selected_calendar_info').textContent = 'カレンダーが選択されていません。リストから選択してください。';
+                                // ユーザーに選択を促すため認証ボタンは有効のまま
+                                document.getElementById('authorize_button').disabled = false;
                             }
                             
                         } else {
@@ -190,6 +199,7 @@
                 // ★ここに自動認証のロジックを追加★
                 // ページロード時に、有効なセッションがあれば自動的にトークンをリクエスト
                 // prompt: '' でサイレント認証を試みる。これにより、2回目以降のアクセスでアカウント選択をスキップ可能。
+                console.log('--- ページロード時にサイレント認証を試みます (prompt: \'\') ---');
                 tokenClient.requestAccessToken({ prompt: '' }); 
 
             }).catch(err => {
@@ -203,6 +213,7 @@
         function handleAuthClick() {
             // 手動認証時はアカウント選択画面を出すことを強制する (prompt: 'select_account')
             // これにより、ユーザーが別のアカウントを選び直すことが可能。
+            console.log('--- 認証ボタンがクリックされました。アカウント選択を強制します (prompt: \'select_account\') ---');
             if (tokenClient) {
                 tokenClient.requestAccessToken({ prompt: 'select_account' }); 
             } else {
@@ -247,8 +258,10 @@
                             selectedCalendarId = newSelectedId;
                             selectedCalendarSummary = newSelectedSummary;
                             document.getElementById('selected_calendar_info').textContent = `選択中のカレンダー: ${selectedCalendarSummary}`;
-                            console.log('カレンダーが選択され、保存されました:', selectedCalendarId);
+                            console.log('✅ カレンダーが選択され、localStorageに保存されました:', selectedCalendarId);
                             listEvents(selectedCalendarId); // イベントリストを取得して表示
+                            // 選択が成功したら認証ボタンを無効化
+                            document.getElementById('authorize_button').disabled = true;
                         };
                     });
 
@@ -257,10 +270,12 @@
                     li.textContent = '自分で作成したカレンダーが見つかりませんでした。';
                     calendarListUl.appendChild(li);
                     console.log('オーナーカレンダーが見つかりませんでした。');
+                    document.getElementById('authorize_button').disabled = false; // カレンダーがなければ認証ボタンは有効のまま
                 }
             } catch (err) {
                 console.error('カレンダーリストの取得エラー:', err.result ? err.result.error : err);
                 displayError(`カレンダーリストの取得中にエラーが発生しました: ${err.result && err.result.error && err.result.error.message ? err.result.error.message : err.message}`);
+                document.getElementById('authorize_button').disabled = false; // エラー時は認証ボタンは有効のまま
             }
         }
 
@@ -273,6 +288,8 @@
             const now = new Date();
             const timeMin = new Date(now.getTime() - (2 * 60 * 60 * 1000)).toISOString(); // 2時間前
             const timeMax = new Date(now.getTime() + (12 * 60 * 60 * 1000)).toISOString(); // 12時間後
+
+            console.log(`イベント取得を試みます。カレンダーID: ${calendarId}, 期間: ${timeMin} から ${timeMax}`);
 
             try {
                 const response = await gapi.client.calendar.events.list({
@@ -317,16 +334,16 @@
                         }
                         eventListUl.appendChild(li);
                     });
-                    console.log(`イベントを正常に表示しました (${calendarId}):`, events);
+                    console.log(`✅ イベントを正常に表示しました (${calendarId}):`, events);
                 } else {
                     const li = document.createElement('li');
                     li.className = 'no-events';
                     li.textContent = '指定された期間にイベントが見つかりませんでした。';
                     eventListUl.appendChild(li);
-                    console.log(`イベントが見つかりませんでした (${calendarId})。`);
+                    console.log(`ℹ️ イベントが見つかりませんでした (${calendarId})。`);
                 }
             } catch (err) {
-                console.error(`イベントの取得エラー (${calendarId}):`, err.result ? err.result.error : err);
+                console.error(`❌ イベントの取得エラー (${calendarId}):`, err.result ? err.result.error : err);
                 displayError(`イベントの取得中にエラーが発生しました: ${err.result && err.result.error && err.result.error.message ? err.result.error.message : err.message}`);
                 const li = document.createElement('li');
                 li.className = 'error-message';
