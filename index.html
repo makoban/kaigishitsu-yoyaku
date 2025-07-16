@@ -186,6 +186,8 @@
             right: 20px;
             z-index: 101; 
             box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+            /* 初期は非表示 */
+            display: none; 
         }
         #settings_button:hover {
             background-color: #5a6268;
@@ -497,8 +499,7 @@
 <body>
     <header>
         <h1>会議室予約表示</h1>
-        <button id="settings_button">設定</button>
-        <span id="display_calendar_summary_top"></span>
+        <button id="settings_button">設定</button> <span id="display_calendar_summary_top"></span>
     </header>
 
     <div id="top_bar">
@@ -522,7 +523,7 @@
                     ※認証後、表示・操作するカレンダーを選択してください。
                 </p>
                 <div id="calendar_selection_panel" style="display: none;">
-                    <div style="height: 3em;"></div> <h4>表示・操作するカレンダーを選択</h4>
+                    <div style="height: 3em; margin-bottom: 1em;"></div> <h4>表示・操作するカレンダーを選択</h4>
                     <ul id="writable_calendar_list">
                         <li>認証後、カレンダーを読み込み中...</li>
                     </ul>
@@ -640,19 +641,25 @@
         let refreshIntervalId; 
         let lastFetchedEventsString = ""; 
 
+        // 長押し関連の変数
+        let longPressTimerId = null; // 長押しタイマーのID
+        let isLongPressActionTriggered = false; // 長押しアクションが実行されたかのフラグ
+
         document.addEventListener('DOMContentLoaded', () => {
             // 設定をロードし、UIとアプリに適用
             loadSettings();
             applySettingsToUI();
             applyTheme(appSettings.theme);
 
+            // UI要素の取得
             const settingsButton = document.getElementById('settings_button');
             const settingsPanel = document.getElementById('settings_panel');
             const closeSettingsPanelButton = document.getElementById('close_settings_panel');
             const authorizeButton = document.getElementById('authorize_button');
             const switchAccountButton = document.getElementById('switch_account_button'); 
+            const refreshButton = document.getElementById('refresh_button'); // 更新ボタン
 
-            // 設定UI要素の取得
+            // 設定UI要素の取得 (設定保存/適用用)
             const themeSelect = document.getElementById('theme_select');
             const refreshIntervalSelect = document.getElementById('refresh_interval_select');
             const availableTextInput = document.getElementById('available_text_input');
@@ -664,7 +671,41 @@
             const preAnnouncementDefaultTextInput = document.getElementById('pre_announcement_default_text_input'); 
             const eventSummaryInput = document.getElementById('event_summary_input');
             
-            // 設定UI要素の変更イベントリスナー
+            // --- 設定ボタンのイベントリスナー ---
+            // 初期は非表示に設定
+            settingsButton.style.display = 'none';
+
+            // 通常のクリックで設定パネルを開く（このボタンは後でダブルクリックで表示される）
+            settingsButton.onclick = () => {
+                settingsPanel.classList.toggle('open');
+                if (settingsPanel.classList.contains('open') && isAuthorizedForWrite) {
+                    listWritableCalendars(); 
+                } else if (!settingsPanel.classList.contains('open')) {
+                    displayError(''); 
+                }
+            };
+            
+
+            // --- 更新ボタンのダブルクリックで設定ボタンを表示 ---
+            refreshButton.addEventListener('dblclick', (e) => {
+                e.preventDefault(); // デフォルトのダブルクリック動作を防止
+                console.log('--- 更新ボタンがダブルクリックされました ---');
+                settingsButton.style.display = 'block'; // 設定ボタンを表示
+                settingsButton.disabled = false; // 設定ボタンを有効化 (長押しは不要)
+                console.log('設定ボタンが表示され、有効になりました。');
+            });
+
+
+            // 設定パネルを閉じるボタン
+            closeSettingsPanelButton.onclick = () => {
+                settingsPanel.classList.remove('open');
+                displayError(''); 
+                // パネルを閉じたら設定ボタンを再び非表示に戻す
+                settingsButton.style.display = 'none';
+                console.log('設定ボタンを非表示に戻しました。');
+            };
+
+            // --- 各種設定UI要素のイベントリスナー ---
             themeSelect.onchange = (e) => { appSettings.theme = e.target.value; saveSettings(); applyTheme(appSettings.theme); };
             refreshIntervalSelect.onchange = (e) => { appSettings.refreshInterval = parseInt(e.target.value); saveSettings(); startAutoRefresh(); };
             availableTextInput.onchange = (e) => { appSettings.availableText = e.target.value; saveSettings(); updateEventHighlightsAndAnnouncement(appSettings.lastEvents || []); }; 
@@ -676,32 +717,22 @@
             preAnnouncementDefaultTextInput.onchange = (e) => { appSettings.preAnnouncementDefaultText = e.target.value; saveSettings(); updateEventHighlightsAndAnnouncement(appSettings.lastEvents || []); }; 
             eventSummaryInput.onchange = (e) => { appSettings.eventSummary = e.target.value; saveSettings(); updateAddButtonText(); }; 
 
-            settingsButton.onclick = () => {
-                settingsPanel.classList.toggle('open');
-                if (settingsPanel.classList.contains('open') && isAuthorizedForWrite) {
-                    listWritableCalendars(); 
-                } else if (!settingsPanel.classList.contains('open')) {
-                    displayError(''); 
-                }
-            };
-            closeSettingsPanelButton.onclick = () => {
-                settingsPanel.classList.remove('open');
-                displayError(''); 
-            };
-
+            // --- 認証関連ボタンのイベントリスナー ---
             authorizeButton.onclick = () => {
                 console.log('--- Googleアカウントで認証ボタンがクリックされました（操作用）。認証フローを開始します。---');
                 tokenClient.requestAccessToken({ prompt: 'consent', ux_mode: 'popup' }); 
             };
-
             switchAccountButton.onclick = () => { 
                 console.log('--- 別のアカウントで認証ボタンがクリックされました。アカウント選択を強制します。---');
                 tokenClient.requestAccessToken({ prompt: 'select_account', ux_mode: 'popup' }); 
             };
 
+            // --- 操作ボタンのイベントリスナー ---
             document.getElementById('add_30min_event_button').onclick = () => handleAddEvent(30);
             document.getElementById('add_60min_event_button').onclick = () => handleAddEvent(60); 
-            document.getElementById('refresh_button').onclick = listEvents;
+            // refreshButtonの通常のクリック動作
+            refreshButton.onclick = listEvents; 
+
 
             setInterval(updateCurrentDateTime, 1000);
             updateCurrentDateTime(); 
