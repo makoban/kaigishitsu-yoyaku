@@ -650,8 +650,8 @@
         let lastFetchedEventsString = ""; 
 
         // 長押し関連の変数
-        let settingsPressTimer; // 設定ボタン用タイマー
-        let refreshPressTimer; // 更新ボタン用タイマー
+        let settingsPressTimer = null; // nullで初期化
+        let refreshPressTimer = null; // nullで初期化
         const LONG_PRESS_DURATION = 2000; // 2秒
 
         document.addEventListener('DOMContentLoaded', () => {
@@ -682,10 +682,10 @@
 
             // --- 設定ボタン長押しイベント ---
             settingsButton.disabled = true; // 初期は無効化
-            settingsButton.addEventListener('mousedown', (e) => startPressTimer(e, settingsButton, LONG_PRESS_DURATION, enableSettingsButton));
-            settingsButton.addEventListener('touchstart', (e) => startPressTimer(e, settingsButton, LONG_PRESS_DURATION, enableSettingsButton));
-            settingsButton.addEventListener('mouseup', clearPressTimer);
-            settingsButton.addEventListener('touchend', clearPressTimer);
+            settingsButton.addEventListener('mousedown', (e) => startPressTimer(e, settingsButton, enableSettingsButton));
+            settingsButton.addEventListener('touchstart', (e) => startPressTimer(e, settingsButton, enableSettingsButton));
+            settingsButton.addEventListener('mouseup', clearPressTimerForSettings); // 設定ボタン専用クリア
+            settingsButton.addEventListener('touchend', clearPressTimerForSettings); // 設定ボタン専用クリア
             settingsButton.addEventListener('contextmenu', (e) => e.preventDefault()); // 右クリックメニューを防止
 
             settingsButton.onclick = (e) => {
@@ -701,10 +701,10 @@
             };
             
             // --- 更新ボタン長押しイベント ---
-            refreshButton.addEventListener('mousedown', (e) => startPressTimer(e, refreshButton, LONG_PRESS_DURATION, enableSettingsButtonFromRefresh));
-            refreshButton.addEventListener('touchstart', (e) => startPressTimer(e, refreshButton, LONG_PRESS_DURATION, enableSettingsButtonFromRefresh));
-            refreshButton.addEventListener('mouseup', clearPressTimer);
-            refreshButton.addEventListener('touchend', clearPressTimer);
+            refreshButton.addEventListener('mousedown', (e) => startPressTimer(e, refreshButton, enableSettingsButtonFromRefresh));
+            refreshButton.addEventListener('touchstart', (e) => startPressTimer(e, refreshButton, enableSettingsButtonFromRefresh));
+            refreshButton.addEventListener('mouseup', clearPressTimerForRefresh); // 更新ボタン専用クリア
+            refreshButton.addEventListener('touchend', clearPressTimerForRefresh); // 更新ボタン専用クリア
             refreshButton.addEventListener('contextmenu', (e) => e.preventDefault()); // 右クリックメニューを防止
 
 
@@ -754,47 +754,54 @@
         });
 
         // --- 長押し検出関数群 ---
-        function startPressTimer(e, buttonElement, duration, callback) {
-            // 右クリックを防止 (タッチデバイスでの長押し判定の邪魔になる場合がある)
+        function startPressTimer(e, buttonElement, callback) {
+            // 右クリックを防止
             e.preventDefault(); 
 
             // 既に有効ならタイマー開始しない
             if (!buttonElement.disabled) return; 
 
-            // 既存のタイマーがあればクリア
-            clearTimeout(settingsPressTimer); 
-            clearTimeout(refreshPressTimer); 
-
             // どのボタンが押されたかに応じてタイマーを設定
             if (buttonElement.id === 'settings_button') {
-                settingsPressTimer = setTimeout(() => callback(buttonElement), duration);
+                clearTimeout(settingsPressTimer); // 既存のタイマーをクリア
+                settingsPressTimer = setTimeout(() => callback(buttonElement), LONG_PRESS_DURATION);
+                console.log(`設定ボタン (${buttonElement.id}) 長押しタイマー開始`);
             } else if (buttonElement.id === 'refresh_button') {
-                refreshPressTimer = setTimeout(() => callback(buttonElement), duration);
+                clearTimeout(refreshPressTimer); // 既存のタイマーをクリア
+                refreshPressTimer = setTimeout(() => callback(buttonElement), LONG_PRESS_DURATION);
+                console.log(`更新ボタン (${buttonElement.id}) 長押しタイマー開始`);
             }
-            console.log(`長押しタイマー開始 for ${buttonElement.id}`);
         }
 
-        function clearPressTimer() {
+        // 設定ボタン専用のタイマークリア
+        function clearPressTimerForSettings() {
             clearTimeout(settingsPressTimer);
+            // console.log('設定ボタン長押しタイマークリア');
+        }
+
+        // 更新ボタン専用のタイマークリア
+        function clearPressTimerForRefresh() {
             clearTimeout(refreshPressTimer);
-            // console.log('長押しタイマークリア');
+            // console.log('更新ボタン長押しタイマークリア');
         }
 
         // 設定ボタンを有効化するコールバック関数
         function enableSettingsButton(buttonElement) {
             buttonElement.disabled = false;
             console.log(`設定ボタンが長押しにより有効化されました。`);
-            // 有効化されたことをユーザーに視覚的に伝えるフィードバック（例）
+            // オプション: 有効化されたことをユーザーに視覚的に伝えるフィードバック
             // buttonElement.style.boxShadow = '0 0 10px 5px yellow';
         }
 
-        // 更新ボタンから設定ボタンを有効化するコールバック関数
-        function enableSettingsButtonFromRefresh(buttonElement) {
-            document.getElementById('settings_button').disabled = false;
+        // 更新ボタンの長押しから設定ボタンを有効化するコールバック関数
+        function enableSettingsButtonFromRefresh() {
+            const settingsButton = document.getElementById('settings_button');
+            settingsButton.disabled = false;
             console.log(`更新ボタンの長押しにより、設定ボタンが有効化されました。`);
             // オプション: 設定パネルを自動的に開く
             // document.getElementById('settings_panel').classList.add('open');
         }
+
 
         // 設定をlocalStorageからロード
         function loadSettings() {
