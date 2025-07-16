@@ -450,6 +450,14 @@
         .action-button:active {
             transform: translateY(2px); 
         }
+        /* Disabled state for action buttons */
+        .action-button:disabled,
+        .event-delete-button:disabled {
+            background-color: #cccccc; /* グレーアウト */
+            cursor: not-allowed;
+            box-shadow: none;
+        }
+
         .error-message {
             color: var(--error-color);
             font-weight: 700;
@@ -506,8 +514,7 @@
                     ※認証後、表示・操作するカレンダーを選択してください。
                 </p>
                 <div id="calendar_selection_panel" style="display: none;">
-                    <div style="margin-top: 3em;"></div> 
-                    <h4>表示・操作するカレンダーを選択</h4>
+                    <div style="height: 3em;"></div> <h4>表示・操作するカレンダーを選択</h4>
                     <ul id="writable_calendar_list">
                         <li>認証後、カレンダーを読み込み中...</li>
                     </ul>
@@ -647,7 +654,7 @@
             const preAnnouncementMinutesSelect = document.getElementById('pre_announcement_minutes_select'); 
             const preAnnouncementPrefixInput = document.getElementById('pre_announcement_prefix_input'); 
             const preAnnouncementSuffixInput = document.getElementById('pre_announcement_suffix_input'); 
-            const preAnnouncementDefaultTextInput = document.getElementById('pre_announcement_default_text_input'); // 新しい設定
+            const preAnnouncementDefaultTextInput = document.getElementById('pre_announcement_default_text_input'); 
             const eventSummaryInput = document.getElementById('event_summary_input');
             
             // 設定UI要素の変更イベントリスナー
@@ -659,7 +666,7 @@
             preAnnouncementMinutesSelect.onchange = (e) => { appSettings.preAnnouncementMinutes = parseInt(e.target.value); saveSettings(); updateEventHighlightsAndAnnouncement(appSettings.lastEvents || []); }; 
             preAnnouncementPrefixInput.onchange = (e) => { appSettings.preAnnouncementPrefix = e.target.value; saveSettings(); updateEventHighlightsAndAnnouncement(appSettings.lastEvents || []); }; 
             preAnnouncementSuffixInput.onchange = (e) => { appSettings.preAnnouncementSuffix = e.target.value; saveSettings(); updateEventHighlightsAndAnnouncement(appSettings.lastEvents || []); }; 
-            preAnnouncementDefaultTextInput.onchange = (e) => { appSettings.preAnnouncementDefaultText = e.target.value; saveSettings(); updateEventHighlightsAndAnnouncement(appSettings.lastEvents || []); }; // 新しい設定
+            preAnnouncementDefaultTextInput.onchange = (e) => { appSettings.preAnnouncementDefaultText = e.target.value; saveSettings(); updateEventHighlightsAndAnnouncement(appSettings.lastEvents || []); }; 
             eventSummaryInput.onchange = (e) => { appSettings.eventSummary = e.target.value; saveSettings(); updateAddButtonText(); }; 
 
             settingsButton.onclick = () => {
@@ -734,7 +741,7 @@
             document.getElementById('pre_announcement_minutes_select').value = appSettings.preAnnouncementMinutes;
             document.getElementById('pre_announcement_prefix_input').value = appSettings.preAnnouncementPrefix;
             document.getElementById('pre_announcement_suffix_input').value = appSettings.preAnnouncementSuffix;
-            document.getElementById('pre_announcement_default_text_input').value = appSettings.preAnnouncementDefaultText; // 新しい設定
+            document.getElementById('pre_announcement_default_text_input').value = appSettings.preAnnouncementDefaultText;
             document.getElementById('event_summary_input').value = appSettings.eventSummary;
         }
 
@@ -831,6 +838,9 @@
         function handleActionTrigger(event) {
             console.log('--- handleActionTrigger: 操作ボタンがクリックされました ---');
             document.getElementById('settings_panel').classList.add('open'); 
+
+            // 認証されていない場合は、ボタンの有効/無効状態を更新
+            updateActionButtonStates(); 
 
             if (!isAuthorizedForWrite) {
                 document.getElementById('auth_status').textContent = '操作を行うにはGoogleアカウントで認証してください。';
@@ -1030,6 +1040,7 @@
                     });
                     console.log(`✅ イベントを正常に表示しました (${currentCalendarSummary}):`, events);
 
+                    // 各イベント削除ボタンにイベントリスナーを追加
                     document.querySelectorAll('.event-delete-button').forEach(button => {
                         button.onclick = (event) => {
                             const eventIdToDelete = event.target.dataset.eventId;
@@ -1046,11 +1057,13 @@
                 }
 
                 updateEventHighlightsAndAnnouncement(events); // イベントリスト再生成後にハイライトと案内文を更新
+                updateActionButtonStates(); // ボタンの有効/無効状態を更新
 
             } catch (err) {
                 console.error(`❌ イベントの取得エラー (${currentCalendarSummary}):`, err.result ? err.result.error : err);
                 displayError(`イベントの取得中にエラーが発生しました: ${err.result && err.result.error && err.result.error.message ? err.result.error.message : err.message}`);
                 eventListUl.innerHTML = '<li class="error-message">イベントの読み込みに失敗しました。</li>';
+                updateActionButtonStates(); // エラー時もボタンの有効/無効状態を更新
             }
         }
         
@@ -1059,8 +1072,8 @@
             const now = new Date();
             let currentEventFound = false;
             let currentEventSummary = '';
-            let preAnnouncementFound = false; // 予約前案内のフラグ
-            let preAnnouncementSummary = ''; // 予約前案内のサマリー
+            let preAnnouncementFound = false; 
+            let preAnnouncementSummary = ''; 
 
             // 既存のハイライトをすべて削除
             document.querySelectorAll('.event-item').forEach(item => {
@@ -1071,7 +1084,6 @@
             let closestUpcomingEvent = null;
             let minTimeUntilStart = Infinity;
 
-            // イベントをループして現在進行中と予約前案内対象を判定
             events.forEach((event, index) => {
                 const start = new Date(event.start.dateTime || event.start.date);
                 const end = new Date(event.end.dateTime || event.end.date);
@@ -1089,7 +1101,7 @@
                 // 現在時刻より未来のイベントの中で最も近いものを探す
                 if (now < start) {
                     const timeUntilStart = start.getTime() - now.getTime(); // ミリ秒単位
-                    if (timeUntilStart < minTimeUntilStart) {
+                    if (timeUntilStart > 0 && timeUntilStart < minTimeUntilStart) { // timeUntilStart > 0 を追加
                         minTimeUntilStart = timeUntilStart;
                         closestUpcomingEvent = event;
                     }
@@ -1130,6 +1142,22 @@
             }
         }
 
+        // 予約・削除ボタンの有効/無効を切り替える関数
+        function updateActionButtonStates() {
+            const add30Button = document.getElementById('add_30min_event_button');
+            const add60Button = document.getElementById('add_60min_event_button');
+            const deleteButtons = document.querySelectorAll('.event-delete-button');
+
+            // 認証状態に応じてボタンを有効/無効化
+            add30Button.disabled = !isAuthorizedForWrite;
+            add60Button.disabled = !isAuthorizedForWrite;
+
+            deleteButtons.forEach(button => {
+                button.disabled = !isAuthorizedForWrite;
+            });
+
+            console.log(`ℹ️ 操作ボタンの状態を更新しました。認証済み: ${isAuthorizedForWrite}`);
+        }
 
         async function handleAddEvent(durationMinutes) {
             if (!isAuthorizedForWrite) {
