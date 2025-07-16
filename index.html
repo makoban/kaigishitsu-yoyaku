@@ -7,6 +7,14 @@
     <style>
         body { font-family: Arial, sans-serif; margin: 20px; background-color: #f4f4f4; color: #333; }
         h1, h2 { color: #0056b3; }
+        #auth_section {
+            margin-bottom: 20px;
+            padding: 15px;
+            background-color: #e9f5ff;
+            border: 1px solid #cce5ff;
+            border-radius: 8px;
+            display: none; /* 初期は非表示 */
+        }
         #authorize_button {
             padding: 12px 25px;
             font-size: 18px;
@@ -27,7 +35,7 @@
         #container {
             display: flex;
             gap: 20px;
-            margin-top: 30px;
+            margin-top: 0px;
         }
         .panel {
             flex: 1;
@@ -38,7 +46,7 @@
             box-shadow: 0 2px 4px rgba(0,0,0,0.1);
         }
         .panel ul {
-            list-style-type: none; /* デフォルトのリストスタイルを削除 */
+            list-style-type: none;
             padding: 0;
         }
         .panel li {
@@ -46,13 +54,13 @@
             line-height: 1.5;
             color: #555;
             display: flex;
-            align-items: center; /* アイテムを縦方向中央揃え */
-            justify-content: space-between; /* 要素を両端に配置 */
+            align-items: center;
+            justify-content: space-between;
             padding: 8px 0;
-            border-bottom: 1px dashed #eee; /* リストアイテム間の区切り線 */
+            border-bottom: 1px dashed #eee;
         }
         .panel li:last-child {
-            border-bottom: none; /* 最後のアイテムは区切り線なし */
+            border-bottom: none;
         }
         .select-button {
             padding: 5px 10px;
@@ -66,6 +74,20 @@
         }
         .select-button:hover {
             background-color: #218838;
+        }
+        .action-button {
+            padding: 8px 15px;
+            font-size: 16px;
+            background-color: #007bff; /* Blue */
+            color: white;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            transition: background-color 0.3s ease;
+            margin-right: 10px;
+        }
+        .action-button:hover {
+            background-color: #0056b3;
         }
         .error-message {
             color: red;
@@ -94,192 +116,234 @@
 <body>
     <h1>会議室予約表示</h1>
 
-    <p>以下のボタンをクリックしてGoogleアカウントを選択し、利用可能なカレンダーを表示します。</p>
-    <button id="authorize_button" disabled>Googleアカウントを選択</button>
-
-    <div id="container">
-        <div id="calendar_list_container" class="panel">
-            <h2>自分で作成したカレンダー</h2>
-            <ul id="calendar_list">
-                <li>ボタンをクリックして認証を開始してください。</li>
+    <div id="auth_section">
+        <p id="auth_status" style="color: blue;">操作を行うにはGoogleアカウントで認証してください。</p>
+        <button id="authorize_button">Googleアカウントで認証</button>
+        <p style="font-size: 0.9em; color: #555; margin-top: 10px;">
+            ※カレンダーの切り替え、緊急会議、削除機能を利用する際に認証が必要です。
+        </p>
+        <div id="calendar_selection_panel" style="margin-top: 20px; display: none;">
+            <h2>表示・操作するカレンダーを選択</h2>
+            <ul id="writable_calendar_list">
+                <li>カレンダーを読み込み中...</li>
             </ul>
         </div>
+    </div>
 
-        <div id="event_list_container" class="panel">
-            <h2>選択されたカレンダーのイベント</h2>
-            <p id="selected_calendar_info">カレンダーが選択されていません。</p>
+    <div id="container">
+        <div id="event_list_container" class="panel" style="flex: auto;">
+            <h2>会議室の予定</h2>
+            <p id="selected_calendar_info">現在のカレンダー: <span id="display_calendar_summary">初期設定カレンダー</span> (<span id="display_calendar_id_text"></span>)</p>
             <ul id="event_list">
-                <li>ここにイベントが表示されます。</li>
+                <li>イベントを読み込み中...</li>
             </ul>
+            <div style="margin-top: 20px;">
+                <button id="add_event_button" class="action-button">緊急会議 (30分)</button>
+                <button id="delete_event_button" class="action-button">最新の予定を削除</button>
+                <button id="refresh_button" class="action-button">更新</button>
+            </div>
         </div>
     </div>
     <p id="error_display" class="error-message"></p>
 
     <script>
         // ★★★ ここをあなたの情報に置き換えてください ★★★
+        const API_KEY = 'AIzaSyDUFH1jbIa66NjzSM8I9Xpicwo6I6H2sB8';             // 例: AIzaSyB_xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
+        // 初期表示用の公開カレンダーID。サイネージ設置初期やトラブルチェック用。
+        const INITIAL_PUBLIC_CALENDAR_ID = 'kaigishitsu20000101@gmail.com'; // 例: test_room_id@group.calendar.google.com
+                                                                        // または一般的なカレンダーID (公開設定されているもの)
+        // 書き込み操作のために必要となるOAuthクライアントID
         const CLIENT_ID = '155458326593-redrcpnqa2iqapvg8p1kb3cgegeenvse.apps.googleusercontent.com'; // 例: 123456789012-xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx.apps.googleusercontent.com
-        const API_KEY = 'AIzaSyDUFH1jbIa66NjzSM8I9Xpicwo6I6H2sB8';           // 例: AIzaSyB_xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
         // ★★★ ここまで ★★★
 
         const DISCOVERY_DOCS = ["https://www.googleapis.com/discovery/v1/apis/calendar/v3/rest"];
-        const SCOPES = 'https://www.googleapis.com/auth/calendar.readonly'; // カレンダーの読み取り専用スコープ
+        // 閲覧時は不要。書き込み操作時に必要となるスコープ
+        const WRITE_SCOPES = 'https://www.googleapis.com/auth/calendar.events'; // イベントの読み書き権限
 
-        const LOCAL_STORAGE_CALENDAR_ID_KEY = 'selectedCalendarId';
-        const LOCAL_STORAGE_CALENDAR_SUMMARY_KEY = 'selectedCalendarSummary';
+        const LOCAL_STORAGE_ACTIVE_CALENDAR_ID_KEY = 'activeCalendarId';
+        const LOCAL_STORAGE_ACTIVE_CALENDAR_SUMMARY_KEY = 'activeCalendarSummary';
 
-        let tokenClient; // Google Identity Services (GIS) のトークンクライアント
-        let selectedCalendarId = null; // 選択されたカレンダーIDを保持する変数
-        let selectedCalendarSummary = null; // 選択されたカレンダーのサマリーを保持する変数
+        let tokenClient; // Google Identity Services (GIS) のトークンクライアント (書き込み操作用)
+        let isAuthorizedForWrite = false; // 書き込み権限が認証済みかどうかのフラグ
+        let currentCalendarId = INITIAL_PUBLIC_CALENDAR_ID; // 現在表示・操作しているカレンダーID
+        let currentCalendarSummary = "初期設定カレンダー"; // 現在表示・操作しているカレンダーのサマリー
 
         // HTMLコンテンツの読み込みが完了したら初期化処理を開始
         document.addEventListener('DOMContentLoaded', () => {
-            const authorizeButton = document.getElementById('authorize_button');
-            authorizeButton.onclick = handleAuthClick;
+            // 現在の表示カレンダー情報を更新
+            document.getElementById('display_calendar_id_text').textContent = currentCalendarId;
+            document.getElementById('display_calendar_summary').textContent = currentCalendarSummary;
+            
+            // UI上のボタンにイベントリスナーを設定
+            document.getElementById('add_event_button').onclick = handleActionTrigger;
+            document.getElementById('delete_event_button').onclick = handleActionTrigger;
+            document.getElementById('refresh_button').onclick = listEvents;
 
-            gapi.load('client', initGapiClient);
+            // gapiクライアントライブラリのロードと初期化（APIキーのみ）
+            gapi.load('client', initGapiClientForRead);
         });
 
-        function initGapiClient() {
+        // 閲覧（読み込み）専用のgapiクライアント初期化
+        function initGapiClientForRead() {
             gapi.client.init({
                 apiKey: API_KEY,
                 discoveryDocs: DISCOVERY_DOCS,
             }).then(() => {
-                console.log('gapi client initialized.');
+                console.log('✅ gapi client initialized for read-only access (API Key only).');
+                
+                // localStorageに保存されたアクティブカレンダーIDがあればそれを優先
+                const savedActiveId = localStorage.getItem(LOCAL_STORAGE_ACTIVE_CALENDAR_ID_KEY);
+                const savedActiveSummary = localStorage.getItem(LOCAL_STORAGE_ACTIVE_CALENDAR_SUMMARY_KEY);
 
-                tokenClient = google.accounts.oauth2.initTokenClient({
-                    client_id: CLIENT_ID,
-                    scope: SCOPES,
-                    callback: (tokenResponse) => {
-                        console.log('--- tokenClient callback executed ---');
-                        if (tokenResponse && tokenResponse.access_token) {
-                            gapi.client.setToken(tokenResponse);
-                            console.log('アクセストークンを取得しました:', tokenResponse);
-                            
-                            // 認証後、localStorageからカレンダーIDを読み込み、イベントを表示
-                            const savedCalendarId = localStorage.getItem(LOCAL_STORAGE_CALENDAR_ID_KEY);
-                            const savedCalendarSummary = localStorage.getItem(LOCAL_STORAGE_CALENDAR_SUMMARY_KEY);
+                if (savedActiveId && savedActiveSummary) {
+                    currentCalendarId = savedActiveId;
+                    currentCalendarSummary = savedActiveSummary;
+                    console.log(`ℹ️ localStorageからアクティブカレンダーを読み込みました: ${currentCalendarSummary} (${currentCalendarId})`);
+                } else {
+                    console.log(`ℹ️ localStorageにアクティブカレンダーが見つかりませんでした。初期設定カレンダー (${INITIAL_PUBLIC_CALENDAR_ID}) を使用します。`);
+                    // 初回表示時のサマリーを適切に設定する（必要であればAPIで取得することも可能）
+                    // 現状は'初期設定カレンダー'という固定文字列を使用
+                }
+                updateDisplayedCalendarInfo(); // 表示カレンダー情報を更新
 
-                            console.log('localStorageから読み込んだID:', savedCalendarId);
-                            console.log('localStorageから読み込んだSummary:', savedCalendarSummary);
+                listEvents(); // 現在のカレンダーIDでイベントを自動表示
 
-                            if (savedCalendarId && savedCalendarSummary) {
-                                selectedCalendarId = savedCalendarId;
-                                selectedCalendarSummary = savedCalendarSummary;
-                                document.getElementById('selected_calendar_info').textContent = `選択中のカレンダー: ${selectedCalendarSummary} (前回選択)`;
-                                console.log('✅ 保存されたカレンダーを読み込みました。イベントを自動表示します:', selectedCalendarId);
-                                listEvents(selectedCalendarId);
-                                // 自動表示が成功したら認証ボタンを無効化
-                                document.getElementById('authorize_button').disabled = true;
-                            } else {
-                                console.log('ℹ️ localStorageに保存されたカレンダーが見つかりませんでした。カレンダーリストを表示します。');
-                                // 保存されたカレンダーがなければ、カレンダーリストを表示し、ユーザーに選択を促す
-                                listCalendars(); 
-                                document.getElementById('selected_calendar_info').textContent = 'カレンダーが選択されていません。リストから選択してください。';
-                                // ユーザーに選択を促すため認証ボタンは有効のまま
-                                document.getElementById('authorize_button').disabled = false;
-                            }
-                            
-                        } else {
-                            console.error('アクセストークンの取得に失敗しました。', tokenResponse);
-                            displayError('Googleアカウントの認証に失敗しました。再度お試しください。');
-                            // 失敗時は認証ボタンを再度有効にする
-                            document.getElementById('authorize_button').disabled = false;
-                        }
-                    },
-                    error_callback: (error) => {
-                        console.error('GISトークンクライアントエラー:', error);
-                        displayError('認証エラーが発生しました。コンソールを確認してください。');
-                        // エラー時は認証ボタンを再度有効にする
-                        document.getElementById('authorize_button').disabled = false;
-                    }
-                    // ux_mode: 'redirect', // クロスオリジンエラーが続く場合は有効化を検討
-                    // redirect_uri: 'https://makoban.github.io' // OAuth設定の承認済みリダイレクトURIと一致させる
-                });
-
-                // ★ここに自動認証のロジックを追加★
-                // ページロード時に、有効なセッションがあれば自動的にトークンをリクエスト
-                // prompt: '' でサイレント認証を試みる。これにより、2回目以降のアクセスでアカウント選択をスキップ可能。
-                console.log('--- ページロード時にサイレント認証を試みます (prompt: \'\') ---');
-                tokenClient.requestAccessToken({ prompt: '' }); 
+                // 書き込み操作のためにOAuthクライアントを初期化（ただし認証は保留）
+                initGisClientForWrite();
 
             }).catch(err => {
-                console.error('gapiクライアントの初期化エラー:', err);
-                displayError('APIクライアントの初期化に失敗しました。APIキーまたはネットワーク接続を確認してください。');
-                document.getElementById('authorize_button').disabled = false;
+                console.error('❌ gapiクライアントの初期化エラー（読み込み用）:', err);
+                displayError('イベント表示の初期化に失敗しました。APIキーまたはネットワーク接続を確認してください。');
             });
         }
 
-        // handleAuthClick 関数は、手動で認証ボタンが押されたときのみ呼ばれる
-        function handleAuthClick() {
-            // 手動認証時はアカウント選択画面を出すことを強制する (prompt: 'select_account')
-            // これにより、ユーザーが別のアカウントを選び直すことが可能。
-            console.log('--- 認証ボタンがクリックされました。アカウント選択を強制します (prompt: \'select_account\') ---');
-            if (tokenClient) {
-                tokenClient.requestAccessToken({ prompt: 'select_account' }); 
-            } else {
-                console.error('トークンクライアントが初期化されていません。');
-                displayError('認証クライアントが準備できていません。ページをリロードしてください。');
+        // 書き込み操作のためのGISクライアント初期化
+        function initGisClientForWrite() {
+            tokenClient = google.accounts.oauth2.initTokenClient({
+                client_id: CLIENT_ID,
+                scope: WRITE_SCOPES,
+                callback: (tokenResponse) => {
+                    console.log('--- tokenClient callback executed for write scope ---');
+                    if (tokenResponse && tokenResponse.access_token) {
+                        gapi.client.setToken(tokenResponse);
+                        isAuthorizedForWrite = true;
+                        document.getElementById('auth_status').textContent = '操作権限が認証されました。';
+                        document.getElementById('auth_status').style.color = 'green';
+                        document.getElementById('authorize_button').style.display = 'none'; // 認証後ボタンを非表示に
+                        document.getElementById('calendar_selection_panel').style.display = 'block'; // カレンダー選択パネルを表示
+                        console.log('✅ 書き込み権限のためのアクセストークンを取得しました。');
+                        listWritableCalendars(); // 認証されたアカウントの書き込み可能カレンダーを表示
+                    } else {
+                        isAuthorizedForWrite = false;
+                        document.getElementById('auth_status').textContent = '操作権限の認証に失敗しました。';
+                        document.getElementById('auth_status').style.color = 'red';
+                        document.getElementById('authorize_button').style.display = 'block'; // 失敗したらボタンを表示
+                        document.getElementById('calendar_selection_panel').style.display = 'none'; // 認証失敗時は隠す
+                        console.error('❌ 書き込み権限のためのアクセストークン取得に失敗しました。', tokenResponse);
+                    }
+                },
+                error_callback: (error) => {
+                    isAuthorizedForWrite = false;
+                    document.getElementById('auth_status').textContent = '認証エラーが発生しました。';
+                    document.getElementById('auth_status').style.color = 'red';
+                    document.getElementById('authorize_button').style.display = 'block'; // エラー時はボタンを表示
+                    document.getElementById('calendar_selection_panel').style.display = 'none'; // 認証エラー時は隠す
+                    console.error('❌ GISトークンクライアントエラー（書き込み用）:', error);
+                }
+            });
+            // 認証ボタンのイベントリスナーはinitGisClientForWrite内で設定
+            document.getElementById('authorize_button').onclick = () => {
+                console.log('--- Googleアカウントで認証ボタンがクリックされました（操作用）。---');
+                tokenClient.requestAccessToken({ prompt: 'consent' }); // 初回は同意を求める
+            };
+        }
+
+        // 操作ボタン（追加・削除）がクリックされた際の共通ハンドラ
+        function handleActionTrigger(event) {
+            // まず認証セクションを表示する
+            document.getElementById('auth_section').style.display = 'block';
+
+            if (!isAuthorizedForWrite) {
+                document.getElementById('auth_status').textContent = '操作を行うにはGoogleアカウントで認証してください。';
+                document.getElementById('auth_status').style.color = 'blue';
+                document.getElementById('authorize_button').style.display = 'block'; // 認証ボタンを表示
+                document.getElementById('calendar_selection_panel').style.display = 'none'; // カレンダー選択パネルは隠す
+                console.log('🚨 操作トリガー: 書き込み権限がありません。認証を促します。');
+                return; // 認証が済むまで操作は実行しない
+            }
+
+            // 認証済みであれば、どのボタンが押されたかに応じて処理を分岐
+            if (event.target.id === 'add_event_button') {
+                handleAddEvent();
+            } else if (event.target.id === 'delete_event_button') {
+                handleDeleteEvent();
             }
         }
-        
-        async function listCalendars() {
-            const calendarListUl = document.getElementById('calendar_list');
-            calendarListUl.innerHTML = ''; // 既存のリストをクリア
-            displayError(''); // エラーメッセージをクリア
+
+        // 認証されたアカウントの書き込み可能なカレンダーリストを表示
+        async function listWritableCalendars() {
+            const writableCalendarListUl = document.getElementById('writable_calendar_list');
+            writableCalendarListUl.innerHTML = '<li>カレンダーを読み込み中...</li>';
+            displayError('');
 
             try {
                 const response = await gapi.client.calendar.calendarList.list();
                 const allCalendars = response.result.items;
+                // オーナーまたは書き込み権限のあるカレンダーをフィルタリング
+                const writableCalendars = allCalendars.filter(calendar => 
+                    calendar.accessRole === 'owner' || calendar.accessRole === 'writer'
+                );
 
-                // オーナー権限を持つカレンダーのみをフィルタリング
-                const ownedCalendars = allCalendars.filter(calendar => calendar.accessRole === 'owner');
-
-                if (ownedCalendars && ownedCalendars.length > 0) {
-                    ownedCalendars.forEach(calendar => {
+                if (writableCalendars && writableCalendars.length > 0) {
+                    writableCalendarListUl.innerHTML = ''; // クリア
+                    writableCalendars.forEach(calendar => {
                         const li = document.createElement('li');
                         li.innerHTML = `
                             <span>${calendar.summary}</span>
-                            <button class="select-button" data-calendar-id="${calendar.id}" data-calendar-summary="${calendar.summary}">選択</button>
+                            <button class="select-button" 
+                                data-calendar-id="${calendar.id}" 
+                                data-calendar-summary="${calendar.summary}">表示・操作</button>
                         `;
-                        calendarListUl.appendChild(li);
+                        writableCalendarListUl.appendChild(li);
                     });
-                    console.log('オーナーカレンダーリストを正常に表示しました:', ownedCalendars);
+                    console.log('✅ 書き込み可能なカレンダーリストを正常に表示しました:', writableCalendars);
 
-                    // 各「選択」ボタンにイベントリスナーを追加
-                    document.querySelectorAll('.select-button').forEach(button => {
+                    // 各「表示・操作」ボタンにイベントリスナーを追加
+                    document.querySelectorAll('#writable_calendar_list .select-button').forEach(button => {
                         button.onclick = (event) => {
-                            const newSelectedId = event.target.dataset.calendarId;
-                            const newSelectedSummary = event.target.dataset.calendarSummary;
+                            const newActiveId = event.target.dataset.calendarId;
+                            const newActiveSummary = event.target.dataset.dataset.calendarSummary;
                             
-                            // localStorageに選択されたカレンダーを保存
-                            localStorage.setItem(LOCAL_STORAGE_CALENDAR_ID_KEY, newSelectedId);
-                            localStorage.setItem(LOCAL_STORAGE_CALENDAR_SUMMARY_KEY, newSelectedSummary);
+                            // アクティブカレンダーをlocalStorageに保存
+                            localStorage.setItem(LOCAL_STORAGE_ACTIVE_CALENDAR_ID_KEY, newActiveId);
+                            localStorage.setItem(LOCAL_STORAGE_ACTIVE_CALENDAR_SUMMARY_KEY, newActiveSummary);
 
-                            selectedCalendarId = newSelectedId;
-                            selectedCalendarSummary = newSelectedSummary;
-                            document.getElementById('selected_calendar_info').textContent = `選択中のカレンダー: ${selectedCalendarSummary}`;
-                            console.log('✅ カレンダーが選択され、localStorageに保存されました:', selectedCalendarId);
-                            listEvents(selectedCalendarId); // イベントリストを取得して表示
-                            // 選択が成功したら認証ボタンを無効化
-                            document.getElementById('authorize_button').disabled = true;
+                            currentCalendarId = newActiveId;
+                            currentCalendarSummary = newActiveSummary;
+                            updateDisplayedCalendarInfo(); // 表示カレンダー情報を更新
+                            console.log('✅ アクティブカレンダーが選択・保存されました:', currentCalendarSummary, currentCalendarId);
+                            listEvents(); // 新しいカレンダーでイベントリストを再表示
+                            // 認証セクションを隠す（必要であれば）
+                            document.getElementById('auth_section').style.display = 'none';
                         };
                     });
-
                 } else {
-                    const li = document.createElement('li');
-                    li.textContent = '自分で作成したカレンダーが見つかりませんでした。';
-                    calendarListUl.appendChild(li);
-                    console.log('オーナーカレンダーが見つかりませんでした。');
-                    document.getElementById('authorize_button').disabled = false; // カレンダーがなければ認証ボタンは有効のまま
+                    writableCalendarListUl.innerHTML = '<li>書き込み可能なカレンダーが見つかりませんでした。</li>';
+                    console.log('ℹ️ 書き込み可能なカレンダーが見つかりませんでした。');
                 }
             } catch (err) {
-                console.error('カレンダーリストの取得エラー:', err.result ? err.result.error : err);
+                console.error('❌ 書き込み可能カレンダーリストの取得エラー:', err.result ? err.result.error : err);
                 displayError(`カレンダーリストの取得中にエラーが発生しました: ${err.result && err.result.error && err.result.error.message ? err.result.error.message : err.message}`);
-                document.getElementById('authorize_button').disabled = false; // エラー時は認証ボタンは有効のまま
             }
         }
 
-        async function listEvents(calendarId) {
+        // 現在表示しているカレンダー情報をUIに反映する関数
+        function updateDisplayedCalendarInfo() {
+            document.getElementById('display_calendar_id_text').textContent = currentCalendarId;
+            document.getElementById('display_calendar_summary').textContent = currentCalendarSummary;
+        }
+
+        async function listEvents() {
             const eventListUl = document.getElementById('event_list');
             eventListUl.innerHTML = ''; // 既存のイベントリストをクリア
             displayError(''); // エラーメッセージをクリア
@@ -289,11 +353,11 @@
             const timeMin = new Date(now.getTime() - (2 * 60 * 60 * 1000)).toISOString(); // 2時間前
             const timeMax = new Date(now.getTime() + (12 * 60 * 60 * 1000)).toISOString(); // 12時間後
 
-            console.log(`イベント取得を試みます。カレンダーID: ${calendarId}, 期間: ${timeMin} から ${timeMax}`);
+            console.log(`イベント取得を試みます。カレンダーID: ${currentCalendarId}, 期間: ${timeMin} から ${timeMax}`);
 
             try {
                 const response = await gapi.client.calendar.events.list({
-                    'calendarId': calendarId,
+                    'calendarId': currentCalendarId, // 現在選択されているカレンダーIDを使用
                     'timeMin': timeMin,
                     'timeMax': timeMax,
                     'showDeleted': false,
@@ -334,16 +398,16 @@
                         }
                         eventListUl.appendChild(li);
                     });
-                    console.log(`✅ イベントを正常に表示しました (${calendarId}):`, events);
+                    console.log(`✅ イベントを正常に表示しました (${currentCalendarId}):`, events);
                 } else {
                     const li = document.createElement('li');
                     li.className = 'no-events';
                     li.textContent = '指定された期間にイベントが見つかりませんでした。';
                     eventListUl.appendChild(li);
-                    console.log(`ℹ️ イベントが見つかりませんでした (${calendarId})。`);
+                    console.log(`ℹ️ イベントが見つかりませんでした (${currentCalendarId})。`);
                 }
             } catch (err) {
-                console.error(`❌ イベントの取得エラー (${calendarId}):`, err.result ? err.result.error : err);
+                console.error(`❌ イベントの取得エラー (${currentCalendarId}):`, err.result ? err.result.error : err);
                 displayError(`イベントの取得中にエラーが発生しました: ${err.result && err.result.error && err.result.error.message ? err.result.error.message : err.message}`);
                 const li = document.createElement('li');
                 li.className = 'error-message';
@@ -351,6 +415,88 @@
                 eventListUl.appendChild(li);
             }
         }
+
+        // イベント追加のハンドラ (認証が必要)
+        async function handleAddEvent() {
+            // handleActionTriggerで認証済みであることを確認済み
+            console.log('✅ イベントを追加します。');
+            const now = new Date();
+            const eventEndTime = new Date(now.getTime() + (30 * 60 * 1000)); // 30分後
+
+            const event = {
+                'summary': '緊急会議 (30分)',
+                'location': '会議室', // 必要に応じて具体的な場所を設定
+                'description': '緊急の会議です。',
+                'start': {
+                    'dateTime': now.toISOString(),
+                    'timeZone': 'Asia/Tokyo'
+                },
+                'end': {
+                    'dateTime': eventEndTime.toISOString(),
+                    'timeZone': 'Asia/Tokyo'
+                },
+                'reminders': {
+                    'useDefault': true
+                }
+            };
+
+            try {
+                const response = await gapi.client.calendar.events.insert({
+                    'calendarId': currentCalendarId, // 現在のアクティブカレンダーIDにイベントを追加
+                    'resource': event
+                });
+                console.log('✅ イベントが追加されました:', response.result);
+                alert('緊急会議が30分間予約されました！');
+                listEvents(); // 追加後、イベントリストを再読み込み
+            } catch (err) {
+                console.error('❌ イベント追加エラー:', err.result ? err.result.error : err);
+                alert(`イベントの追加に失敗しました: ${err.result && err.result.error && err.result.error.message ? err.result.error.message : err.message}`);
+            }
+        }
+
+        // 最新のイベント削除のハンドラ (認証が必要)
+        async function handleDeleteEvent() {
+            // handleActionTriggerで認証済みであることを確認済み
+            console.log('✅ 最新のイベントを削除します。');
+            try {
+                // まず現在の期間のイベントリストを取得
+                const now = new Date();
+                const timeMin = new Date(now.getTime() - (2 * 60 * 60 * 1000)).toISOString();
+                const timeMax = new Date(now.getTime() + (12 * 60 * 60 * 1000)).toISOString();
+
+                const response = await gapi.client.calendar.events.list({
+                    'calendarId': currentCalendarId, // 現在のアクティブカレンダーIDから取得
+                    'timeMin': timeMin,
+                    'timeMax': timeMax,
+                    'showDeleted': false,
+                    'singleEvents': true,
+                    'orderBy': 'startTime',
+                    'maxResults': 1 // 最新の1件のみ取得
+                });
+
+                const events = response.result.items;
+
+                if (events && events.length > 0) {
+                    const eventToDelete = events[0]; // 最新のイベント
+                    console.log('削除するイベント:', eventToDelete);
+                    if (confirm(`「${eventToDelete.summary || 'タイトルなし'}」を削除してもよろしいですか？`)) {
+                        await gapi.client.calendar.events.delete({
+                            'calendarId': currentCalendarId, // 現在のアクティブカレンダーIDから削除
+                            'eventId': eventToDelete.id
+                        });
+                        console.log('✅ イベントが削除されました。');
+                        alert('イベントが削除されました。');
+                        listEvents(); // 削除後、イベントリストを再読み込み
+                    }
+                } else {
+                    alert('指定された期間に削除できるイベントが見つかりませんでした。');
+                }
+            } catch (err) {
+                console.error('❌ イベント削除エラー:', err.result ? err.result.error : err);
+                alert(`イベントの削除に失敗しました: ${err.result && err.result.error && err.result.error.message ? err.result.error.message : err.message}`);
+            }
+        }
+
 
         // エラーメッセージを表示するヘルパー関数
         function displayError(msg) {
