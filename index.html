@@ -1,69 +1,147 @@
 <!DOCTYPE html>
 <html>
 <head>
-    <title>会議室予約表示（グーグルカレンダー連携）</title>
+    <title>会議室予約表示</title>
     <script src="https://apis.google.com/js/api.js"></script>
     <script src="https://accounts.google.com/gsi/client"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;500;700&display=swap" rel="stylesheet">
     <style>
-        body { font-family: Arial, sans-serif; margin: 20px; background-color: #f4f4f4; color: #333; }
-        h1, h2 { color: #0056b3; }
+        :root {
+            --primary-color: #4285F4; /* Google Blue */
+            --secondary-color: #28a745; /* Green */
+            --accent-color: #6c757d; /* Gray */
+            --text-color: #333;
+            --light-text-color: #555;
+            --background-color: #f8f9fa; /* Light Gray */
+            --panel-bg-color: #ffffff;
+            --border-color: #e0e0e0;
+            --error-color: #dc3545; /* Red */
+        }
+
+        body {
+            font-family: 'Noto Sans JP', sans-serif;
+            margin: 0;
+            padding: 20px;
+            background-color: var(--background-color);
+            color: var(--text-color);
+            display: flex;
+            flex-direction: column;
+            min-height: 100vh;
+            box-sizing: border-box;
+        }
+
+        h1, h2, h3, h4 {
+            color: var(--primary-color);
+            margin-top: 0;
+            margin-bottom: 15px;
+            font-weight: 500;
+        }
+
+        /* Header */
+        header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+        }
+        header h1 {
+            margin: 0;
+            font-size: 2.2em;
+        }
+
+        /* Settings Button */
         #settings_button {
             padding: 10px 20px;
-            font-size: 16px;
-            background-color: #6c757d; /* Gray for settings */
+            font-size: 0.9em;
+            background-color: var(--accent-color);
             color: white;
             border: none;
             border-radius: 5px;
             cursor: pointer;
-            transition: background-color 0.3s ease;
-            position: absolute; /* 画面右上に配置 */
+            transition: background-color 0.2s ease-in-out;
+            position: fixed; /* 画面右上に固定 */
             top: 20px;
             right: 20px;
-            z-index: 100; /* 他の要素より手前に表示 */
+            z-index: 101; /* 他の要素より手前に表示 */
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
         }
         #settings_button:hover {
             background-color: #5a6268;
         }
 
+        /* Settings Panel */
         #settings_panel {
-            position: absolute;
+            position: fixed; /* 画面全体にオーバーレイ */
             top: 0;
             right: 0;
-            width: 400px; /* 設定パネルの幅 */
+            width: 100%;
             height: 100%;
-            background-color: #fff;
-            box-shadow: -5px 0 15px rgba(0,0,0,0.2);
-            padding: 20px;
-            box-sizing: border-box;
-            transform: translateX(100%); /* 初期は画面外に隠す */
-            transition: transform 0.3s ease-in-out;
-            z-index: 99; /* 通常コンテンツより手前 */
+            background-color: rgba(0,0,0,0.5); /* 半透明のオーバーレイ */
             display: flex;
-            flex-direction: column;
-            overflow-y: auto; /* パネル自体がスクロール可能 */
+            justify-content: flex-end; /* 右端に寄せる */
+            z-index: 100;
+            opacity: 0;
+            pointer-events: none; /* 非表示時はクリックイベントを無効に */
+            transition: opacity 0.3s ease-in-out;
         }
         #settings_panel.open {
-            transform: translateX(0); /* 設定パネルを表示 */
+            opacity: 1;
+            pointer-events: auto;
         }
-        #settings_panel h2 {
-            margin-top: 0;
-            color: #0056b3;
+        #settings_content {
+            background-color: var(--panel-bg-color);
+            width: 450px; /* パネルの幅 */
+            max-width: 90%;
+            height: 100%;
+            padding: 30px;
+            box-sizing: border-box;
+            box-shadow: -5px 0 15px rgba(0,0,0,0.2);
+            transform: translateX(100%); /* 初期は画面外に隠す */
+            transition: transform 0.3s ease-in-out;
+            display: flex;
+            flex-direction: column;
+            position: relative;
         }
-        #settings_panel hr {
-            border: 0;
-            border-top: 1px solid #eee;
-            margin: 20px 0;
+        #settings_panel.open #settings_content {
+            transform: translateX(0); /* パネルを表示 */
         }
-        #authorize_button, #switch_account_button { /* 両方のボタンにスタイルを適用 */
-            padding: 12px 25px;
-            font-size: 18px;
-            background-color: #4285f4; /* Google Blue */
+        #close_settings_panel {
+            position: absolute;
+            top: 15px;
+            right: 15px;
+            background: none;
+            border: none;
+            font-size: 2em;
+            cursor: pointer;
+            color: var(--accent-color);
+            line-height: 1;
+            padding: 5px;
+        }
+        #close_settings_panel:hover {
+            color: var(--text-color);
+        }
+
+        /* Auth Section in Settings Panel */
+        #auth_status {
+            margin-bottom: 20px;
+            padding: 15px;
+            background-color: #e9f5ff; /* Light Blue */
+            border: 1px solid #cce5ff;
+            border-radius: 8px;
+            text-align: center;
+            font-size: 0.95em;
+            line-height: 1.4;
+        }
+        #authorize_button, #switch_account_button {
+            padding: 12px 20px;
+            font-size: 1em;
+            background-color: var(--primary-color);
             color: white;
             border: none;
             border-radius: 5px;
             cursor: pointer;
-            transition: background-color 0.3s ease;
-            width: 100%; /* 幅を親要素に合わせる */
+            transition: background-color 0.2s ease-in-out;
+            width: 100%;
             margin-bottom: 10px;
         }
         #authorize_button:hover, #switch_account_button:hover {
@@ -73,146 +151,178 @@
             background-color: #a0a0a0;
             cursor: not-allowed;
         }
-        #auth_status {
-            margin-bottom: 15px;
-            padding: 10px;
-            background-color: #e9f5ff;
-            border: 1px solid #cce5ff;
-            border-radius: 5px;
-            text-align: center;
-        }
         #calendar_selection_panel {
-            margin-top: 20px;
-            border-top: 1px dashed #eee;
-            padding-top: 20px;
-            flex-grow: 1; /* 残りのスペースを埋める */
-            overflow-y: auto; /* コンテンツがはみ出したらスクロール */
+            margin-top: 25px;
+            padding-top: 25px;
+            border-top: 1px dashed var(--border-color);
+            flex-grow: 1;
+            overflow-y: auto;
         }
         #writable_calendar_list {
-            padding-top: 10px;
+            list-style: none;
+            padding: 0;
+            margin-top: 15px;
         }
         #writable_calendar_list li {
-            border-bottom: 1px solid #f0f0f0;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
             padding: 10px 0;
+            border-bottom: 1px solid #f7f7f7;
+            font-size: 1.05em;
         }
         #writable_calendar_list li:last-child {
             border-bottom: none;
         }
-
-        #container {
-            display: flex;
-            gap: 20px;
-            margin-top: 0px;
-        }
-        .panel {
-            flex: 1;
-            padding: 20px;
-            background-color: #ffffff;
-            border: 1px solid #ddd;
-            border-radius: 8px;
-            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-        }
-        .panel ul {
-            list-style-type: none;
-            padding: 0;
-        }
-        .panel li {
-            margin-bottom: 10px;
-            line-height: 1.5;
-            color: #555;
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-            padding: 8px 0;
-            border-bottom: 1px dashed #eee;
-        }
-        .panel li:last-child {
-            border-bottom: none;
-        }
         .select-button {
-            padding: 5px 10px;
-            font-size: 14px;
-            background-color: #28a745; /* Green */
-            color: white;
-            border: none;
-            border-radius: 4px;
-            cursor: pointer;
-            transition: background-color 0.3s ease;
-        }
-        .select-button:hover {
-            background-color: #218838;
-        }
-        .action-button {
             padding: 8px 15px;
-            font-size: 16px;
-            background-color: #007bff; /* Blue */
+            font-size: 0.9em;
+            background-color: var(--secondary-color);
             color: white;
             border: none;
             border-radius: 5px;
             cursor: pointer;
-            transition: background-color 0.3s ease;
-            margin-right: 10px;
+            transition: background-color 0.2s ease-in-out;
         }
-        .action-button:hover {
-            background-color: #0056b3;
+        .select-button:hover {
+            background-color: #218838;
         }
-        .error-message {
-            color: red;
-            font-weight: bold;
-            margin-top: 15px;
+
+        /* Main Content Area */
+        #container {
+            flex-grow: 1;
+            display: flex;
+            gap: 25px;
+            position: relative; 
         }
-        .event-item {
-            display: block;
-            margin-bottom: 8px;
-            font-size: 15px;
+        #event_list_container {
+            flex: 1;
+            padding: 30px;
+            background-color: var(--panel-bg-color);
+            border-radius: 10px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.08);
+        }
+        #selected_calendar_info {
+            font-size: 1.1em;
+            color: var(--light-text-color);
+            margin-bottom: 25px;
+            padding-bottom: 15px;
+            border-bottom: 1px solid var(--border-color);
+        }
+        #event_list {
+            list-style: none;
+            padding: 0;
+        }
+        #event_list li {
+            background-color: #fdfdfd;
+            border: 1px solid #f0f0f0;
+            border-radius: 8px;
+            margin-bottom: 15px;
+            padding: 15px 20px;
+            display: block; 
+            transition: transform 0.2s ease-out, box-shadow 0.2s ease-out;
+        }
+        #event_list li:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 6px 20px rgba(0,0,0,0.1);
         }
         .event-time {
-            font-weight: bold;
-            color: #0056b3;
-            margin-right: 10px;
+            font-weight: 700; 
+            color: var(--primary-color);
+            font-size: 1.1em;
+            margin-bottom: 5px;
+            display: block;
         }
         .event-summary {
-            color: #333;
+            color: var(--text-color);
+            font-size: 1.05em;
+            line-height: 1.4;
         }
         .no-events {
             font-style: italic;
-            color: #777;
+            color: var(--light-text-color);
+            text-align: center;
+            padding: 30px;
+        }
+
+        /* Action Buttons */
+        .action-button-group {
+            margin-top: 30px;
+            padding-top: 20px;
+            border-top: 1px dashed var(--border-color);
+            display: flex;
+            gap: 15px;
+            flex-wrap: wrap;
+        }
+        .action-button {
+            padding: 12px 20px;
+            font-size: 1em;
+            background-color: var(--primary-color);
+            color: white;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            transition: background-color 0.2s ease-in-out;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+            flex-grow: 1; 
+            min-width: 120px;
+        }
+        .action-button:hover {
+            background-color: #357ae8;
+        }
+        .action-button:active {
+            transform: translateY(1px);
+        }
+        .error-message {
+            color: var(--error-color);
+            font-weight: 700;
+            margin-top: 20px;
+            text-align: center;
+            font-size: 1.1em;
+            background-color: #ffe0e0;
+            padding: 15px;
+            border-radius: 8px;
+            border: 1px solid var(--error-color);
         }
     </style>
 </head>
 <body>
-    <h1>会議室予約表示</h1>
-
-    <button id="settings_button">設定</button>
+    <header>
+        <h1>会議室予約表示</h1>
+        <button id="settings_button">設定</button>
+    </header>
 
     <div id="settings_panel">
-        <button id="close_settings_panel" style="position: absolute; top: 10px; right: 10px; background: none; border: none; font-size: 24px; cursor: pointer;">&times;</button>
-        <h2>設定</h2>
-        <hr>
-        <h3>アカウントとカレンダーの切り替え</h3>
-        <p id="auth_status" style="color: blue;">操作を行うにはGoogleアカウントで認証してください。</p>
-        <button id="authorize_button">Googleアカウントで認証</button>
-        <button id="switch_account_button" style="display:none;">別のアカウントで認証</button> <p style="font-size: 0.9em; color: #555; margin-top: 10px;">
-            ※緊急会議、削除などの管理者操作を利用する際に認証が必要です。<br>
-            ※認証後、表示・操作するカレンダーを選択してください。
-        </p>
-        <div id="calendar_selection_panel" style="display: none;">
-            <h4>表示・操作するカレンダーを選択</h4>
-            <ul id="writable_calendar_list">
-                <li>認証後、カレンダーを読み込み中...</li>
-            </ul>
+        <div id="settings_content">
+            <button id="close_settings_panel">&times;</button>
+            <h2>設定</h2>
+            <hr>
+            <h3>アカウントとカレンダーの切り替え</h3>
+            <p id="auth_status" style="color: blue;">操作を行うにはGoogleアカウントで認証してください。</p>
+            <button id="authorize_button">Googleアカウントで認証</button>
+            <button id="switch_account_button" style="display:none;">別のアカウントで認証</button>
+            <p style="font-size: 0.9em; color: var(--light-text-color); margin-top: 10px;">
+                ※緊急会議、削除などの管理者操作を利用する際に認証が必要です。<br>
+                ※認証後、表示・操作するカレンダーを選択してください。
+            </p>
+            <div id="calendar_selection_panel" style="display: none;">
+                <h4>表示・操作するカレンダーを選択</h4>
+                <ul id="writable_calendar_list">
+                    <li>認証後、カレンダーを読み込み中...</li>
+                </ul>
+            </div>
+            <hr>
         </div>
-        <hr>
-        </div>
+    </div>
 
     <div id="container">
-        <div id="event_list_container" class="panel" style="flex: auto;">
-            <h2>会議室の予定</h2>
-            <p id="selected_calendar_info">現在のカレンダー: <span id="display_calendar_summary">初期設定カレンダー</span> (<span id="display_calendar_id_text"></span>)</p>
+        <div id="event_list_container" class="panel">
+            <h2>現在の会議室の予定</h2>
+            <p id="selected_calendar_info">カレンダー: <span id="display_calendar_summary"></span></p>
             <ul id="event_list">
                 <li>イベントを読み込み中...</li>
             </ul>
-            <div style="margin-top: 20px;">
+            <div class="action-button-group">
                 <button id="add_event_button" class="action-button">緊急会議 (30分)</button>
                 <button id="delete_event_button" class="action-button">最新の予定を削除</button>
                 <button id="refresh_button" class="action-button">更新</button>
@@ -223,12 +333,9 @@
 
     <script>
         // ★★★ ここをあなたの情報に置き換えてください ★★★
-        const API_KEY = 'AIzaSyDUFH1jbIa66NjzSM8I9Xpicwo6I6H2sB8';             // 例: AIzaSyB_xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
-        // 初期表示用の公開カレンダーID。サイネージ設置初期やトラブルチェック用。
-        const INITIAL_PUBLIC_CALENDAR_ID = 'kaigishitsu20000101@gmail.com'; // 例: test_room_id@group.calendar.google.com
-                                                                        // または一般的なカレンダーID (公開設定されているもの)
-        // 書き込み操作のために必要となるOAuthクライアントID
-        const CLIENT_ID = '155458326593-redrcpnqa2iqapvg8p1kb3cgegeenvse.apps.googleusercontent.com'; // 例: 123456789012-xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx.apps.googleusercontent.com
+        const API_KEY = 'AIzaSyDUFH1jbIa66NjzSM8I9Xpicwo6I6H2sB8';             
+        const INITIAL_PUBLIC_CALENDAR_ID = 'kaigishitsu20000101@gmail.com'; 
+        const CLIENT_ID = '155458326593-redrcpnqa2iqapvg8p1kb3cgegeenvse.apps.googleusercontent.com'; 
         // ★★★ ここまで ★★★
 
         const DISCOVERY_DOCS = ["https://www.googleapis.com/discovery/v1/apis/calendar/v3/rest"];
@@ -247,12 +354,12 @@
             const settingsPanel = document.getElementById('settings_panel');
             const closeSettingsPanelButton = document.getElementById('close_settings_panel');
             const authorizeButton = document.getElementById('authorize_button');
-            const switchAccountButton = document.getElementById('switch_account_button'); // 新しいボタン
+            const switchAccountButton = document.getElementById('switch_account_button'); 
 
             settingsButton.onclick = () => {
                 settingsPanel.classList.toggle('open');
                 if (settingsPanel.classList.contains('open') && isAuthorizedForWrite) {
-                    listWritableCalendars(); // 設定パネルが開かれ、認証済みならカレンダーリストを再読み込み
+                    listWritableCalendars(); 
                 } else if (!settingsPanel.classList.contains('open')) {
                     displayError(''); 
                 }
@@ -264,15 +371,13 @@
 
             authorizeButton.onclick = () => {
                 console.log('--- Googleアカウントで認証ボタンがクリックされました（操作用）。認証フローを開始します。---');
-                // 既に認証済みの場合でも、prompt:'consent'でアカウント選択画面を出す
                 tokenClient.requestAccessToken({ prompt: 'consent', ux_mode: 'popup' }); 
             };
 
-            switchAccountButton.onclick = () => { // 新しいボタンのイベントリスナー
+            switchAccountButton.onclick = () => { 
                 console.log('--- 別のアカウントで認証ボタンがクリックされました。アカウント選択を強制します。---');
                 tokenClient.requestAccessToken({ prompt: 'select_account', ux_mode: 'popup' }); 
             };
-
 
             document.getElementById('add_event_button').onclick = handleActionTrigger;
             document.getElementById('delete_event_button').onclick = handleActionTrigger;
@@ -294,16 +399,15 @@
                 const savedActiveId = localStorage.getItem(LOCAL_STORAGE_ACTIVE_CALENDAR_ID_KEY);
                 const savedActiveSummary = localStorage.getItem(LOCAL_STORAGE_ACTIVE_CALENDAR_SUMMARY_KEY);
 
-                // localStorageに保存があり、それがINITIAL_PUBLIC_CALENDAR_IDと異なる場合のみ上書き
-                // これにより、デフォルトカレンダーが意図せずlocalStorageで上書きされることを防ぐ
-                if (savedActiveId && savedActiveSummary && savedActiveId !== INITIAL_PUBLIC_CALENDAR_ID) {
+                // localStorageに保存があれば、INITIAL_PUBLIC_CALENDAR_IDと同じでもそれを優先
+                if (savedActiveId && savedActiveSummary) { 
                     currentCalendarId = savedActiveId;
                     currentCalendarSummary = savedActiveSummary;
                     console.log(`✅ localStorageからアクティブカレンダーを読み込みました: ${currentCalendarSummary} (${currentCalendarId})`);
                 } else {
-                    currentCalendarId = INITIAL_PUBLIC_CALENDAR_ID; // fallback to initial
-                    currentCalendarSummary = "初期設定カレンダー"; // fallback to initial summary
-                    console.log(`ℹ️ localStorageに有効なアクティブカレンダーが見つからないか、初期設定カレンダーと同じです。初期設定カレンダー (${INITIAL_PUBLIC_CALENDAR_ID}) を使用します。`);
+                    currentCalendarId = INITIAL_PUBLIC_CALENDAR_ID; 
+                    currentCalendarSummary = "初期設定カレンダー"; 
+                    console.log(`ℹ️ localStorageにアクティブカレンダーが見つかりませんでした。初期設定カレンダー (${INITIAL_PUBLIC_CALENDAR_ID}) を使用します。`);
                 }
                 updateDisplayedCalendarInfo();
 
@@ -332,7 +436,7 @@
                         document.getElementById('auth_status').textContent = '操作権限が認証されました。';
                         document.getElementById('auth_status').style.color = 'green';
                         document.getElementById('authorize_button').style.display = 'none'; 
-                        document.getElementById('switch_account_button').style.display = 'block'; // 認証後は「別のアカウントで認証」を表示
+                        document.getElementById('switch_account_button').style.display = 'block'; 
                         document.getElementById('calendar_selection_panel').style.display = 'block'; 
                         console.log('✅ 書き込み権限のためのアクセストークンを取得しました。');
                         listWritableCalendars(); 
@@ -341,7 +445,7 @@
                         document.getElementById('auth_status').textContent = '操作権限の認証に失敗しました。';
                         document.getElementById('auth_status').style.color = 'red';
                         document.getElementById('authorize_button').style.display = 'block'; 
-                        document.getElementById('switch_account_button').style.display = 'none'; // 認証失敗時は隠す
+                        document.getElementById('switch_account_button').style.display = 'none'; 
                         document.getElementById('calendar_selection_panel').style.display = 'none'; 
                         console.error('❌ 書き込み権限のためのアクセストークン取得に失敗しました。', tokenResponse);
                     }
@@ -351,23 +455,22 @@
                     document.getElementById('auth_status').textContent = '認証エラーが発生しました。';
                     document.getElementById('auth_status').style.color = 'red';
                     document.getElementById('authorize_button').style.display = 'block'; 
-                    document.getElementById('switch_account_button').style.display = 'none'; // エラー時は隠す
+                    document.getElementById('switch_account_button').style.display = 'none'; 
                     document.getElementById('calendar_selection_panel').style.display = 'none'; 
                     console.error('❌ GISトークンクライアントエラー（書き込み用）:', error);
                 }
             });
-            // 認証ボタンのイベントリスナーはDOMContentLoadedで設定済み
         }
 
         function handleActionTrigger(event) {
             console.log('--- handleActionTrigger: 操作ボタンがクリックされました ---');
-            document.getElementById('settings_panel').classList.add('open'); // 設定パネルを開く
+            document.getElementById('settings_panel').classList.add('open'); 
 
             if (!isAuthorizedForWrite) {
                 document.getElementById('auth_status').textContent = '操作を行うにはGoogleアカウントで認証してください。';
                 document.getElementById('auth_status').style.color = 'blue';
                 document.getElementById('authorize_button').style.display = 'block';
-                document.getElementById('switch_account_button').style.display = 'none'; // 未認証時は「別のアカウントで認証」は隠す
+                document.getElementById('switch_account_button').style.display = 'none'; 
                 document.getElementById('calendar_selection_panel').style.display = 'none';
                 console.log('🚨 操作トリガー: 書き込み権限がありません。認証を促します。');
                 return; 
@@ -424,7 +527,7 @@
                             console.log(`✅ アクティブカレンダーが選択・保存されました: ${currentCalendarSummary} (${currentCalendarId})`);
                             listEvents(); 
                             
-                            document.getElementById('settings_panel').classList.remove('open'); // 設定パネルを閉じる
+                            document.getElementById('settings_panel').classList.remove('open'); 
                         };
                     });
                 } else {
@@ -438,9 +541,19 @@
         }
 
         function updateDisplayedCalendarInfo() {
-            document.getElementById('display_calendar_id_text').textContent = currentCalendarId;
             document.getElementById('display_calendar_summary').textContent = currentCalendarSummary;
-            console.log(`ℹ️ 表示カレンダー情報を更新しました: ${currentCalendarSummary} (${currentCalendarId})`);
+            // カレンダーIDの表示を削除
+            const displayIdTextElement = document.getElementById('display_calendar_id_text');
+            if (displayIdTextElement) {
+                displayIdTextElement.remove(); 
+            }
+            // IDテキストを囲む括弧も削除
+            const selectedCalendarInfoElement = document.getElementById('selected_calendar_info');
+            if (selectedCalendarInfoElement && selectedCalendarInfoElement.innerHTML.includes('(')) {
+                selectedCalendarInfoElement.innerHTML = selectedCalendarInfoElement.innerHTML.replace(/\s\(<span id="display_calendar_id_text"><\/span>\)/, '');
+            }
+
+            console.log(`ℹ️ 表示カレンダー情報を更新しました: ${currentCalendarSummary}`);
         }
 
         async function listEvents() {
@@ -496,16 +609,16 @@
                         }
                         eventListUl.appendChild(li);
                     });
-                    console.log(`✅ イベントを正常に表示しました (${currentCalendarId}):`, events);
+                    console.log(`✅ イベントを正常に表示しました (${currentCalendarSummary}):`, events);
                 } else {
                     const li = document.createElement('li');
                     li.className = 'no-events';
                     li.textContent = '指定された期間にイベントが見つかりませんでした。';
                     eventListUl.appendChild(li);
-                    console.log(`ℹ️ イベントが見つかりませんでした (${currentCalendarId})。`);
+                    console.log(`ℹ️ イベントが見つかりませんでした (${currentCalendarSummary})。`);
                 }
             } catch (err) {
-                console.error(`❌ イベントの取得エラー (${currentCalendarId}):`, err.result ? err.result.error : err);
+                console.error(`❌ イベントの取得エラー (${currentCalendarSummary}):`, err.result ? err.result.error : err);
                 displayError(`イベントの取得中にエラーが発生しました: ${err.result && err.result.error && err.result.error.message ? err.result.error.message : err.message}`);
                 const li = document.createElement('li');
                 li.className = 'error-message';
