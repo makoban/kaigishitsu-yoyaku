@@ -375,13 +375,8 @@
             box-shadow: var(--box-shadow); 
             transition: background-color 0.3s ease, box-shadow 0.3s ease, border-radius 0.3s ease;
         }
-        #selected_calendar_info {
-            font-size: 1.2em; 
-            color: var(--light-text-color);
-            margin-bottom: 30px; 
-            padding-bottom: 20px; 
-            border-bottom: 1px solid var(--border-color);
-            transition: color 0.3s ease, border-color 0.3s ease;
+        #selected_calendar_info { /* この要素は残すが、中身は空になる */
+            display: none; /* カレンダー名は上に移動したので非表示 */
         }
         #event_list {
             list-style: none;
@@ -527,7 +522,7 @@
                     ※認証後、表示・操作するカレンダーを選択してください。
                 </p>
                 <div id="calendar_selection_panel" style="display: none;">
-                    <div style="height: 3em; margin-bottom: 1em;"></div> <h4>表示・操作するカレンダーを選択</h4>
+                    <div style="height: 3em;"></div> <h4>表示・操作するカレンダーを選択</h4>
                     <ul id="writable_calendar_list">
                         <li>認証後、カレンダーを読み込み中...</li>
                     </ul>
@@ -1119,7 +1114,7 @@
                 // 現在時刻より未来のイベントの中で最も近いものを探す
                 if (now < start) {
                     const timeUntilStart = start.getTime() - now.getTime(); // ミリ秒単位
-                    if (timeUntilStart > 0 && timeUntilStart < minTimeUntilStart) { // timeUntilStart > 0 を追加
+                    if (timeUntilStart > 0 && timeUntilStart < minTimeUntilStart) { 
                         minTimeUntilStart = timeUntilStart;
                         closestUpcomingEvent = event;
                     }
@@ -1128,6 +1123,15 @@
 
             // 予約前案内の表示更新
             const preAnnouncementTextElement = document.getElementById('pre_announcement_text');
+            if (closestUpcomingEvent) {
+                const timeUntilClosestStart = closestUpcomingEvent.start.dateTime ? new Date(closestUpcomingEvent.start.dateTime).getTime() - now.getTime() : Infinity;
+                
+                if (timeUntilClosestStart > 0 && timeUntilClosestStart <= (appSettings.preAnnouncementMinutes * 60 * 1000)) {
+                    preAnnouncementFound = true;
+                    preAnnouncementSummary = closestUpcomingEvent.summary || '名称未設定の会議';
+                }
+            }
+            
             if (preAnnouncementFound) {
                 preAnnouncementTextElement.textContent = `${appSettings.preAnnouncementPrefix}「${preAnnouncementSummary}」${appSettings.preAnnouncementSuffix}`;
                 preAnnouncementTextElement.style.display = 'block';
