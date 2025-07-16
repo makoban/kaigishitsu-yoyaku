@@ -250,9 +250,9 @@
             border-radius: 8px;
             margin-bottom: 15px;
             padding: 15px 20px;
-            display: flex; /* Flexbox for content and delete button */
-            justify-content: space-between; /* Space out content and button */
-            align-items: center; /* Vertically align items */
+            display: flex; 
+            justify-content: space-between; 
+            align-items: center; 
             transition: transform 0.2s ease-out, box-shadow 0.2s ease-out;
         }
         #event_list li:hover {
@@ -267,7 +267,7 @@
         }
 
         .event-details {
-            flex-grow: 1; /* Allow details to take up space */
+            flex-grow: 1; 
         }
         .event-time {
             font-weight: 700; 
@@ -408,14 +408,14 @@
         const LOCAL_STORAGE_ACTIVE_CALENDAR_ID_KEY = 'activeCalendarId';
         const LOCAL_STORAGE_ACTIVE_CALENDAR_SUMMARY_KEY = 'activeCalendarSummary';
 
-        // 自動更新間隔 (ミリ秒)
         const AUTO_REFRESH_INTERVAL = 30 * 1000; // 30秒
 
         let tokenClient; 
         let isAuthorizedForWrite = false; 
         let currentCalendarId = INITIAL_PUBLIC_CALENDAR_ID; 
         let currentCalendarSummary = "初期設定カレンダー"; 
-        let refreshIntervalId; // setIntervalのIDを保持
+        let refreshIntervalId; 
+        let lastFetchedEventsString = ""; // 最後に取得したイベントデータをJSON文字列で保持
 
         document.addEventListener('DOMContentLoaded', () => {
             const settingsButton = document.getElementById('settings_button');
@@ -451,9 +451,8 @@
             document.getElementById('add_60min_event_button').onclick = () => handleAddEvent(60); 
             document.getElementById('refresh_button').onclick = listEvents;
 
-            // 現在時刻と日付を1秒ごとに更新する
             setInterval(updateCurrentDateTime, 1000);
-            updateCurrentDateTime(); // 初回表示
+            updateCurrentDateTime(); 
 
             console.log('--- DOMContentLoaded: gapiクライアントロードを開始 ---');
             gapi.load('client', initGapiClientForRead);
@@ -471,6 +470,7 @@
                 const savedActiveId = localStorage.getItem(LOCAL_STORAGE_ACTIVE_CALENDAR_ID_KEY);
                 const savedActiveSummary = localStorage.getItem(LOCAL_STORAGE_ACTIVE_CALENDAR_SUMMARY_KEY);
 
+                // localStorageに保存があれば、そのIDがINITIAL_PUBLIC_CALENDAR_IDと同じでもそれを優先
                 if (savedActiveId && savedActiveSummary) { 
                     currentCalendarId = savedActiveId;
                     currentCalendarSummary = savedActiveSummary;
@@ -484,7 +484,7 @@
 
                 console.log(`--- initGapiClientForRead: イベントリスト表示を開始 (カレンダーID: ${currentCalendarId}) ---`);
                 listEvents(); 
-                startAutoRefresh(); // 自動更新を開始
+                startAutoRefresh(); 
 
                 console.log('--- initGapiClientForRead: GISクライアント初期化を開始（書き込み操作用） ---');
                 initGisClientForWrite();
@@ -547,8 +547,6 @@
                 console.log('🚨 操作トリガー: 書き込み権限がありません。認証を促します。');
                 return; 
             }
-            // handleAddEventやhandleDeleteEventは、ここでは直接実行しない
-            // 個々のボタンのイベントリスナーで認証状態を確認してから実行する
         }
 
         async function listWritableCalendars() {
@@ -592,7 +590,7 @@
                             currentCalendarSummary = newActiveSummary;
                             updateDisplayedCalendarInfo(); 
                             console.log(`✅ アクティブカレンダーが選択・保存されました: ${currentCalendarSummary} (${currentCalendarId})`);
-                            listEvents(); // 新しいカレンダーでイベントリストを再表示
+                            listEvents(); 
                             
                             document.getElementById('settings_panel').classList.remove('open'); 
                         };
@@ -612,7 +610,6 @@
             console.log(`ℹ️ 表示カレンダー情報を更新しました: ${currentCalendarSummary}`);
         }
 
-        // 現在時刻と日付を更新する関数
         function updateCurrentDateTime() {
             const now = new Date();
             const dateOptions = { year: 'numeric', month: 'long', day: 'numeric', weekday: 'short' };
@@ -620,15 +617,11 @@
             const formattedDate = now.toLocaleDateString('ja-JP', dateOptions);
             const formattedTime = now.toLocaleTimeString('ja-JP', timeOptions);
             document.getElementById('current_datetime').textContent = `${formattedDate} ${formattedTime}`;
-
-            // イベントリストのハイライトも同時に更新
-            highlightCurrentEvent();
         }
 
-        // 自動更新を開始する関数
         function startAutoRefresh() {
             if (refreshIntervalId) {
-                clearInterval(refreshIntervalId); // 既存のインターバルがあればクリア
+                clearInterval(refreshIntervalId); 
             }
             refreshIntervalId = setInterval(listEvents, AUTO_REFRESH_INTERVAL);
             console.log(`--- 自動更新を開始しました: ${AUTO_REFRESH_INTERVAL / 1000}秒間隔 ---`);
@@ -636,7 +629,6 @@
 
         async function listEvents() {
             const eventListUl = document.getElementById('event_list');
-            eventListUl.innerHTML = '<li>イベントを読み込み中...</li>'; 
             displayError(''); 
 
             const now = new Date();
@@ -657,7 +649,19 @@
                 });
 
                 const events = response.result.items;
-                eventListUl.innerHTML = ''; 
+                const newEventsString = JSON.stringify(events); // 新しいイベントデータを文字列化
+
+                // 前回取得したデータと比較して、変化がなければDOM更新をスキップ
+                if (newEventsString === lastFetchedEventsString && eventListUl.children.length > 0) {
+                    console.log('ℹ️ イベントデータに変化がないため、DOM更新をスキップします。');
+                    // ハイライトと案内文だけは時刻変化で更新するため別途処理
+                    updateEventHighlightsAndAnnouncement(events);
+                    return; 
+                }
+
+                lastFetchedEventsString = newEventsString; // データを更新
+                eventListUl.innerHTML = ''; // 既存の表示をクリア
+
                 let currentEventFound = false;
                 let currentEventSummary = '';
 
@@ -690,11 +694,9 @@
                             `;
                         }
                         
-                        // イベントごとの削除ボタンを追加
                         li.innerHTML = eventDetailsHtml + `<button class="event-delete-button" data-event-id="${event.id}">削除</button>`;
                         eventListUl.appendChild(li);
 
-                        // 現在時刻とイベント期間を比較してハイライト
                         const now = new Date();
                         if (now >= start && now < end) {
                             li.classList.add('current-event');
@@ -704,7 +706,6 @@
                     });
                     console.log(`✅ イベントを正常に表示しました (${currentCalendarSummary}):`, events);
 
-                    // 各イベント削除ボタンにイベントリスナーを追加
                     document.querySelectorAll('.event-delete-button').forEach(button => {
                         button.onclick = (event) => {
                             const eventIdToDelete = event.target.dataset.eventId;
@@ -720,37 +721,52 @@
                     console.log(`ℹ️ イベントが見つかりませんでした (${currentCalendarSummary})。`);
                 }
 
-                // 案内文の表示更新
-                const announcementTextElement = document.getElementById('announcement_text');
-                if (currentEventFound) {
-                    announcementTextElement.textContent = `ただいま「${currentEventSummary}」中です`;
-                    announcementTextElement.style.display = 'block';
-                } else {
-                    announcementTextElement.style.display = 'none';
-                }
+                updateEventHighlightsAndAnnouncement(events); // イベントリスト再生成後にハイライトと案内文を更新
 
             } catch (err) {
                 console.error(`❌ イベントの取得エラー (${currentCalendarSummary}):`, err.result ? err.result.error : err);
                 displayError(`イベントの取得中にエラーが発生しました: ${err.result && err.result.error && err.result.error.message ? err.result.error.message : err.message}`);
-                const li = document.createElement('li');
-                li.className = 'error-message';
-                li.textContent = 'イベントの読み込みに失敗しました。';
-                eventListUl.appendChild(li);
+                // エラー時はイベントリストをクリアしてエラーメッセージを表示
+                eventListUl.innerHTML = '<li class="error-message">イベントの読み込みに失敗しました。</li>';
+            }
+        }
+        
+        // イベントのハイライトと案内文だけを更新する関数
+        function updateEventHighlightsAndAnnouncement(events) {
+            const now = new Date();
+            let currentEventFound = false;
+            let currentEventSummary = '';
+
+            // 既存のハイライトをすべて削除
+            document.querySelectorAll('.event-item').forEach(item => {
+                item.classList.remove('current-event');
+            });
+
+            events.forEach((event, index) => {
+                const start = new Date(event.start.dateTime || event.start.date);
+                const end = new Date(event.end.dateTime || event.end.date);
+                
+                if (now >= start && now < end) {
+                    const liElement = document.querySelector(`#event_list li:nth-child(${index + 1})`);
+                    if (liElement) {
+                        liElement.classList.add('current-event');
+                    }
+                    currentEventFound = true;
+                    currentEventSummary = event.summary || '名称未設定の会議';
+                }
+            });
+
+            // 案内文の表示更新
+            const announcementTextElement = document.getElementById('announcement_text');
+            if (currentEventFound) {
+                announcementTextElement.textContent = `ただいま「${currentEventSummary}」中です`;
+                announcementTextElement.style.display = 'block';
+            } else {
+                announcementTextElement.style.display = 'none';
             }
         }
 
-        // ハイライトを更新する関数（時刻更新時に呼ばれる）
-        function highlightCurrentEvent() {
-            // listEvents() が再実行されるたびにハイライトは自動的に再適用されるため、
-            // この関数は主にannouncement_textの更新と合わせて時刻と日付の更新を行う。
-            // 厳密なリアルタイムハイライトが必要な場合は、
-            // listEventsの結果を保持し、setIntervalでDOMクラスを付け外しするロジックが必要だが、
-            // 30秒更新があれば十分と判断。
-            // announcementTextElement の更新は listEvents 内で行う
-        }
 
-
-        // handleAddEvent関数にdurationMinutes引数を追加
         async function handleAddEvent(durationMinutes) {
             if (!isAuthorizedForWrite) {
                 document.getElementById('settings_panel').classList.add('open');
@@ -790,8 +806,7 @@
                     'resource': event
                 });
                 console.log('✅ イベントが追加されました:', response.result);
-                // ポップアップを非表示にする
-                listEvents(); // 追加後、イベントリストを再読み込み
+                listEvents(); 
             } catch (err) {
                 console.error('❌ イベント追加エラー:', err.result ? err.result.error : err);
                 displayError(`イベントの追加に失敗しました: ${err.result && err.result.error && err.result.error.message ? err.result.error.message : err.message}`);
@@ -812,13 +827,12 @@
 
             console.log(`✅ イベント (ID: ${eventIdToDelete}) を削除します。`);
             try {
-                // 確認ポップアップを非表示にする
                 await gapi.client.calendar.events.delete({
                     'calendarId': currentCalendarId, 
                     'eventId': eventIdToDelete
                 });
                 console.log('✅ イベントが削除されました。');
-                listEvents(); // 削除後、イベントリストを再読み込み
+                listEvents(); 
             } catch (err) {
                 console.error('❌ イベント削除エラー:', err.result ? err.result.error : err);
                 displayError(`イベントの削除に失敗しました: ${err.result && err.result.error && err.result.error.message ? err.result.error.message : err.message}`);
