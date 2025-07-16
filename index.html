@@ -22,6 +22,8 @@
             --announcement-bg-color: #ffc107; /* Orange */
             --announcement-text-color: #333;
             --available-color: #a5d6a7; /* Light Green */
+            --pre-announcement-bg-color: #add8e6; /* Light Blue for pre-announcement */
+            --pre-announcement-text-color: #333;
             --border-radius: 12px;
             --box-shadow: 0 4px 10px rgba(0,0,0,0.08);
         }
@@ -42,6 +44,8 @@
             --announcement-bg-color: #ffab40; /* Amber */
             --announcement-text-color: #333;
             --available-color: #a1887f; /* Muted Green-Brown */
+            --pre-announcement-bg-color: #8d6e63; /* Medium Brown */
+            --pre-announcement-text-color: white;
             --border-radius: 4px; /* シャープな角 */
             --box-shadow: 0 2px 8px rgba(0,0,0,0.12);
         }
@@ -62,6 +66,8 @@
             --announcement-bg-color: #ff8a65; /* Deep Orange */
             --announcement-text-color: white;
             --available-color: #80cbc4; /* Teal */
+            --pre-announcement-bg-color: #4db6ac; /* Light Teal */
+            --pre-announcement-text-color: white;
             --border-radius: 8px; /* 標準的な角 */
             --box-shadow: 0 6px 20px rgba(0,0,0,0.1);
         }
@@ -123,7 +129,21 @@
             font-size: 1.2em; /* 日付時刻をさらに大きく */
             transition: color 0.3s ease;
         }
-        #announcement_text {
+        /* Pre-announcement (予約前案内) */
+        #pre_announcement_text {
+            font-weight: bold;
+            color: var(--pre-announcement-text-color);
+            background-color: var(--pre-announcement-bg-color);
+            padding: 15px 30px;
+            border-radius: var(--border-radius);
+            font-size: 2em; /* 現在の案内文と同サイズ */
+            display: none;
+            width: 100%;
+            box-sizing: border-box;
+            margin-bottom: 15px; /* 下にスペース */
+            transition: background-color 0.3s ease, color 0.3s ease;
+        }
+        #announcement_text { /* Current event announcement */
             font-weight: bold;
             color: var(--announcement-text-color);
             background-color: var(--announcement-bg-color);
@@ -467,6 +487,7 @@
 
     <div id="top_bar">
         <span id="current_datetime"></span>
+        <span id="pre_announcement_text"></span> 
         <span id="announcement_text"></span>
     </div>
 
@@ -485,7 +506,8 @@
                     ※認証後、表示・操作するカレンダーを選択してください。
                 </p>
                 <div id="calendar_selection_panel" style="display: none;">
-                    <div style="margin-top: 3em;"></div> <h4>表示・操作するカレンダーを選択</h4>
+                    <div style="margin-top: 3em;"></div> 
+                    <h4>表示・操作するカレンダーを選択</h4>
                     <ul id="writable_calendar_list">
                         <li>認証後、カレンダーを読み込み中...</li>
                     </ul>
@@ -521,6 +543,23 @@
 
                 <label for="in_progress_suffix_input">当該時間時の接尾語:</label>
                 <input type="text" id="in_progress_suffix_input" value="中です">
+            </div>
+
+            <div class="setting-group">
+                <h3>予約前案内設定</h3>
+                <label for="pre_announcement_minutes_select">予約前案内 (何分前):</label>
+                <select id="pre_announcement_minutes_select">
+                    <option value="1">1分前</option>
+                    <option value="5">5分前</option>
+                    <option value="10">10分前</option>
+                    <option value="15">15分前</option>
+                </select>
+
+                <label for="pre_announcement_prefix_input">予約前案内の接頭語:</label>
+                <input type="text" id="pre_announcement_prefix_input" value="まもなく">
+
+                <label for="pre_announcement_suffix_input">予約前案内の接尾語:</label>
+                <input type="text" id="pre_announcement_suffix_input" value="開始">
             </div>
 
             <div class="setting-group">
@@ -568,8 +607,10 @@
             availableText: "空室です",
             inProgressPrefix: "ただいま",
             inProgressSuffix: "中です",
+            preAnnouncementMinutes: 5, // 予約前案内：デフォルト5分前
+            preAnnouncementPrefix: "まもなく",
+            preAnnouncementSuffix: "開始",
             eventSummary: "緊急会議",
-            // eventDescription は削除
             theme: "pop", // デフォルトテーマ
             lastEvents: [] // 最後に取得したイベントデータをここに保存（案内文用）
         };
@@ -600,18 +641,21 @@
             const availableTextInput = document.getElementById('available_text_input');
             const inProgressPrefixInput = document.getElementById('in_progress_prefix_input');
             const inProgressSuffixInput = document.getElementById('in_progress_suffix_input');
+            const preAnnouncementMinutesSelect = document.getElementById('pre_announcement_minutes_select'); // 新しい設定
+            const preAnnouncementPrefixInput = document.getElementById('pre_announcement_prefix_input'); // 新しい設定
+            const preAnnouncementSuffixInput = document.getElementById('pre_announcement_suffix_input'); // 新しい設定
             const eventSummaryInput = document.getElementById('event_summary_input');
-            // eventDescriptionInput は削除
             
-
             // 設定UI要素の変更イベントリスナー
             themeSelect.onchange = (e) => { appSettings.theme = e.target.value; saveSettings(); applyTheme(appSettings.theme); };
             refreshIntervalSelect.onchange = (e) => { appSettings.refreshInterval = parseInt(e.target.value); saveSettings(); startAutoRefresh(); };
-            availableTextInput.onchange = (e) => { appSettings.availableText = e.target.value; saveSettings(); updateEventHighlightsAndAnnouncement(appSettings.lastEvents || []); }; // 変更を即時反映
+            availableTextInput.onchange = (e) => { appSettings.availableText = e.target.value; saveSettings(); updateEventHighlightsAndAnnouncement(appSettings.lastEvents || []); }; 
             inProgressPrefixInput.onchange = (e) => { appSettings.inProgressPrefix = e.target.value; saveSettings(); updateEventHighlightsAndAnnouncement(appSettings.lastEvents || []); };
             inProgressSuffixInput.onchange = (e) => { appSettings.inProgressSuffix = e.target.value; saveSettings(); updateEventHighlightsAndAnnouncement(appSettings.lastEvents || []); };
-            eventSummaryInput.onchange = (e) => { appSettings.eventSummary = e.target.value; saveSettings(); updateAddButtonText(); }; // ボタンテキストも更新
-            // eventDescriptionInput.onchange は削除
+            preAnnouncementMinutesSelect.onchange = (e) => { appSettings.preAnnouncementMinutes = parseInt(e.target.value); saveSettings(); updateEventHighlightsAndAnnouncement(appSettings.lastEvents || []); }; // 新しい設定
+            preAnnouncementPrefixInput.onchange = (e) => { appSettings.preAnnouncementPrefix = e.target.value; saveSettings(); updateEventHighlightsAndAnnouncement(appSettings.lastEvents || []); }; // 新しい設定
+            preAnnouncementSuffixInput.onchange = (e) => { appSettings.preAnnouncementSuffix = e.target.value; saveSettings(); updateEventHighlightsAndAnnouncement(appSettings.lastEvents || []); }; // 新しい設定
+            eventSummaryInput.onchange = (e) => { appSettings.eventSummary = e.target.value; saveSettings(); updateAddButtonText(); }; 
 
             settingsButton.onclick = () => {
                 settingsPanel.classList.toggle('open');
@@ -643,7 +687,6 @@
             setInterval(updateCurrentDateTime, 1000);
             updateCurrentDateTime(); 
 
-            // 初期の追加ボタンのテキストを設定
             updateAddButtonText();
 
             console.log('--- DOMContentLoaded: gapiクライアントロードを開始 ---');
@@ -656,7 +699,6 @@
             if (savedSettings) {
                 try {
                     appSettings = { ...DEFAULT_SETTINGS, ...JSON.parse(savedSettings) };
-                    // lastEventsがない場合は空配列で初期化
                     if (!appSettings.lastEvents) {
                         appSettings.lastEvents = [];
                     }
@@ -684,8 +726,10 @@
             document.getElementById('available_text_input').value = appSettings.availableText;
             document.getElementById('in_progress_prefix_input').value = appSettings.inProgressPrefix;
             document.getElementById('in_progress_suffix_input').value = appSettings.inProgressSuffix;
+            document.getElementById('pre_announcement_minutes_select').value = appSettings.preAnnouncementMinutes; // 新しい設定
+            document.getElementById('pre_announcement_prefix_input').value = appSettings.preAnnouncementPrefix; // 新しい設定
+            document.getElementById('pre_announcement_suffix_input').value = appSettings.preAnnouncementSuffix; // 新しい設定
             document.getElementById('event_summary_input').value = appSettings.eventSummary;
-            // event_description_input は削除済みなので対応するUI要素はない
         }
 
         // テーマを適用する関数
@@ -728,7 +772,7 @@
 
                 console.log(`--- initGapiClientForRead: イベントリスト表示を開始 (カレンダーID: ${currentCalendarId}) ---`);
                 listEvents(); 
-                startAutoRefresh(); 
+                startAutoRefresh(); // ロードされた更新間隔で自動更新を開始
 
                 console.log('--- initGapiClientForRead: GISクライアント初期化を開始（書き込み操作用） ---');
                 initGisClientForWrite();
@@ -889,15 +933,14 @@
                     'timeMax': timeMax,
                     'showDeleted': false,
                     'singleEvents': true,
-                    'orderBy': 'startTime', // 開始時間でソート
+                    'orderBy': 'startTime', 
                     'maxResults': 20
                 });
 
                 let events = response.result.items;
-                // --- ここから並び替えロジックの追加 ---
+                // --- 現在進行中または次に開始するイベントを先頭に移動するロジック ---
                 if (events && events.length > 0) {
-                    const currentTime = new Date(); // 現在時刻
-                    // 現在進行中のイベントがあればそれを先頭に移動
+                    const currentTime = new Date(); 
                     events.sort((a, b) => {
                         const startA = new Date(a.start.dateTime || a.start.date);
                         const endA = new Date(a.end.dateTime || a.end.date);
@@ -907,10 +950,18 @@
                         const aIsCurrent = (currentTime >= startA && currentTime < endA);
                         const bIsCurrent = (currentTime >= startB && currentTime < endB);
 
-                        if (aIsCurrent && !bIsCurrent) return -1; // Aが現在進行中でBが違うならAを前へ
-                        if (!aIsCurrent && bIsCurrent) return 1;  // Bが現在進行中でAが違うならBを前へ
+                        const aStartsSoon = (startA > currentTime && (startA.getTime() - currentTime.getTime()) <= (appSettings.preAnnouncementMinutes * 60 * 1000));
+                        const bStartsSoon = (startB > currentTime && (startB.getTime() - currentTime.getTime()) <= (appSettings.preAnnouncementMinutes * 60 * 1000));
 
-                        // どちらも現在進行中ではない、またはどちらも現在進行中の場合、開始時間でソート
+                        // 1. 現在進行中のイベントが最優先
+                        if (aIsCurrent && !bIsCurrent) return -1; 
+                        if (!aIsCurrent && bIsCurrent) return 1;  
+
+                        // 2. 次に開始する（予約前案内期間内）イベントが次に優先
+                        if (aStartsSoon && !bStartsSoon) return -1;
+                        if (!aStartsSoon && bStartsSoon) return 1;
+
+                        // 3. それ以外は開始時間でソート
                         return startA.getTime() - startB.getTime();
                     });
                 }
@@ -1002,19 +1053,21 @@
             const now = new Date();
             let currentEventFound = false;
             let currentEventSummary = '';
+            let preAnnouncementFound = false; // 予約前案内のフラグ
+            let preAnnouncementSummary = ''; // 予約前案内のサマリー
 
             // 既存のハイライトをすべて削除
             document.querySelectorAll('.event-item').forEach(item => {
                 item.classList.remove('current-event');
             });
 
-            // イベントをループしてハイライト
+            // イベントをループしてハイライトと案内文の状態を判定
             events.forEach((event, index) => {
                 const start = new Date(event.start.dateTime || event.start.date);
                 const end = new Date(event.end.dateTime || event.end.date);
                 
+                // 現在進行中のイベントを判定
                 if (now >= start && now < end) {
-                    // DOM上の対応するli要素を特定してクラスを追加
                     const liElement = document.querySelector(`#event_list li:nth-child(${index + 1})`);
                     if (liElement) {
                         liElement.classList.add('current-event');
@@ -1022,18 +1075,39 @@
                     currentEventFound = true;
                     currentEventSummary = event.summary || '名称未設定の会議';
                 }
+                
+                // 予約前案内のイベントを判定
+                // (現在進行中でない) かつ (開始時刻が現在より未来) かつ (開始時刻までの差が設定分以内)
+                if (!currentEventFound && now < start && (start.getTime() - now.getTime()) <= (appSettings.preAnnouncementMinutes * 60 * 1000)) {
+                    // 最も近い未来のイベントが優先されるべきだが、ソート済みなので最初の該当イベントを採用
+                    if (!preAnnouncementFound) { // 複数該当する場合、最初のものを使用
+                        preAnnouncementFound = true;
+                        preAnnouncementSummary = event.summary || '名称未設定の会議';
+                    }
+                }
             });
 
-            // 案内文の表示更新
+            // 予約前案内の表示更新
+            const preAnnouncementTextElement = document.getElementById('pre_announcement_text');
+            if (preAnnouncementFound) {
+                preAnnouncementTextElement.textContent = `${appSettings.preAnnouncementPrefix}「${preAnnouncementSummary}」${appSettings.preAnnouncementSuffix}`;
+                preAnnouncementTextElement.style.display = 'block';
+            } else {
+                preAnnouncementTextElement.style.display = 'none';
+            }
+
+            // 現在の案内文の表示更新
             const announcementTextElement = document.getElementById('announcement_text');
             if (currentEventFound) {
                 announcementTextElement.textContent = `${appSettings.inProgressPrefix}「${currentEventSummary}」${appSettings.inProgressSuffix}`;
                 announcementTextElement.classList.remove('available'); 
                 announcementTextElement.style.display = 'block';
-            } else {
+            } else if (!preAnnouncementFound) { // 進行中も予約前案内もない場合のみ「空室」
                 announcementTextElement.textContent = appSettings.availableText;
                 announcementTextElement.classList.add('available'); 
                 announcementTextElement.style.display = 'block'; 
+            } else { // 予約前案内がある場合は空室表示をしない
+                announcementTextElement.style.display = 'none';
             }
         }
 
