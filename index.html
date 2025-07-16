@@ -192,6 +192,8 @@
             display: flex;
             flex-direction: column;
             position: relative;
+            /* スクロールを可能にする */
+            overflow-y: auto; 
         }
         #settings_panel.open #settings_content {
             transform: translateX(0); 
@@ -243,8 +245,8 @@
             cursor: not-allowed;
         }
         #calendar_selection_panel {
-            margin-top: 30px; 
-            padding-top: 30px; 
+            margin-top: 25px;
+            padding-top: 25px;
             border-top: 1px dashed var(--border-color);
             flex-grow: 1;
             overflow-y: auto;
@@ -305,7 +307,7 @@
             border-radius: var(--border-radius);
             font-size: 1em;
             box-sizing: border-box;
-            transition: border-color 0.2s ease;
+            transition: border-color 0.2s ease, border-radius 0.3s ease;
         }
         .setting-group input[type="text"]:focus,
         .setting-group input[type="number"]:focus,
@@ -318,22 +320,22 @@
         #container {
             flex-grow: 1;
             display: flex;
-            gap: 30px; /* 余白を大きく */
+            gap: 30px; 
             position: relative; 
         }
         #event_list_container {
             flex: 1;
             padding: 30px;
             background-color: var(--panel-bg-color);
-            border-radius: var(--border-radius); /* テーマに合わせる */
-            box-shadow: var(--box-shadow); /* テーマに合わせる */
+            border-radius: var(--border-radius); 
+            box-shadow: var(--box-shadow); 
             transition: background-color 0.3s ease, box-shadow 0.3s ease, border-radius 0.3s ease;
         }
         #selected_calendar_info {
-            font-size: 1.2em; /* 文字を大きく */
+            font-size: 1.2em; 
             color: var(--light-text-color);
-            margin-bottom: 30px; /* 余白を大きく */
-            padding-bottom: 20px; /* パディングを大きく */
+            margin-bottom: 30px; 
+            padding-bottom: 20px; 
             border-bottom: 1px solid var(--border-color);
             transition: color 0.3s ease, border-color 0.3s ease;
         }
@@ -344,9 +346,9 @@
         #event_list li {
             background-color: #fdfdfd;
             border: 1px solid #f0f0f0;
-            border-radius: var(--border-radius); /* テーマに合わせる */
-            margin-bottom: 20px; /* 余白を大きく */
-            padding: 20px 25px; /* パディングを大きく */
+            border-radius: var(--border-radius); 
+            margin-bottom: 20px; 
+            padding: 20px 25px; 
             display: flex; 
             justify-content: space-between; 
             align-items: center; 
@@ -593,9 +595,9 @@
             // 設定UI要素の変更イベントリスナー
             themeSelect.onchange = (e) => { appSettings.theme = e.target.value; saveSettings(); applyTheme(appSettings.theme); };
             refreshIntervalSelect.onchange = (e) => { appSettings.refreshInterval = parseInt(e.target.value); saveSettings(); startAutoRefresh(); };
-            availableTextInput.onchange = (e) => { appSettings.availableText = e.target.value; saveSettings(); listEvents(); }; // 変更を即時反映
-            inProgressPrefixInput.onchange = (e) => { appSettings.inProgressPrefix = e.target.value; saveSettings(); listEvents(); };
-            inProgressSuffixInput.onchange = (e) => { appSettings.inProgressSuffix = e.target.value; saveSettings(); listEvents(); };
+            availableTextInput.onchange = (e) => { appSettings.availableText = e.target.value; saveSettings(); updateEventHighlightsAndAnnouncement(appSettings.lastEvents || []); }; // 変更を即時反映
+            inProgressPrefixInput.onchange = (e) => { appSettings.inProgressPrefix = e.target.value; saveSettings(); updateEventHighlightsAndAnnouncement(appSettings.lastEvents || []); };
+            inProgressSuffixInput.onchange = (e) => { appSettings.inProgressSuffix = e.target.value; saveSettings(); updateEventHighlightsAndAnnouncement(appSettings.lastEvents || []); };
             eventSummaryInput.onchange = (e) => { appSettings.eventSummary = e.target.value; saveSettings(); };
             eventDescriptionInput.onchange = (e) => { appSettings.eventDescription = e.target.value; saveSettings(); };
 
@@ -874,11 +876,14 @@
                 if (newEventsString === lastFetchedEventsString && eventListUl.children.length > 0 && !eventListUl.innerHTML.includes("イベントを読み込み中")) {
                     console.log('ℹ️ イベントデータに変化がないため、DOM更新をスキップします。');
                     // ハイライトと案内文だけは時刻変化で更新するため別途処理
-                    updateEventHighlightsAndAnnouncement(events); 
+                    updateEventHighlightsAndAnnouncement(events); // 元のeventsオブジェクトを渡す
                     return; 
                 }
 
                 lastFetchedEventsString = newEventsString; // データを更新
+                appSettings.lastEvents = events; // 案内文表示のためにイベントデータをappSettingsに保存
+                saveSettings(); // appSettingsの変更を保存
+
                 eventListUl.innerHTML = ''; // 既存の表示をクリア
 
                 if (events && events.length > 0) {
@@ -957,7 +962,6 @@
                 
                 if (now >= start && now < end) {
                     // DOM上の対応するli要素を特定してクラスを追加
-                    // listEventsがDOMを更新しない場合でも、この部分でクラスの付け外しが行われるようにする
                     const liElement = document.querySelector(`#event_list li:nth-child(${index + 1})`);
                     if (liElement) {
                         liElement.classList.add('current-event');
@@ -998,9 +1002,9 @@
             const eventEndTime = new Date(now.getTime() + (durationMinutes * 60 * 1000)); 
 
             const event = {
-                'summary': `${appSettings.eventSummary} (${durationMinutes}分)`, // 設定からイベント名を取得
+                'summary': `${appSettings.eventSummary} (${durationMinutes}分)`, 
                 'location': '会議室', 
-                'description': `${appSettings.eventDescription}時間: ${durationMinutes}分`, // 設定から説明文を取得
+                'description': `${appSettings.eventDescription}時間: ${durationMinutes}分`, 
                 'start': {
                     'dateTime': now.toISOString(),
                     'timeZone': 'Asia/Tokyo'
