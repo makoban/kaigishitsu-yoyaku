@@ -216,7 +216,7 @@
 
         /* Auth Section in Settings Panel */
         /* アカウント認証セクション */
-        .auth-section-group {
+        .setting-group.auth-section-group { /* Authセクションのスタイル */
             margin-bottom: 25px; /* 下部余白 */
             padding-bottom: 20px; /* 下部パディング */
             border-bottom: 1px dashed var(--border-color); /* 下線 */
@@ -485,8 +485,7 @@
                     ※認証後、表示・操作するカレンダーを選択してください。
                 </p>
                 <div id="calendar_selection_panel" style="display: none;">
-                    <div style="margin-bottom: 3em;"></div> 
-                    <h4>表示・操作するカレンダーを選択</h4>
+                    <div style="margin-top: 3em;"></div> <h4>表示・操作するカレンダーを選択</h4>
                     <ul id="writable_calendar_list">
                         <li>認証後、カレンダーを読み込み中...</li>
                     </ul>
@@ -528,9 +527,6 @@
                 <h3>緊急会議イベント設定</h3>
                 <label for="event_summary_input">イベント名 (30分/60分共通):</label>
                 <input type="text" id="event_summary_input" value="緊急会議">
-                
-                <label for="event_description_input">イベント説明:</label>
-                <input type="text" id="event_description_input" value="緊急の会議です。">
             </div>
 
             <hr style="display: none;"> </div>
@@ -573,7 +569,7 @@
             inProgressPrefix: "ただいま",
             inProgressSuffix: "中です",
             eventSummary: "緊急会議",
-            eventDescription: "緊急の会議です。",
+            // eventDescription は削除
             theme: "pop", // デフォルトテーマ
             lastEvents: [] // 最後に取得したイベントデータをここに保存（案内文用）
         };
@@ -605,7 +601,8 @@
             const inProgressPrefixInput = document.getElementById('in_progress_prefix_input');
             const inProgressSuffixInput = document.getElementById('in_progress_suffix_input');
             const eventSummaryInput = document.getElementById('event_summary_input');
-            const eventDescriptionInput = document.getElementById('event_description_input');
+            // eventDescriptionInput は削除
+            
 
             // 設定UI要素の変更イベントリスナー
             themeSelect.onchange = (e) => { appSettings.theme = e.target.value; saveSettings(); applyTheme(appSettings.theme); };
@@ -614,7 +611,7 @@
             inProgressPrefixInput.onchange = (e) => { appSettings.inProgressPrefix = e.target.value; saveSettings(); updateEventHighlightsAndAnnouncement(appSettings.lastEvents || []); };
             inProgressSuffixInput.onchange = (e) => { appSettings.inProgressSuffix = e.target.value; saveSettings(); updateEventHighlightsAndAnnouncement(appSettings.lastEvents || []); };
             eventSummaryInput.onchange = (e) => { appSettings.eventSummary = e.target.value; saveSettings(); updateAddButtonText(); }; // ボタンテキストも更新
-            eventDescriptionInput.onchange = (e) => { appSettings.eventDescription = e.target.value; saveSettings(); };
+            // eventDescriptionInput.onchange は削除
 
             settingsButton.onclick = () => {
                 settingsPanel.classList.toggle('open');
@@ -688,7 +685,7 @@
             document.getElementById('in_progress_prefix_input').value = appSettings.inProgressPrefix;
             document.getElementById('in_progress_suffix_input').value = appSettings.inProgressSuffix;
             document.getElementById('event_summary_input').value = appSettings.eventSummary;
-            document.getElementById('event_description_input').value = appSettings.eventDescription;
+            // event_description_input は削除済みなので対応するUI要素はない
         }
 
         // テーマを適用する関数
@@ -892,11 +889,33 @@
                     'timeMax': timeMax,
                     'showDeleted': false,
                     'singleEvents': true,
-                    'orderBy': 'startTime',
+                    'orderBy': 'startTime', // 開始時間でソート
                     'maxResults': 20
                 });
 
-                const events = response.result.items;
+                let events = response.result.items;
+                // --- ここから並び替えロジックの追加 ---
+                if (events && events.length > 0) {
+                    const currentTime = new Date(); // 現在時刻
+                    // 現在進行中のイベントがあればそれを先頭に移動
+                    events.sort((a, b) => {
+                        const startA = new Date(a.start.dateTime || a.start.date);
+                        const endA = new Date(a.end.dateTime || a.end.date);
+                        const startB = new Date(b.start.dateTime || b.start.date);
+                        const endB = new Date(b.end.dateTime || b.end.date);
+
+                        const aIsCurrent = (currentTime >= startA && currentTime < endA);
+                        const bIsCurrent = (currentTime >= startB && currentTime < endB);
+
+                        if (aIsCurrent && !bIsCurrent) return -1; // Aが現在進行中でBが違うならAを前へ
+                        if (!aIsCurrent && bIsCurrent) return 1;  // Bが現在進行中でAが違うならBを前へ
+
+                        // どちらも現在進行中ではない、またはどちらも現在進行中の場合、開始時間でソート
+                        return startA.getTime() - startB.getTime();
+                    });
+                }
+                // --- 並び替えロジックここまで ---
+
                 // 取得したイベントリストから比較に必要なプロパティのみを抽出し、JSON文字列化
                 const eventsForComparison = events.map(event => ({
                     id: event.id,
@@ -1038,7 +1057,7 @@
             const event = {
                 'summary': `${appSettings.eventSummary} (${durationMinutes}分)`, 
                 'location': '会議室', 
-                'description': `${appSettings.eventDescription}時間: ${durationMinutes}分`, 
+                'description': '', // イベント説明は空に
                 'start': {
                     'dateTime': now.toISOString(),
                     'timeZone': 'Asia/Tokyo'
