@@ -7,19 +7,20 @@
     <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;500;700&display=swap" rel="stylesheet">
     <style>
         :root {
-            --primary-color: #4285F4; /* Google Blue */
-            --secondary-color: #28a745; /* Green */
-            --accent-color: #6c757d; /* Gray */
+            --primary-color: #6a8e80; /* やさしいグリーン系 */
+            --secondary-color: #8c7e7e; /* やさしいブラウン系 */
+            --accent-color: #a0a0a0; /* グレイ */
             --text-color: #333;
-            --light-text-color: #555;
-            --background-color: #f8f9fa; /* Light Gray */
+            --light-text-color: #666;
+            --background-color: #eaf2ee; /* やさしい背景色 */
             --panel-bg-color: #ffffff;
-            --border-color: #e0e0e0;
-            --error-color: #dc3545; /* Red */
-            --delete-button-color: #dc3545; /* Red for delete */
-            --highlight-color: #ffeeb2; /* Highlight color for current event */
-            --announcement-bg-color: #ffc107; /* Amber for announcement */
+            --border-color: #d8e4df; /* やさしいボーダー */
+            --error-color: #dc3545; /* 赤 */
+            --delete-button-color: #dc3545; /* 赤 */
+            --highlight-color: #fffac2; /* ハイライト色 */
+            --announcement-bg-color: #ffe0b2; /* 案内文の背景 (オレンジ系) */
             --announcement-text-color: #333;
+            --available-color: #90ee90; /* 空室時の色 (ライトグリーン) */
         }
 
         body {
@@ -32,12 +33,13 @@
             flex-direction: column;
             min-height: 100vh;
             box-sizing: border-box;
+            font-size: 18px; /* 全体のベースフォントサイズを大きく */
         }
 
         h1, h2, h3, h4 {
             color: var(--primary-color);
             margin-top: 0;
-            margin-bottom: 15px;
+            margin-bottom: 20px; /* 余白を大きめに */
             font-weight: 500;
         }
 
@@ -46,54 +48,62 @@
             display: flex;
             justify-content: space-between;
             align-items: center;
-            margin-bottom: 20px;
+            margin-bottom: 25px; /* 余白を大きめに */
         }
         header h1 {
             margin: 0;
-            font-size: 2.2em;
+            font-size: 2.8em; /* H1をさらに大きく */
         }
 
         /* Top Bar for Date/Time and Announcement */
         #top_bar {
             background-color: var(--panel-bg-color);
-            border-radius: 8px;
-            box-shadow: 0 2px 5px rgba(0,0,0,0.08);
-            margin-bottom: 20px;
-            padding: 15px 20px;
+            border-radius: 12px; /* 角を丸く */
+            box-shadow: 0 4px 10px rgba(0,0,0,0.08); /* 影を強調 */
+            margin-bottom: 30px; /* 余白を大きく */
+            padding: 25px 30px; /* パディングを大きく */
             display: flex;
-            justify-content: space-between;
-            align-items: center;
-            font-size: 1.1em;
-            color: var(--text-color);
+            flex-direction: column; /* 縦並びに */
+            align-items: center; /* 中央寄せ */
+            text-align: center;
+            font-size: 1.3em;
         }
         #current_datetime {
             font-weight: bold;
-            color: var(--primary-color);
+            color: var(--secondary-color); /* 色を調整 */
+            margin-bottom: 10px; /* 日付と案内の間に余白 */
+            font-size: 1.2em; /* 日付時刻をさらに大きく */
         }
         #announcement_text {
             font-weight: bold;
             color: var(--announcement-text-color);
             background-color: var(--announcement-bg-color);
-            padding: 8px 15px;
-            border-radius: 5px;
+            padding: 15px 30px; /* パディングを大きく */
+            border-radius: 8px; /* 角を丸く */
+            font-size: 2em; /* 案内文を非常に大きく */
             display: none; /* Initially hidden */
-            margin-left: 20px;
+            width: 100%; /* 幅いっぱい */
+            box-sizing: border-box;
+        }
+        #announcement_text.available { /* 空室時のスタイル */
+            background-color: var(--available-color);
+            color: var(--text-color);
         }
 
         /* Settings Button */
         #settings_button {
-            padding: 10px 20px;
-            font-size: 0.9em;
+            padding: 12px 25px; /* ボタンを大きく */
+            font-size: 1em; /* フォントサイズも大きく */
             background-color: var(--accent-color);
             color: white;
             border: none;
-            border-radius: 5px;
+            border-radius: 8px; /* 角を丸く */
             cursor: pointer;
             transition: background-color 0.2s ease-in-out;
-            position: fixed; /* 画面右上に固定 */
+            position: fixed; 
             top: 20px;
             right: 20px;
-            z-index: 101; /* 他の要素より手前に表示 */
+            z-index: 101; 
             box-shadow: 0 2px 5px rgba(0,0,0,0.1);
         }
         #settings_button:hover {
@@ -102,17 +112,17 @@
 
         /* Settings Panel */
         #settings_panel {
-            position: fixed; /* 画面全体にオーバーレイ */
+            position: fixed; 
             top: 0;
             right: 0;
             width: 100%;
             height: 100%;
-            background-color: rgba(0,0,0,0.5); /* 半透明のオーバーレイ */
+            background-color: rgba(0,0,0,0.5); 
             display: flex;
-            justify-content: flex-end; /* 右端に寄せる */
+            justify-content: flex-end; 
             z-index: 100;
             opacity: 0;
-            pointer-events: none; /* 非表示時はクリックイベントを無効に */
+            pointer-events: none; 
             transition: opacity 0.3s ease-in-out;
         }
         #settings_panel.open {
@@ -121,20 +131,20 @@
         }
         #settings_content {
             background-color: var(--panel-bg-color);
-            width: 450px; /* パネルの幅 */
+            width: 500px; /* パネルの幅を少し広げる */
             max-width: 90%;
             height: 100%;
             padding: 30px;
             box-sizing: border-box;
             box-shadow: -5px 0 15px rgba(0,0,0,0.2);
-            transform: translateX(100%); /* 初期は画面外に隠す */
+            transform: translateX(100%); 
             transition: transform 0.3s ease-in-out;
             display: flex;
             flex-direction: column;
             position: relative;
         }
         #settings_panel.open #settings_content {
-            transform: translateX(0); /* パネルを表示 */
+            transform: translateX(0); 
         }
         #close_settings_panel {
             position: absolute;
@@ -142,7 +152,7 @@
             right: 15px;
             background: none;
             border: none;
-            font-size: 2em;
+            font-size: 2.5em; /* ボタンを大きく */
             cursor: pointer;
             color: var(--accent-color);
             line-height: 1;
@@ -154,37 +164,37 @@
 
         /* Auth Section in Settings Panel */
         #auth_status {
-            margin-bottom: 20px;
-            padding: 15px;
-            background-color: #e9f5ff; /* Light Blue */
+            margin-bottom: 25px; /* 余白を大きく */
+            padding: 20px; /* パディングを大きく */
+            background-color: #e9f5ff; 
             border: 1px solid #cce5ff;
-            border-radius: 8px;
+            border-radius: 10px; /* 丸く */
             text-align: center;
-            font-size: 0.95em;
-            line-height: 1.4;
+            font-size: 1.1em; /* 文字を大きく */
+            line-height: 1.5;
         }
         #authorize_button, #switch_account_button {
-            padding: 12px 20px;
-            font-size: 1em;
+            padding: 15px 25px; /* ボタンを大きく */
+            font-size: 1.1em; /* フォントサイズも大きく */
             background-color: var(--primary-color);
             color: white;
             border: none;
-            border-radius: 5px;
+            border-radius: 8px; /* 角を丸く */
             cursor: pointer;
             transition: background-color 0.2s ease-in-out;
             width: 100%;
-            margin-bottom: 10px;
+            margin-bottom: 15px; /* 余白を大きく */
         }
         #authorize_button:hover, #switch_account_button:hover {
-            background-color: #357ae8;
+            background-color: #5a7d71; /* ホバー色調整 */
         }
         #authorize_button:disabled, #switch_account_button:disabled {
             background-color: #a0a0a0;
             cursor: not-allowed;
         }
         #calendar_selection_panel {
-            margin-top: 25px;
-            padding-top: 25px;
+            margin-top: 30px; /* 余白を大きく */
+            padding-top: 30px; /* パディングを大きく */
             border-top: 1px dashed var(--border-color);
             flex-grow: 1;
             overflow-y: auto;
@@ -192,52 +202,52 @@
         #writable_calendar_list {
             list-style: none;
             padding: 0;
-            margin-top: 15px;
+            margin-top: 20px; /* 余白を大きく */
         }
         #writable_calendar_list li {
             display: flex;
             justify-content: space-between;
             align-items: center;
-            padding: 10px 0;
+            padding: 15px 0; /* パディングを大きく */
             border-bottom: 1px solid #f7f7f7;
-            font-size: 1.05em;
+            font-size: 1.15em; /* 文字を大きく */
         }
         #writable_calendar_list li:last-child {
             border-bottom: none;
         }
         .select-button {
-            padding: 8px 15px;
-            font-size: 0.9em;
+            padding: 10px 20px; /* ボタンを大きく */
+            font-size: 1em; /* フォントサイズも大きく */
             background-color: var(--secondary-color);
             color: white;
             border: none;
-            border-radius: 5px;
+            border-radius: 8px; /* 丸く */
             cursor: pointer;
             transition: background-color 0.2s ease-in-out;
         }
         .select-button:hover {
-            background-color: #218838;
+            background-color: #7b6d6d; /* ホバー色調整 */
         }
 
         /* Main Content Area */
         #container {
             flex-grow: 1;
             display: flex;
-            gap: 25px;
+            gap: 30px; /* 余白を大きく */
             position: relative; 
         }
         #event_list_container {
             flex: 1;
             padding: 30px;
             background-color: var(--panel-bg-color);
-            border-radius: 10px;
-            box-shadow: 0 4px 15px rgba(0,0,0,0.08);
+            border-radius: 12px; /* 角を丸く */
+            box-shadow: 0 5px 20px rgba(0,0,0,0.1); /* 影を強調 */
         }
         #selected_calendar_info {
-            font-size: 1.1em;
+            font-size: 1.2em; /* 文字を大きく */
             color: var(--light-text-color);
-            margin-bottom: 25px;
-            padding-bottom: 15px;
+            margin-bottom: 30px; /* 余白を大きく */
+            padding-bottom: 20px; /* パディングを大きく */
             border-bottom: 1px solid var(--border-color);
         }
         #event_list {
@@ -247,23 +257,23 @@
         #event_list li {
             background-color: #fdfdfd;
             border: 1px solid #f0f0f0;
-            border-radius: 8px;
-            margin-bottom: 15px;
-            padding: 15px 20px;
+            border-radius: 10px; /* 角を丸く */
+            margin-bottom: 20px; /* 余白を大きく */
+            padding: 20px 25px; /* パディングを大きく */
             display: flex; 
             justify-content: space-between; 
             align-items: center; 
-            transition: transform 0.2s ease-out, box-shadow 0.2s ease-out;
+            transition: transform 0.2s ease-out, box-shadow 0.2s ease-out, background-color 0.2s ease-in-out;
         }
         #event_list li:hover {
-            transform: translateY(-3px);
-            box-shadow: 0 6px 20px rgba(0,0,0,0.1);
+            transform: translateY(-5px); /* ホバー時の動きを強調 */
+            box-shadow: 0 8px 25px rgba(0,0,0,0.15); /* 影を強調 */
         }
         /* Highlight for current event */
         #event_list li.current-event {
             background-color: var(--highlight-color);
-            border-color: #ffcc00;
-            box-shadow: 0 4px 15px rgba(255, 193, 7, 0.2);
+            border-color: #ffd700; /* ゴールドっぽい色 */
+            box-shadow: 0 6px 20px rgba(255, 215, 0, 0.3);
         }
 
         .event-details {
@@ -272,76 +282,77 @@
         .event-time {
             font-weight: 700; 
             color: var(--primary-color);
-            font-size: 1.1em;
-            margin-bottom: 5px;
+            font-size: 1.3em; /* 時間をさらに大きく */
+            margin-bottom: 8px; /* 余白を大きく */
             display: block;
         }
         .event-summary {
             color: var(--text-color);
-            font-size: 1.05em;
+            font-size: 1.2em; /* サマリーを大きく */
             line-height: 1.4;
         }
         .no-events {
             font-style: italic;
             color: var(--light-text-color);
             text-align: center;
-            padding: 30px;
+            padding: 40px; /* パディングを大きく */
+            font-size: 1.2em; /* 文字を大きく */
         }
 
         /* Action Buttons */
         .action-button-group {
-            margin-top: 30px;
-            padding-top: 20px;
+            margin-top: 40px; /* 余白を大きく */
+            padding-top: 25px; /* パディングを大きく */
             border-top: 1px dashed var(--border-color);
             display: flex;
-            gap: 15px;
+            gap: 20px; /* 余白を大きく */
             flex-wrap: wrap;
         }
         .action-button {
-            padding: 12px 20px;
-            font-size: 1em;
+            padding: 15px 25px; /* ボタンを大きく */
+            font-size: 1.1em; /* フォントサイズを大きく */
             background-color: var(--primary-color);
             color: white;
             border: none;
-            border-radius: 5px;
+            border-radius: 8px; /* 角を丸く */
             cursor: pointer;
             transition: background-color 0.2s ease-in-out;
             box-shadow: 0 2px 5px rgba(0,0,0,0.1);
             flex-grow: 1; 
-            min-width: 120px;
+            min-width: 150px; /* 最小幅を確保 */
         }
         .action-button:hover {
-            background-color: #357ae8;
+            background-color: #5a7d71; /* ホバー色調整 */
         }
         .action-button:active {
-            transform: translateY(1px);
+            transform: translateY(2px); /* アクティブ時の動きを強調 */
         }
         .error-message {
             color: var(--error-color);
             font-weight: 700;
-            margin-top: 20px;
+            margin-top: 25px; /* 余白を大きく */
             text-align: center;
-            font-size: 1.1em;
+            font-size: 1.2em; /* 文字を大きく */
             background-color: #ffe0e0;
-            padding: 15px;
-            border-radius: 8px;
+            padding: 20px; /* パディングを大きく */
+            border-radius: 10px; /* 丸く */
             border: 1px solid var(--error-color);
         }
         /* New delete button for each event item */
         .event-delete-button {
-            padding: 8px 12px;
-            font-size: 0.9em;
-            background-color: var(--delete-button-color); /* Red */
+            padding: 10px 18px; /* ボタンを大きく */
+            font-size: 1em; /* フォントサイズを大きく */
+            background-color: var(--delete-button-color); /* 赤 */
             color: white;
             border: none;
-            border-radius: 5px;
+            border-radius: 8px; /* 丸く */
             cursor: pointer;
             transition: background-color 0.2s ease-in-out;
-            margin-left: 15px; /* Space from event details */
-            flex-shrink: 0; /* Prevent shrinking */
+            margin-left: 20px; /* 余白を大きく */
+            flex-shrink: 0; 
         }
         .event-delete-button:hover {
-            background-color: #c82333; /* Darker red */
+            background-color: #c82333; 
         }
     </style>
 </head>
@@ -470,7 +481,6 @@
                 const savedActiveId = localStorage.getItem(LOCAL_STORAGE_ACTIVE_CALENDAR_ID_KEY);
                 const savedActiveSummary = localStorage.getItem(LOCAL_STORAGE_ACTIVE_CALENDAR_SUMMARY_KEY);
 
-                // localStorageに保存があれば、そのIDがINITIAL_PUBLIC_CALENDAR_IDと同じでもそれを優先
                 if (savedActiveId && savedActiveSummary) { 
                     currentCalendarId = savedActiveId;
                     currentCalendarSummary = savedActiveSummary;
@@ -649,21 +659,26 @@
                 });
 
                 const events = response.result.items;
-                const newEventsString = JSON.stringify(events); // 新しいイベントデータを文字列化
+                // 取得したイベントリストから不要なプロパティを除外して比較用の文字列を作成
+                // updateEventHighlightsAndAnnouncementでも使用するため、必要なプロパティのみ保持
+                const eventsForComparison = events.map(event => ({
+                    id: event.id,
+                    summary: event.summary,
+                    start: event.start,
+                    end: event.end
+                }));
+                const newEventsString = JSON.stringify(eventsForComparison); 
 
                 // 前回取得したデータと比較して、変化がなければDOM更新をスキップ
                 if (newEventsString === lastFetchedEventsString && eventListUl.children.length > 0) {
                     console.log('ℹ️ イベントデータに変化がないため、DOM更新をスキップします。');
                     // ハイライトと案内文だけは時刻変化で更新するため別途処理
-                    updateEventHighlightsAndAnnouncement(events);
+                    updateEventHighlightsAndAnnouncement(events); // 元のeventsオブジェクトを渡す
                     return; 
                 }
 
                 lastFetchedEventsString = newEventsString; // データを更新
                 eventListUl.innerHTML = ''; // 既存の表示をクリア
-
-                let currentEventFound = false;
-                let currentEventSummary = '';
 
                 if (events && events.length > 0) {
                     events.forEach(event => {
@@ -696,13 +711,6 @@
                         
                         li.innerHTML = eventDetailsHtml + `<button class="event-delete-button" data-event-id="${event.id}">削除</button>`;
                         eventListUl.appendChild(li);
-
-                        const now = new Date();
-                        if (now >= start && now < end) {
-                            li.classList.add('current-event');
-                            currentEventFound = true;
-                            currentEventSummary = event.summary || '名称未設定の会議';
-                        }
                     });
                     console.log(`✅ イベントを正常に表示しました (${currentCalendarSummary}):`, events);
 
@@ -726,7 +734,6 @@
             } catch (err) {
                 console.error(`❌ イベントの取得エラー (${currentCalendarSummary}):`, err.result ? err.result.error : err);
                 displayError(`イベントの取得中にエラーが発生しました: ${err.result && err.result.error && err.result.error.message ? err.result.error.message : err.message}`);
-                // エラー時はイベントリストをクリアしてエラーメッセージを表示
                 eventListUl.innerHTML = '<li class="error-message">イベントの読み込みに失敗しました。</li>';
             }
         }
@@ -760,9 +767,12 @@
             const announcementTextElement = document.getElementById('announcement_text');
             if (currentEventFound) {
                 announcementTextElement.textContent = `ただいま「${currentEventSummary}」中です`;
+                announcementTextElement.classList.remove('available'); // 空室スタイルを削除
                 announcementTextElement.style.display = 'block';
             } else {
-                announcementTextElement.style.display = 'none';
+                announcementTextElement.textContent = `空室です`;
+                announcementTextElement.classList.add('available'); // 空室スタイルを追加
+                announcementTextElement.style.display = 'block'; // 空室でも常に表示
             }
         }
 
