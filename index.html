@@ -248,8 +248,8 @@
             margin-top: 25px;
             padding-top: 25px;
             border-top: 1px dashed var(--border-color);
-            flex-grow: 1; /* スクロール可能にするために flex-grow を維持 */
-            overflow-y: auto; /* ここでスクロールを有効にする */
+            flex-grow: 1;
+            overflow-y: auto;
         }
         #writable_calendar_list {
             list-style: none;
@@ -260,9 +260,9 @@
             display: flex;
             justify-content: space-between;
             align-items: center;
-            padding: 15px 0; /* パディングを増やす */
+            padding: 15px 0; 
             border-bottom: 1px solid #f7f7f7;
-            font-size: 1.15em; /* フォントサイズを少し大きく */
+            font-size: 1.15em; 
         }
         #writable_calendar_list li:last-child {
             border-bottom: none;
@@ -599,7 +599,7 @@
             availableTextInput.onchange = (e) => { appSettings.availableText = e.target.value; saveSettings(); updateEventHighlightsAndAnnouncement(appSettings.lastEvents || []); }; // 変更を即時反映
             inProgressPrefixInput.onchange = (e) => { appSettings.inProgressPrefix = e.target.value; saveSettings(); updateEventHighlightsAndAnnouncement(appSettings.lastEvents || []); };
             inProgressSuffixInput.onchange = (e) => { appSettings.inProgressSuffix = e.target.value; saveSettings(); updateEventHighlightsAndAnnouncement(appSettings.lastEvents || []); };
-            eventSummaryInput.onchange = (e) => { appSettings.eventSummary = e.target.value; saveSettings(); updateAddButtonText(); }; // ボタンテキストも更新
+            eventSummaryInput.onchange = (e) => { appSettings.eventSummary = e.target.value; saveSettings(); };
             eventDescriptionInput.onchange = (e) => { appSettings.eventDescription = e.target.value; saveSettings(); };
 
             settingsButton.onclick = () => {
@@ -631,9 +631,6 @@
 
             setInterval(updateCurrentDateTime, 1000);
             updateCurrentDateTime(); 
-
-            // 初期の追加ボタンのテキストを設定
-            updateAddButtonText();
 
             console.log('--- DOMContentLoaded: gapiクライアントロードを開始 ---');
             gapi.load('client', initGapiClientForRead);
@@ -684,13 +681,6 @@
             console.log(`テーマを "${themeName}" に変更しました。`);
         }
 
-        // 追加ボタンのテキストを更新する関数
-        function updateAddButtonText() {
-            const eventSummary = appSettings.eventSummary || "緊急会議";
-            document.getElementById('add_30min_event_button').textContent = `${eventSummary} (30分)`;
-            document.getElementById('add_60min_event_button').textContent = `${eventSummary} (60分)`;
-        }
-
 
         function initGapiClientForRead() {
             console.log('--- initGapiClientForRead: 読み込み専用クライアント初期化中 ---');
@@ -717,7 +707,7 @@
 
                 console.log(`--- initGapiClientForRead: イベントリスト表示を開始 (カレンダーID: ${currentCalendarId}) ---`);
                 listEvents(); 
-                startAutoRefresh(); 
+                startAutoRefresh(); // ロードされた更新間隔で自動更新を開始
 
                 console.log('--- initGapiClientForRead: GISクライアント初期化を開始（書き込み操作用） ---');
                 initGisClientForWrite();
