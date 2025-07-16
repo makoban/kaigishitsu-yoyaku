@@ -641,10 +641,6 @@
         let refreshIntervalId; 
         let lastFetchedEventsString = ""; 
 
-        // 長押し関連の変数
-        let longPressTimerId = null; // 長押しタイマーのID
-        let isLongPressActionTriggered = false; // 長押しアクションが実行されたかのフラグ
-
         document.addEventListener('DOMContentLoaded', () => {
             // 設定をロードし、UIとアプリに適用
             loadSettings();
@@ -672,10 +668,8 @@
             const eventSummaryInput = document.getElementById('event_summary_input');
             
             // --- 設定ボタンのイベントリスナー ---
-            // 初期は非表示に設定
-            settingsButton.style.display = 'none';
-
-            // 通常のクリックで設定パネルを開く（このボタンは後でダブルクリックで表示される）
+            // 設定ボタンは初期は非表示
+            settingsButton.style.display = 'none'; // CSSからもdisplay:none;にする必要があります。
             settingsButton.onclick = () => {
                 settingsPanel.classList.toggle('open');
                 if (settingsPanel.classList.contains('open') && isAuthorizedForWrite) {
@@ -685,14 +679,21 @@
                 }
             };
             
-
-            // --- 更新ボタンのダブルクリックで設定ボタンを表示 ---
+            // --- 更新ボタンのダブルクリックで設定ボタンを表示/非表示をトグル ---
             refreshButton.addEventListener('dblclick', (e) => {
                 e.preventDefault(); // デフォルトのダブルクリック動作を防止
                 console.log('--- 更新ボタンがダブルクリックされました ---');
-                settingsButton.style.display = 'block'; // 設定ボタンを表示
-                settingsButton.disabled = false; // 設定ボタンを有効化 (長押しは不要)
-                console.log('設定ボタンが表示され、有効になりました。');
+                // 設定ボタンの表示状態をトグル
+                if (settingsButton.style.display === 'none') {
+                    settingsButton.style.display = 'block'; // 表示
+                    settingsButton.disabled = false; // 表示と同時に有効化
+                    console.log('設定ボタンが表示され、有効になりました。');
+                } else {
+                    settingsButton.style.display = 'none'; // 非表示
+                    // 設定パネルが開いていたら閉じる
+                    settingsPanel.classList.remove('open');
+                    console.log('設定ボタンが非表示になりました。');
+                }
             });
 
 
@@ -700,9 +701,7 @@
             closeSettingsPanelButton.onclick = () => {
                 settingsPanel.classList.remove('open');
                 displayError(''); 
-                // パネルを閉じたら設定ボタンを再び非表示に戻す
-                settingsButton.style.display = 'none';
-                console.log('設定ボタンを非表示に戻しました。');
+                // パネルを閉じても設定ボタンの表示状態はダブルクリックで制御されるため、ここでは変更しない
             };
 
             // --- 各種設定UI要素のイベントリスナー ---
