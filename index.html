@@ -7,13 +7,51 @@
     <style>
         body { font-family: Arial, sans-serif; margin: 20px; background-color: #f4f4f4; color: #333; }
         h1, h2 { color: #0056b3; }
-        #auth_section {
-            margin-bottom: 20px;
-            padding: 15px;
-            background-color: #e9f5ff;
-            border: 1px solid #cce5ff;
-            border-radius: 8px;
-            display: none; /* 初期は非表示 */
+        #settings_button {
+            padding: 10px 20px;
+            font-size: 16px;
+            background-color: #6c757d; /* Gray for settings */
+            color: white;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            transition: background-color 0.3s ease;
+            position: absolute; /* 画面右上に配置 */
+            top: 20px;
+            right: 20px;
+            z-index: 100; /* 他の要素より手前に表示 */
+        }
+        #settings_button:hover {
+            background-color: #5a6268;
+        }
+
+        #settings_panel {
+            position: absolute;
+            top: 0;
+            right: 0;
+            width: 400px; /* 設定パネルの幅 */
+            height: 100%;
+            background-color: #fff;
+            box-shadow: -5px 0 15px rgba(0,0,0,0.2);
+            padding: 20px;
+            box-sizing: border-box;
+            transform: translateX(100%); /* 初期は画面外に隠す */
+            transition: transform 0.3s ease-in-out;
+            z-index: 99; /* 通常コンテンツより手前 */
+            display: flex;
+            flex-direction: column;
+        }
+        #settings_panel.open {
+            transform: translateX(0); /* 設定パネルを表示 */
+        }
+        #settings_panel h2 {
+            margin-top: 0;
+            color: #0056b3;
+        }
+        #settings_panel hr {
+            border: 0;
+            border-top: 1px solid #eee;
+            margin: 20px 0;
         }
         #authorize_button {
             padding: 12px 25px;
@@ -24,6 +62,8 @@
             border-radius: 5px;
             cursor: pointer;
             transition: background-color 0.3s ease;
+            width: 100%; /* 幅を親要素に合わせる */
+            margin-bottom: 10px;
         }
         #authorize_button:hover {
             background-color: #357ae8;
@@ -32,6 +72,32 @@
             background-color: #a0a0a0;
             cursor: not-allowed;
         }
+        #auth_status {
+            margin-bottom: 15px;
+            padding: 10px;
+            background-color: #e9f5ff;
+            border: 1px solid #cce5ff;
+            border-radius: 5px;
+            text-align: center;
+        }
+        #calendar_selection_panel {
+            margin-top: 20px;
+            border-top: 1px dashed #eee;
+            padding-top: 20px;
+            flex-grow: 1; /* 残りのスペースを埋める */
+            overflow-y: auto; /* コンテンツがはみ出したらスクロール */
+        }
+        #writable_calendar_list {
+            padding-top: 10px;
+        }
+        #writable_calendar_list li {
+            border-bottom: 1px solid #f0f0f0;
+            padding: 10px 0;
+        }
+        #writable_calendar_list li:last-child {
+            border-bottom: none;
+        }
+
         #container {
             display: flex;
             gap: 20px;
@@ -116,19 +182,25 @@
 <body>
     <h1>会議室予約表示</h1>
 
-    <div id="auth_section">
+    <button id="settings_button">設定</button>
+
+    <div id="settings_panel">
+        <h2>設定</h2>
+        <hr>
+        <h3>アカウントとカレンダーの切り替え</h3>
         <p id="auth_status" style="color: blue;">操作を行うにはGoogleアカウントで認証してください。</p>
         <button id="authorize_button">Googleアカウントで認証</button>
         <p style="font-size: 0.9em; color: #555; margin-top: 10px;">
-            ※カレンダーの切り替え、緊急会議、削除機能を利用する際に認証が必要です。
+            ※緊急会議、削除などの管理者操作を利用する際に認証が必要です。
         </p>
-        <div id="calendar_selection_panel" style="margin-top: 20px; display: none;">
-            <h2>表示・操作するカレンダーを選択</h2>
+        <div id="calendar_selection_panel" style="display: none;">
+            <h4>表示・操作するカレンダーを選択</h4>
             <ul id="writable_calendar_list">
-                <li>カレンダーを読み込み中...</li>
+                <li>認証後、カレンダーを読み込み中...</li>
             </ul>
         </div>
-    </div>
+        <hr>
+        </div>
 
     <div id="container">
         <div id="event_list_container" class="panel" style="flex: auto;">
@@ -157,7 +229,6 @@
         // ★★★ ここまで ★★★
 
         const DISCOVERY_DOCS = ["https://www.googleapis.com/discovery/v1/apis/calendar/v3/rest"];
-        // 閲覧時は不要。書き込み操作時に必要となるスコープ
         const WRITE_SCOPES = 'https://www.googleapis.com/auth/calendar.events'; // イベントの読み書き権限
 
         const LOCAL_STORAGE_ACTIVE_CALENDAR_ID_KEY = 'activeCalendarId';
@@ -170,14 +241,17 @@
 
         // HTMLコンテンツの読み込みが完了したら初期化処理を開始
         document.addEventListener('DOMContentLoaded', () => {
-            // 現在の表示カレンダー情報を更新
-            document.getElementById('display_calendar_id_text').textContent = currentCalendarId;
-            document.getElementById('display_calendar_summary').textContent = currentCalendarSummary;
-            
             // UI上のボタンにイベントリスナーを設定
             document.getElementById('add_event_button').onclick = handleActionTrigger;
             document.getElementById('delete_event_button').onclick = handleActionTrigger;
             document.getElementById('refresh_button').onclick = listEvents;
+
+            // 設定ボタンのトグル機能
+            const settingsButton = document.getElementById('settings_button');
+            const settingsPanel = document.getElementById('settings_panel');
+            settingsButton.onclick = () => {
+                settingsPanel.classList.toggle('open');
+            };
 
             // gapiクライアントライブラリのロードと初期化（APIキーのみ）
             gapi.load('client', initGapiClientForRead);
@@ -201,8 +275,6 @@
                     console.log(`ℹ️ localStorageからアクティブカレンダーを読み込みました: ${currentCalendarSummary} (${currentCalendarId})`);
                 } else {
                     console.log(`ℹ️ localStorageにアクティブカレンダーが見つかりませんでした。初期設定カレンダー (${INITIAL_PUBLIC_CALENDAR_ID}) を使用します。`);
-                    // 初回表示時のサマリーを適切に設定する（必要であればAPIで取得することも可能）
-                    // 現状は'初期設定カレンダー'という固定文字列を使用
                 }
                 updateDisplayedCalendarInfo(); // 表示カレンダー情報を更新
 
@@ -251,7 +323,7 @@
                     console.error('❌ GISトークンクライアントエラー（書き込み用）:', error);
                 }
             });
-            // 認証ボタンのイベントリスナーはinitGisClientForWrite内で設定
+            // 認証ボタンのイベントリスナーを設定
             document.getElementById('authorize_button').onclick = () => {
                 console.log('--- Googleアカウントで認証ボタンがクリックされました（操作用）。---');
                 tokenClient.requestAccessToken({ prompt: 'consent' }); // 初回は同意を求める
@@ -260,8 +332,8 @@
 
         // 操作ボタン（追加・削除）がクリックされた際の共通ハンドラ
         function handleActionTrigger(event) {
-            // まず認証セクションを表示する
-            document.getElementById('auth_section').style.display = 'block';
+            // 設定パネルを表示する
+            document.getElementById('settings_panel').classList.add('open');
 
             if (!isAuthorizedForWrite) {
                 document.getElementById('auth_status').textContent = '操作を行うにはGoogleアカウントで認証してください。';
@@ -298,21 +370,23 @@
                     writableCalendarListUl.innerHTML = ''; // クリア
                     writableCalendars.forEach(calendar => {
                         const li = document.createElement('li');
+                        // 現在のアクティブカレンダーであれば、選択済みと表示
+                        const isCurrent = (calendar.id === currentCalendarId) ? ' (現在選択中)' : '';
                         li.innerHTML = `
-                            <span>${calendar.summary}</span>
+                            <span>${calendar.summary}${isCurrent}</span>
                             <button class="select-button" 
                                 data-calendar-id="${calendar.id}" 
-                                data-calendar-summary="${calendar.summary}">表示・操作</button>
+                                data-calendar-summary="${calendar.summary}">選択</button>
                         `;
                         writableCalendarListUl.appendChild(li);
                     });
                     console.log('✅ 書き込み可能なカレンダーリストを正常に表示しました:', writableCalendars);
 
-                    // 各「表示・操作」ボタンにイベントリスナーを追加
+                    // 各「選択」ボタンにイベントリスナーを追加
                     document.querySelectorAll('#writable_calendar_list .select-button').forEach(button => {
                         button.onclick = (event) => {
                             const newActiveId = event.target.dataset.calendarId;
-                            const newActiveSummary = event.target.dataset.dataset.calendarSummary;
+                            const newActiveSummary = event.target.dataset.calendarSummary;
                             
                             // アクティブカレンダーをlocalStorageに保存
                             localStorage.setItem(LOCAL_STORAGE_ACTIVE_CALENDAR_ID_KEY, newActiveId);
@@ -323,8 +397,9 @@
                             updateDisplayedCalendarInfo(); // 表示カレンダー情報を更新
                             console.log('✅ アクティブカレンダーが選択・保存されました:', currentCalendarSummary, currentCalendarId);
                             listEvents(); // 新しいカレンダーでイベントリストを再表示
-                            // 認証セクションを隠す（必要であれば）
-                            document.getElementById('auth_section').style.display = 'none';
+                            
+                            // 設定パネルを隠す
+                            document.getElementById('settings_panel').classList.remove('open');
                         };
                     });
                 } else {
@@ -345,7 +420,7 @@
 
         async function listEvents() {
             const eventListUl = document.getElementById('event_list');
-            eventListUl.innerHTML = ''; // 既存のイベントリストをクリア
+            eventListUl.innerHTML = '<li>イベントを読み込み中...</li>'; // ロード中メッセージ
             displayError(''); // エラーメッセージをクリア
 
             // 現在時刻を基準に、前2時間と後12時間の期間を設定
@@ -367,6 +442,7 @@
                 });
 
                 const events = response.result.items;
+                eventListUl.innerHTML = ''; // ロード中メッセージをクリア
 
                 if (events && events.length > 0) {
                     events.forEach(event => {
@@ -496,7 +572,6 @@
                 alert(`イベントの削除に失敗しました: ${err.result && err.result.error && err.result.error.message ? err.result.error.message : err.message}`);
             }
         }
-
 
         // エラーメッセージを表示するヘルパー関数
         function displayError(msg) {
