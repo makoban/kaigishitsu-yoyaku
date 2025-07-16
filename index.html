@@ -260,9 +260,9 @@
             display: flex;
             justify-content: space-between;
             align-items: center;
-            padding: 15px 0; 
+            padding: 15px 0; /* パディングを増やす */
             border-bottom: 1px solid #f7f7f7;
-            font-size: 1.15em; 
+            font-size: 1.15em; /* フォントサイズを少し大きく */
         }
         #writable_calendar_list li:last-child {
             border-bottom: none;
@@ -717,7 +717,7 @@
 
                 console.log(`--- initGapiClientForRead: イベントリスト表示を開始 (カレンダーID: ${currentCalendarId}) ---`);
                 listEvents(); 
-                startAutoRefresh(); // ロードされた更新間隔で自動更新を開始
+                startAutoRefresh(); 
 
                 console.log('--- initGapiClientForRead: GISクライアント初期化を開始（書き込み操作用） ---');
                 initGisClientForWrite();
