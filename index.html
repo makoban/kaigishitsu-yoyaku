@@ -100,11 +100,20 @@
             display: flex;
             justify-content: space-between;
             align-items: center;
-            margin-bottom: 25px; /* 余白を大きめに */
+            margin-bottom: 5px; /* H1とカレンダーサマリーの間に調整 */
         }
         header h1 {
             margin: 0;
             font-size: 2.8em; /* H1をさらに大きく */
+        }
+        /* カレンダーサマリーの新しいスタイル */
+        #main_calendar_summary {
+            font-size: 2.8em; /* H1と同じフォントサイズ */
+            font-weight: 500; /* H1と同じ太さ */
+            color: var(--light-text-color); /* H1より少し薄い色 */
+            margin-bottom: 25px; /* 下に余白 */
+            padding-left: 5px; /* H1と揃えるためのパディング */
+            transition: color 0.3s ease;
         }
 
         /* Top Bar for Date/Time and Announcement */
@@ -364,14 +373,15 @@
             box-shadow: var(--box-shadow); 
             transition: background-color 0.3s ease, box-shadow 0.3s ease, border-radius 0.3s ease;
         }
-        #selected_calendar_info {
+        /* selected_calendar_info の表示を削除するため、このスタイルは不要になる */
+        /* #selected_calendar_info {
             font-size: 1.2em; 
             color: var(--light-text-color);
             margin-bottom: 30px; 
             padding-bottom: 20px; 
             border-bottom: 1px solid var(--border-color);
             transition: color 0.3s ease, border-color 0.3s ease;
-        }
+        } */
         #event_list {
             list-style: none;
             padding: 0;
@@ -493,6 +503,8 @@
         <button id="settings_button">設定</button>
     </header>
 
+    <div id="main_calendar_summary"></div>
+
     <div id="top_bar">
         <span id="current_datetime"></span>
         <span id="pre_announcement_text"></span> 
@@ -584,7 +596,6 @@
     <div id="container">
         <div id="event_list_container" class="panel">
             <h2>現在の会議室の予定</h2>
-            <p id="selected_calendar_info">カレンダー: <span id="display_calendar_summary"></span></p>
             <ul id="event_list">
                 <li>イベントを読み込み中...</li>
             </ul>
@@ -714,6 +725,10 @@
                     if (!appSettings.lastEvents) {
                         appSettings.lastEvents = [];
                     }
+                    // 古い設定からの移行 (eventDescription がない場合)
+                    if (appSettings.eventDescription === undefined) {
+                        appSettings.eventDescription = DEFAULT_SETTINGS.eventDescription;
+                    }
                     console.log('✅ 設定をlocalStorageからロードしました:', appSettings);
                 } catch (e) {
                     console.error('❌ localStorageからの設定読み込みに失敗しました。デフォルト設定を使用します。', e);
@@ -822,6 +837,7 @@
                         document.getElementById('calendar_selection_panel').style.display = 'none'; 
                         console.error('❌ 書き込み権限のためのアクセストークン取得に失敗しました。', tokenResponse);
                     }
+                    updateActionButtonStates(); // 認証状態が変わったらボタンを更新
                 },
                 error_callback: (error) => {
                     isAuthorizedForWrite = false;
@@ -831,6 +847,7 @@
                     document.getElementById('switch_account_button').style.display = 'none'; 
                     document.getElementById('calendar_selection_panel').style.display = 'none'; 
                     console.error('❌ GISトークンクライアントエラー（書き込み用）:', error);
+                    updateActionButtonStates(); // 認証状態が変わったらボタンを更新
                 }
             });
         }
@@ -911,6 +928,8 @@
 
         function updateDisplayedCalendarInfo() {
             document.getElementById('display_calendar_summary').textContent = currentCalendarSummary;
+            // メインタイトル下のカレンダーサマリーも更新
+            document.getElementById('main_calendar_summary').textContent = currentCalendarSummary;
             console.log(`ℹ️ 表示カレンダー情報を更新しました: ${currentCalendarSummary}`);
         }
 
@@ -1040,7 +1059,6 @@
                     });
                     console.log(`✅ イベントを正常に表示しました (${currentCalendarSummary}):`, events);
 
-                    // 各イベント削除ボタンにイベントリスナーを追加
                     document.querySelectorAll('.event-delete-button').forEach(button => {
                         button.onclick = (event) => {
                             const eventIdToDelete = event.target.dataset.eventId;
@@ -1101,7 +1119,7 @@
                 // 現在時刻より未来のイベントの中で最も近いものを探す
                 if (now < start) {
                     const timeUntilStart = start.getTime() - now.getTime(); // ミリ秒単位
-                    if (timeUntilStart > 0 && timeUntilStart < minTimeUntilStart) { // timeUntilStart > 0 を追加
+                    if (timeUntilStart > 0 && timeUntilStart < minTimeUntilStart) { 
                         minTimeUntilStart = timeUntilStart;
                         closestUpcomingEvent = event;
                     }
@@ -1146,12 +1164,15 @@
         function updateActionButtonStates() {
             const add30Button = document.getElementById('add_30min_event_button');
             const add60Button = document.getElementById('add_60min_event_button');
+            const refreshButton = document.getElementById('refresh_button'); // 更新ボタンは常に有効
             const deleteButtons = document.querySelectorAll('.event-delete-button');
 
-            // 認証状態に応じてボタンを有効/無効化
+            // 「緊急会議」ボタンは認証状態に依存
             add30Button.disabled = !isAuthorizedForWrite;
             add60Button.disabled = !isAuthorizedForWrite;
+            refreshButton.disabled = false; // 更新ボタンは常に有効
 
+            // 個々の削除ボタンも認証状態に依存
             deleteButtons.forEach(button => {
                 button.disabled = !isAuthorizedForWrite;
             });
@@ -1160,15 +1181,11 @@
         }
 
         async function handleAddEvent(durationMinutes) {
+            // handleActionTriggerで認証状態をチェックし、必要なら設定パネルを開く
+            // ここでは既に認証済みと仮定して処理を進める
             if (!isAuthorizedForWrite) {
-                document.getElementById('settings_panel').classList.add('open');
-                document.getElementById('auth_status').textContent = `イベントを追加するにはGoogleアカウントで認証してください。`;
-                document.getElementById('auth_status').style.color = 'blue';
-                document.getElementById('authorize_button').style.display = 'block';
-                document.getElementById('switch_account_button').style.display = 'none'; 
-                document.getElementById('calendar_selection_panel').style.display = 'none';
-                console.log('🚨 イベント追加: 書き込み権限がありません。認証を促します。');
-                return;
+                 handleActionTrigger(event); // 認証を促すUIを表示
+                 return;
             }
 
             console.log(`✅ ${durationMinutes}分間のイベントを追加します。`);
@@ -1206,14 +1223,10 @@
         }
 
         async function handleDeleteEvent(eventIdToDelete) {
+            // handleActionTriggerで認証状態をチェックし、必要なら設定パネルを開く
+            // ここでは既に認証済みと仮定して処理を進める
             if (!isAuthorizedForWrite) {
-                document.getElementById('settings_panel').classList.add('open');
-                document.getElementById('auth_status').textContent = `イベントを削除するにはGoogleアカウントで認証してください。`;
-                document.getElementById('auth_status').style.color = 'blue';
-                document.getElementById('authorize_button').style.display = 'block';
-                document.getElementById('switch_account_button').style.display = 'none'; 
-                document.getElementById('calendar_selection_panel').style.display = 'none';
-                console.log('🚨 イベント削除: 書き込み権限がありません。認証を促します。');
+                handleActionTrigger(event); // 認証を促すUIを表示
                 return;
             }
 
