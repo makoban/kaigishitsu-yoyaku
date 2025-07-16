@@ -248,8 +248,8 @@
             margin-top: 25px;
             padding-top: 25px;
             border-top: 1px dashed var(--border-color);
-            flex-grow: 1;
-            overflow-y: auto;
+            flex-grow: 1; /* スクロール可能にするために flex-grow を維持 */
+            overflow-y: auto; /* ここでスクロールを有効にする */
         }
         #writable_calendar_list {
             list-style: none;
@@ -599,7 +599,7 @@
             availableTextInput.onchange = (e) => { appSettings.availableText = e.target.value; saveSettings(); updateEventHighlightsAndAnnouncement(appSettings.lastEvents || []); }; // 変更を即時反映
             inProgressPrefixInput.onchange = (e) => { appSettings.inProgressPrefix = e.target.value; saveSettings(); updateEventHighlightsAndAnnouncement(appSettings.lastEvents || []); };
             inProgressSuffixInput.onchange = (e) => { appSettings.inProgressSuffix = e.target.value; saveSettings(); updateEventHighlightsAndAnnouncement(appSettings.lastEvents || []); };
-            eventSummaryInput.onchange = (e) => { appSettings.eventSummary = e.target.value; saveSettings(); };
+            eventSummaryInput.onchange = (e) => { appSettings.eventSummary = e.target.value; saveSettings(); updateAddButtonText(); }; // ボタンテキストも更新
             eventDescriptionInput.onchange = (e) => { appSettings.eventDescription = e.target.value; saveSettings(); };
 
             settingsButton.onclick = () => {
@@ -631,6 +631,9 @@
 
             setInterval(updateCurrentDateTime, 1000);
             updateCurrentDateTime(); 
+
+            // 初期の追加ボタンのテキストを設定
+            updateAddButtonText();
 
             console.log('--- DOMContentLoaded: gapiクライアントロードを開始 ---');
             gapi.load('client', initGapiClientForRead);
@@ -679,6 +682,13 @@
             document.body.classList.remove('theme-pop', 'theme-chic', 'theme-stylish');
             document.body.classList.add(`theme-${themeName}`);
             console.log(`テーマを "${themeName}" に変更しました。`);
+        }
+
+        // 追加ボタンのテキストを更新する関数
+        function updateAddButtonText() {
+            const eventSummary = appSettings.eventSummary || "緊急会議";
+            document.getElementById('add_30min_event_button').textContent = `${eventSummary} (30分)`;
+            document.getElementById('add_60min_event_button').textContent = `${eventSummary} (60分)`;
         }
 
 
