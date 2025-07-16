@@ -187,9 +187,17 @@
             z-index: 101; 
             box-shadow: 0 2px 5px rgba(0,0,0,0.1);
         }
-        #settings_button:hover {
-            background-color: #5a6268;
+        /* 設定ボタンの無効化スタイル */
+        #settings_button:disabled {
+            background-color: #cccccc; /* グレーアウト */
+            cursor: not-allowed;
+            box-shadow: none;
+            opacity: 0.7; /* 少し透明に */
         }
+        #settings_button:hover:disabled { /* 無効時のホバー効果を消す */
+            background-color: #cccccc;
+        }
+
 
         /* Settings Panel */
         #settings_panel {
@@ -497,8 +505,7 @@
 <body>
     <header>
         <h1>会議室予約表示</h1>
-        <button id="settings_button">設定</button>
-        <span id="display_calendar_summary_top"></span>
+        <button id="settings_button" disabled>設定</button> <span id="display_calendar_summary_top"></span>
     </header>
 
     <div id="top_bar">
@@ -522,7 +529,7 @@
                     ※認証後、表示・操作するカレンダーを選択してください。
                 </p>
                 <div id="calendar_selection_panel" style="display: none;">
-                    <div style="height: 3em;"></div> <h4>表示・操作するカレンダーを選択</h4>
+                    <div style="height: 3em; margin-bottom: 1em;"></div> <h4>表示・操作するカレンダーを選択</h4>
                     <ul id="writable_calendar_list">
                         <li>認証後、カレンダーを読み込み中...</li>
                     </ul>
@@ -640,6 +647,10 @@
         let refreshIntervalId; 
         let lastFetchedEventsString = ""; 
 
+        // 長押し関連の変数
+        let pressTimer;
+        const LONG_PRESS_DURATION = 2000; // 2秒
+
         document.addEventListener('DOMContentLoaded', () => {
             // 設定をロードし、UIとアプリに適用
             loadSettings();
@@ -651,6 +662,31 @@
             const closeSettingsPanelButton = document.getElementById('close_settings_panel');
             const authorizeButton = document.getElementById('authorize_button');
             const switchAccountButton = document.getElementById('switch_account_button'); 
+
+            // 設定ボタンの長押しイベントを設定
+            settingsButton.addEventListener('mousedown', startPressTimer);
+            settingsButton.addEventListener('touchstart', startPressTimer);
+            settingsButton.addEventListener('mouseup', clearPressTimer);
+            settingsButton.addEventListener('touchend', clearPressTimer);
+            settingsButton.addEventListener('mouseleave', clearPressTimer); // マウスがボタンから離れたらクリア
+            
+            // 通常クリックでパネル開閉（長押しで有効になった場合のみ）
+            settingsButton.onclick = (e) => {
+                if (!settingsButton.disabled) { // ボタンが有効な場合のみクリックイベントを処理
+                    settingsPanel.classList.toggle('open');
+                    if (settingsPanel.classList.contains('open') && isAuthorizedForWrite) {
+                        listWritableCalendars(); 
+                    } else if (!settingsPanel.classList.contains('open')) {
+                        displayError(''); 
+                    }
+                }
+            };
+            // 設定パネルを閉じるときにボタンを無効化
+            closeSettingsPanelButton.onclick = () => {
+                settingsPanel.classList.remove('open');
+                displayError(''); 
+                settingsButton.disabled = true; // パネルを閉じたら設定ボタンを無効に戻す
+            };
 
             // 設定UI要素の取得
             const themeSelect = document.getElementById('theme_select');
@@ -676,19 +712,6 @@
             preAnnouncementDefaultTextInput.onchange = (e) => { appSettings.preAnnouncementDefaultText = e.target.value; saveSettings(); updateEventHighlightsAndAnnouncement(appSettings.lastEvents || []); }; 
             eventSummaryInput.onchange = (e) => { appSettings.eventSummary = e.target.value; saveSettings(); updateAddButtonText(); }; 
 
-            settingsButton.onclick = () => {
-                settingsPanel.classList.toggle('open');
-                if (settingsPanel.classList.contains('open') && isAuthorizedForWrite) {
-                    listWritableCalendars(); 
-                } else if (!settingsPanel.classList.contains('open')) {
-                    displayError(''); 
-                }
-            };
-            closeSettingsPanelButton.onclick = () => {
-                settingsPanel.classList.remove('open');
-                displayError(''); 
-            };
-
             authorizeButton.onclick = () => {
                 console.log('--- Googleアカウントで認証ボタンがクリックされました（操作用）。認証フローを開始します。---');
                 tokenClient.requestAccessToken({ prompt: 'consent', ux_mode: 'popup' }); 
@@ -711,6 +734,26 @@
             console.log('--- DOMContentLoaded: gapiクライアントロードを開始 ---');
             gapi.load('client', initGapiClientForRead);
         });
+
+        // 長押し開始タイマー
+        function startPressTimer() {
+            const settingsButton = document.getElementById('settings_button');
+            if (settingsButton.disabled) { // 無効状態のボタンのみ長押しを検出
+                pressTimer = setTimeout(() => {
+                    settingsButton.disabled = false; // ボタンを有効化
+                    console.log('設定ボタンが長押しにより有効化されました。');
+                    // 必要であれば、有効化されたことをユーザーに視覚的に伝えるフィードバック
+                    // 例: settingsButton.style.boxShadow = '0 0 10px 5px yellow';
+                }, LONG_PRESS_DURATION);
+            }
+        }
+
+        // 長押しタイマーをクリア
+        function clearPressTimer() {
+            clearTimeout(pressTimer);
+            // console.log('長押しタイマーがクリアされました。');
+        }
+
 
         // 設定をlocalStorageからロード
         function loadSettings() {
