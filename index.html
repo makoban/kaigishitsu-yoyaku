@@ -60,7 +60,7 @@
             --delete-button-color: #d32f2f;
             --highlight-color: #e0f2f7; /* Light Cyan */
             --announcement-bg-color: #ff8a65; /* Deep Orange */
-            --announcement-text-color: #white;
+            --announcement-text-color: white;
             --available-color: #80cbc4; /* Teal */
             --border-radius: 8px; /* 標準的な角 */
             --box-shadow: 0 6px 20px rgba(0,0,0,0.1);
@@ -560,7 +560,8 @@
             inProgressSuffix: "中です",
             eventSummary: "緊急会議",
             eventDescription: "緊急の会議です。",
-            theme: "pop" // デフォルトテーマ
+            theme: "pop", // デフォルトテーマ
+            lastEvents: [] // 最後に取得したイベントデータをここに保存（案内文用）
         };
         let appSettings = {}; // 現在のアプリ設定
 
@@ -639,8 +640,17 @@
         function loadSettings() {
             const savedSettings = localStorage.getItem(LOCAL_STORAGE_SETTINGS_KEY);
             if (savedSettings) {
-                appSettings = { ...DEFAULT_SETTINGS, ...JSON.parse(savedSettings) };
-                console.log('✅ 設定をlocalStorageからロードしました:', appSettings);
+                try {
+                    appSettings = { ...DEFAULT_SETTINGS, ...JSON.parse(savedSettings) };
+                    // lastEventsがない場合は空配列で初期化
+                    if (!appSettings.lastEvents) {
+                        appSettings.lastEvents = [];
+                    }
+                    console.log('✅ 設定をlocalStorageからロードしました:', appSettings);
+                } catch (e) {
+                    console.error('❌ localStorageからの設定読み込みに失敗しました。デフォルト設定を使用します。', e);
+                    appSettings = { ...DEFAULT_SETTINGS };
+                }
             } else {
                 appSettings = { ...DEFAULT_SETTINGS };
                 console.log('ℹ️ 設定が見つかりませんでした。デフォルト設定を使用します:', appSettings);
