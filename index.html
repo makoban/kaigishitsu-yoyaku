@@ -54,7 +54,7 @@
             border-top: 1px solid #eee;
             margin: 20px 0;
         }
-        #authorize_button {
+        #authorize_button, #switch_account_button { /* 両方のボタンにスタイルを適用 */
             padding: 12px 25px;
             font-size: 18px;
             background-color: #4285f4; /* Google Blue */
@@ -66,10 +66,10 @@
             width: 100%; /* 幅を親要素に合わせる */
             margin-bottom: 10px;
         }
-        #authorize_button:hover {
+        #authorize_button:hover, #switch_account_button:hover {
             background-color: #357ae8;
         }
-        #authorize_button:disabled {
+        #authorize_button:disabled, #switch_account_button:disabled {
             background-color: #a0a0a0;
             cursor: not-allowed;
         }
@@ -192,8 +192,9 @@
         <h3>アカウントとカレンダーの切り替え</h3>
         <p id="auth_status" style="color: blue;">操作を行うにはGoogleアカウントで認証してください。</p>
         <button id="authorize_button">Googleアカウントで認証</button>
-        <p style="font-size: 0.9em; color: #555; margin-top: 10px;">
-            ※緊急会議、削除などの管理者操作を利用する際に認証が必要です。
+        <button id="switch_account_button" style="display:none;">別のアカウントで認証</button> <p style="font-size: 0.9em; color: #555; margin-top: 10px;">
+            ※緊急会議、削除などの管理者操作を利用する際に認証が必要です。<br>
+            ※認証後、表示・操作するカレンダーを選択してください。
         </p>
         <div id="calendar_selection_panel" style="display: none;">
             <h4>表示・操作するカレンダーを選択</h4>
@@ -231,7 +232,7 @@
         // ★★★ ここまで ★★★
 
         const DISCOVERY_DOCS = ["https://www.googleapis.com/discovery/v1/apis/calendar/v3/rest"];
-        const WRITE_SCOPES = 'https://www.googleapis.com/auth/calendar.events'; // イベントの読み書き権限
+        const WRITE_SCOPES = 'https://www.googleapis.com/auth/calendar.events'; 
 
         const LOCAL_STORAGE_ACTIVE_CALENDAR_ID_KEY = 'activeCalendarId';
         const LOCAL_STORAGE_ACTIVE_CALENDAR_SUMMARY_KEY = 'activeCalendarSummary';
@@ -245,23 +246,33 @@
             const settingsButton = document.getElementById('settings_button');
             const settingsPanel = document.getElementById('settings_panel');
             const closeSettingsPanelButton = document.getElementById('close_settings_panel');
+            const authorizeButton = document.getElementById('authorize_button');
+            const switchAccountButton = document.getElementById('switch_account_button'); // 新しいボタン
 
-            // 設定パネル表示/非表示トグル
             settingsButton.onclick = () => {
                 settingsPanel.classList.toggle('open');
-                // 設定パネルが開かれたら、認証済みならカレンダーリストを再読み込み
                 if (settingsPanel.classList.contains('open') && isAuthorizedForWrite) {
-                    listWritableCalendars();
+                    listWritableCalendars(); // 設定パネルが開かれ、認証済みならカレンダーリストを再読み込み
                 } else if (!settingsPanel.classList.contains('open')) {
-                    // パネルが閉じられたらエラー表示をクリア
-                    displayError('');
+                    displayError(''); 
                 }
             };
-            // 設定パネルを閉じるボタン
             closeSettingsPanelButton.onclick = () => {
                 settingsPanel.classList.remove('open');
-                displayError(''); // エラー表示をクリア
+                displayError(''); 
             };
+
+            authorizeButton.onclick = () => {
+                console.log('--- Googleアカウントで認証ボタンがクリックされました（操作用）。認証フローを開始します。---');
+                // 既に認証済みの場合でも、prompt:'consent'でアカウント選択画面を出す
+                tokenClient.requestAccessToken({ prompt: 'consent', ux_mode: 'popup' }); 
+            };
+
+            switchAccountButton.onclick = () => { // 新しいボタンのイベントリスナー
+                console.log('--- 別のアカウントで認証ボタンがクリックされました。アカウント選択を強制します。---');
+                tokenClient.requestAccessToken({ prompt: 'select_account', ux_mode: 'popup' }); 
+            };
+
 
             document.getElementById('add_event_button').onclick = handleActionTrigger;
             document.getElementById('delete_event_button').onclick = handleActionTrigger;
@@ -283,14 +294,16 @@
                 const savedActiveId = localStorage.getItem(LOCAL_STORAGE_ACTIVE_CALENDAR_ID_KEY);
                 const savedActiveSummary = localStorage.getItem(LOCAL_STORAGE_ACTIVE_CALENDAR_SUMMARY_KEY);
 
-                if (savedActiveId && savedActiveSummary) {
+                // localStorageに保存があり、それがINITIAL_PUBLIC_CALENDAR_IDと異なる場合のみ上書き
+                // これにより、デフォルトカレンダーが意図せずlocalStorageで上書きされることを防ぐ
+                if (savedActiveId && savedActiveSummary && savedActiveId !== INITIAL_PUBLIC_CALENDAR_ID) {
                     currentCalendarId = savedActiveId;
                     currentCalendarSummary = savedActiveSummary;
                     console.log(`✅ localStorageからアクティブカレンダーを読み込みました: ${currentCalendarSummary} (${currentCalendarId})`);
                 } else {
                     currentCalendarId = INITIAL_PUBLIC_CALENDAR_ID; // fallback to initial
                     currentCalendarSummary = "初期設定カレンダー"; // fallback to initial summary
-                    console.log(`ℹ️ localStorageにアクティブカレンダーが見つかりませんでした。初期設定カレンダー (${INITIAL_PUBLIC_CALENDAR_ID}) を使用します。`);
+                    console.log(`ℹ️ localStorageに有効なアクティブカレンダーが見つからないか、初期設定カレンダーと同じです。初期設定カレンダー (${INITIAL_PUBLIC_CALENDAR_ID}) を使用します。`);
                 }
                 updateDisplayedCalendarInfo();
 
@@ -319,14 +332,16 @@
                         document.getElementById('auth_status').textContent = '操作権限が認証されました。';
                         document.getElementById('auth_status').style.color = 'green';
                         document.getElementById('authorize_button').style.display = 'none'; 
+                        document.getElementById('switch_account_button').style.display = 'block'; // 認証後は「別のアカウントで認証」を表示
                         document.getElementById('calendar_selection_panel').style.display = 'block'; 
                         console.log('✅ 書き込み権限のためのアクセストークンを取得しました。');
-                        listWritableCalendars(); // 認証されたアカウントの書き込み可能カレンダーを表示
+                        listWritableCalendars(); 
                     } else {
                         isAuthorizedForWrite = false;
                         document.getElementById('auth_status').textContent = '操作権限の認証に失敗しました。';
                         document.getElementById('auth_status').style.color = 'red';
                         document.getElementById('authorize_button').style.display = 'block'; 
+                        document.getElementById('switch_account_button').style.display = 'none'; // 認証失敗時は隠す
                         document.getElementById('calendar_selection_panel').style.display = 'none'; 
                         console.error('❌ 書き込み権限のためのアクセストークン取得に失敗しました。', tokenResponse);
                     }
@@ -336,17 +351,12 @@
                     document.getElementById('auth_status').textContent = '認証エラーが発生しました。';
                     document.getElementById('auth_status').style.color = 'red';
                     document.getElementById('authorize_button').style.display = 'block'; 
+                    document.getElementById('switch_account_button').style.display = 'none'; // エラー時は隠す
                     document.getElementById('calendar_selection_panel').style.display = 'none'; 
                     console.error('❌ GISトークンクライアントエラー（書き込み用）:', error);
                 }
             });
-            document.getElementById('authorize_button').onclick = () => {
-                console.log('--- Googleアカウントで認証ボタンがクリックされました（操作用）。認証フローを開始します。---');
-                tokenClient.requestAccessToken({ prompt: 'consent', ux_mode: 'popup' }); // prompt: 'consent'で毎回同意を求める（アカウント切り替え用）
-                                                                                    // ux_mode: 'popup' でポップアップウィンドウを使う
-                                                                                    // もしCross-Origin-Opener-Policyエラーが続くなら、
-                                                                                    // ux_mode: 'redirect', redirect_uri: 'あなたのサイトのURL' を試す
-            };
+            // 認証ボタンのイベントリスナーはDOMContentLoadedで設定済み
         }
 
         function handleActionTrigger(event) {
@@ -357,13 +367,13 @@
                 document.getElementById('auth_status').textContent = '操作を行うにはGoogleアカウントで認証してください。';
                 document.getElementById('auth_status').style.color = 'blue';
                 document.getElementById('authorize_button').style.display = 'block';
+                document.getElementById('switch_account_button').style.display = 'none'; // 未認証時は「別のアカウントで認証」は隠す
                 document.getElementById('calendar_selection_panel').style.display = 'none';
                 console.log('🚨 操作トリガー: 書き込み権限がありません。認証を促します。');
-                return;
+                return; 
             }
             
             console.log('--- handleActionTrigger: 書き込み権限あり。操作を実行します ---');
-            // 認証済みであれば、どのボタンが押されたかに応じて処理を分岐
             if (event.target.id === 'add_event_button') {
                 handleAddEvent();
             } else if (event.target.id === 'delete_event_button') {
