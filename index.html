@@ -4,7 +4,7 @@
     <title>会議室予約表示</title>
     <script src="https://apis.google.com/js/api.js"></script>
     <script src="https://accounts.google.com/gsi/client"></script>
-    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;500;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;500;700&family=Zen+Kaku+Gothic+New:wght@400;500;700&display=swap" rel="stylesheet">
     <style>
         /* デフォルトテーマ (ポップ/Pop) - 明るくフレンドリーな色合い */
         :root {
@@ -74,13 +74,14 @@
 
 
         body {
-            font-family: 'Noto Sans JP', sans-serif;
+            font-family: 'Zen Kaku Gothic New', 'Noto Sans JP', sans-serif; /* Zen Kaku Gothic New を優先 */
             margin: 0;
             padding: 20px;
             background-color: var(--background-color);
             color: var(--text-color);
             display: flex;
             flex-direction: column;
+            align-items: center; /* 中央揃え */
             min-height: 100vh;
             box-sizing: border-box;
             font-size: 18px; /* 全体のベースフォントサイズを大きく */
@@ -97,11 +98,15 @@
 
         /* Header */
         header {
+            width: 100%; /* 親要素の幅に合わせる */
+            max-width: 900px; /* 最大幅を設定 */
             display: flex;
             justify-content: space-between;
             align-items: center;
             margin-bottom: 25px; /* 余白を大きめに */
             position: relative; /* カレンダー名配置のため */
+            padding: 0 20px; /* 左右の余白 */
+            box-sizing: border-box; /* paddingを含めて幅を計算 */
         }
         header h1 {
             margin: 0;
@@ -120,6 +125,8 @@
 
         /* Top Bar for Date/Time and Announcement */
         #top_bar {
+            width: 100%;
+            max-width: 900px; /* 最大幅を設定 */
             background-color: var(--panel-bg-color);
             border-radius: var(--border-radius); /* テーマに合わせる */
             box-shadow: var(--box-shadow); /* テーマに合わせる */
@@ -132,6 +139,7 @@
             font-size: 1.3em;
             color: var(--text-color);
             transition: background-color 0.3s ease, box-shadow 0.3s ease;
+            box-sizing: border-box; /* paddingを含めて幅を計算 */
         }
         #current_datetime {
             font-weight: bold;
@@ -180,17 +188,18 @@
             border: none;
             border-radius: var(--border-radius); /* テーマに合わせる */
             cursor: pointer;
-            transition: background-color 0.2s ease-in-out, border-radius 0.3s ease;
+            transition: background-color 0.2s ease-in-out, border-radius 0.3s ease, box-shadow 0.2s ease; /* box-shadowもアニメーション */
             position: fixed; 
             top: 20px;
             right: 20px;
             z-index: 101; 
-            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+            box-shadow: 0 4px 8px rgba(0,0,0,0.2); /* 影を追加 */
             /* 初期は非表示 */
             display: none; 
         }
         #settings_button:hover {
             background-color: #5a6268;
+            box-shadow: 0 6px 12px rgba(0,0,0,0.25); /* ホバー時の影を濃く */
         }
 
         /* Settings Panel */
@@ -272,16 +281,23 @@
             border: none;
             border-radius: var(--border-radius); 
             cursor: pointer;
-            transition: background-color 0.2s ease-in-out, border-radius 0.3s ease;
+            transition: background-color 0.2s ease-in-out, border-radius 0.3s ease, box-shadow 0.2s ease, transform 0.1s ease;
             width: 100%;
             margin-bottom: 15px; 
+            box-shadow: 0 4px 8px rgba(0,0,0,0.15); /* 影を追加 */
         }
         #authorize_button:hover, #switch_account_button:hover {
             background-color: #5a7d71; 
+            box-shadow: 0 6px 12px rgba(0,0,0,0.2); /* ホバー時の影を濃く */
+        }
+        #authorize_button:active, #switch_account_button:active {
+            transform: translateY(2px); /* クリック時のアニメーション */
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
         }
         #authorize_button:disabled, #switch_account_button:disabled {
             background-color: #a0a0a0;
             cursor: not-allowed;
+            box-shadow: none;
         }
         #calendar_selection_panel {
             margin-top: 25px;
@@ -321,10 +337,16 @@
             border: none;
             border-radius: var(--border-radius); /* テーマに合わせる */
             cursor: pointer;
-            transition: background-color 0.2s ease-in-out, border-radius 0.3s ease;
+            transition: background-color 0.2s ease-in-out, border-radius 0.3s ease, box-shadow 0.2s ease, transform 0.1s ease;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1); /* 影を追加 */
         }
         .select-button:hover {
-            background-color: #7b6d6d; 
+            background-color: #008c9e; /* Hover color for Cyan */
+            box-shadow: 0 4px 8px rgba(0,0,0,0.15); /* ホバー時の影を濃く */
+        }
+        .select-button:active {
+            transform: translateY(2px); /* クリック時のアニメーション */
+            box-shadow: 0 1px 2px rgba(0,0,0,0.08);
         }
 
         /* Settings Options */
@@ -368,6 +390,10 @@
             display: flex;
             gap: 30px; 
             position: relative; 
+            width: 100%;
+            max-width: 900px; /* 最大幅を設定 */
+            padding: 0 20px; /* 左右の余白 */
+            box-sizing: border-box; /* paddingを含めて幅を計算 */
         }
         #event_list_container {
             flex: 1;
@@ -386,24 +412,25 @@
         }
         #event_list li {
             background-color: #fdfdfd;
-            border: 1px solid #f0f0f0;
-            border-radius: var(--border-radius); 
+            border: 1px solid var(--border-color); /* 枠線の色をテーマに合わせる */
+            border-radius: var(--border-radius); /* テーマに合わせる */
             margin-bottom: 20px; 
             padding: 20px 25px; 
             display: flex; 
             justify-content: space-between; 
             align-items: center; 
+            box-shadow: 0 2px 6px rgba(0,0,0,0.08); /* カードUIの影 */
             transition: transform 0.2s ease-out, box-shadow 0.2s ease-out, background-color 0.2s ease-in-out, border-radius 0.3s ease;
         }
         #event_list li:hover {
-            transform: translateY(-5px); 
-            box-shadow: 0 8px 25px rgba(0,0,0,0.15); 
+            transform: translateY(-5px); /* ホバーエフェクト */
+            box-shadow: 0 8px 25px rgba(0,0,0,0.15); /* ホバーエフェクト時の影を濃く */
         }
         /* Highlight for current event */
         #event_list li.current-event {
             background-color: var(--highlight-color);
-            border-color: #ffd700; 
-            box-shadow: 0 6px 20px rgba(255, 215, 0, 0.3);
+            border-color: var(--primary-color); /* ハイライト時の枠線の色を primary color に */
+            box-shadow: 0 6px 20px rgba(63, 81, 181, 0.3); /* Primary color に合わせた影 */
         }
 
         .event-details {
@@ -438,6 +465,7 @@
             display: flex;
             gap: 20px; 
             flex-wrap: wrap;
+            justify-content: center; /* ボタンを中央揃えに */
         }
         .action-button {
             padding: 15px 25px; 
@@ -447,16 +475,19 @@
             border: none;
             border-radius: var(--border-radius); /* テーマに合わせる */
             cursor: pointer;
-            transition: background-color 0.2s ease-in-out, border-radius 0.3s ease;
-            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+            transition: background-color 0.2s ease-in-out, border-radius 0.3s ease, box-shadow 0.2s ease, transform 0.1s ease;
+            box-shadow: 0 4px 8px rgba(0,0,0,0.15); /* 影を追加 */
             flex-grow: 1; 
             min-width: 150px; 
+            max-width: 250px; /* ボタンの最大幅を制限して整列しやすくする */
         }
         .action-button:hover {
-            background-color: #5a7d71; 
+            background-color: #31429f; /* Hover color for Indigo */
+            box-shadow: 0 6px 12px rgba(0,0,0,0.2); /* ホバー時の影を濃く */
         }
         .action-button:active {
-            transform: translateY(2px); 
+            transform: translateY(2px); /* クリック時のアニメーション */
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
         }
         /* Disabled state for action buttons */
         .action-button:disabled,
@@ -465,6 +496,7 @@
             cursor: not-allowed;
             box-shadow: none;
             opacity: 0.7; /* 少し透明に */
+            transform: none; /* 無効時はアニメーションしない */
         }
 
         .error-message {
@@ -477,6 +509,9 @@
             padding: 20px; 
             border-radius: var(--border-radius); /* テーマに合わせる */
             border: 1px solid var(--error-color);
+            width: 100%;
+            max-width: 900px; /* 最大幅を設定 */
+            box-sizing: border-box;
         }
         /* New delete button for each event item */
         .event-delete-button {
@@ -487,18 +522,122 @@
             border: none;
             border-radius: var(--border-radius); /* テーマに合わせる */
             cursor: pointer;
-            transition: background-color 0.2s ease-in-out, border-radius 0.3s ease;
+            transition: background-color 0.2s ease-in-out, border-radius 0.3s ease, box-shadow 0.2s ease, transform 0.1s ease;
             margin-left: 20px; 
             flex-shrink: 0; 
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1); /* 影を追加 */
         }
         .event-delete-button:hover {
             background-color: #c82333; 
+            box-shadow: 0 4px 8px rgba(0,0,0,0.15); /* ホバー時の影を濃く */
         }
+        .event-delete-button:active {
+            transform: translateY(2px); /* クリック時のアニメーション */
+            box-shadow: 0 1px 2px rgba(0,0,0,0.08);
+        }
+
+        /* レスポンシブデザイン */
+        @media (max-width: 768px) {
+            body {
+                padding: 15px;
+                font-size: 16px;
+            }
+            header, #top_bar, #container, .error-message {
+                padding: 0 10px;
+                max-width: 100%; /* 小さい画面では全幅を使用 */
+            }
+            header h1 {
+                font-size: 2.2em;
+            }
+            #display_calendar_summary_top {
+                font-size: 1.2em;
+                transform: translateY(40px);
+            }
+            #top_bar {
+                padding: 15px 20px;
+            }
+            #current_datetime {
+                font-size: 1.1em;
+            }
+            #pre_announcement_text, #announcement_text {
+                font-size: 1.5em;
+                padding: 10px 15px;
+            }
+            #settings_button {
+                padding: 10px 20px;
+                font-size: 0.9em;
+                top: 15px;
+                right: 15px;
+            }
+            #settings_content {
+                width: 100%;
+                max-width: 100%;
+                padding: 20px;
+            }
+            .setting-group {
+                margin-bottom: 20px;
+                padding-bottom: 15px;
+            }
+            #authorize_button, #switch_account_button, .select-button, .action-button {
+                padding: 12px 20px;
+                font-size: 1em;
+            }
+            #event_list_container {
+                padding: 20px;
+            }
+            #event_list li {
+                flex-direction: column; /* 縦並びに */
+                align-items: flex-start; /* 左寄せ */
+                padding: 15px;
+            }
+            .event-time, .event-summary {
+                font-size: 1.1em;
+            }
+            .event-delete-button {
+                margin-left: 0; /* 左マージンをなくす */
+                margin-top: 10px; /* 上にマージンを追加 */
+                width: 100%; /* 幅いっぱいに */
+            }
+            .action-button-group {
+                flex-direction: column;
+                gap: 15px;
+            }
+            .action-button {
+                min-width: unset;
+                max-width: unset;
+                width: 100%;
+            }
+        }
+
+        @media (max-width: 480px) {
+            header h1 {
+                font-size: 1.8em;
+            }
+            #display_calendar_summary_top {
+                font-size: 1em;
+                transform: translateY(30px);
+            }
+            #current_datetime {
+                font-size: 1em;
+            }
+            #pre_announcement_text, #announcement_text {
+                font-size: 1.2em;
+                padding: 8px 10px;
+            }
+            .setting-group label, .setting-group input, .setting-group select {
+                font-size: 0.9em;
+            }
+            #authorize_button, #switch_account_button, .select-button, .action-button, .event-delete-button {
+                font-size: 0.9em;
+                padding: 10px 15px;
+            }
+        }
+
     </style>
 </head>
-<body>
+<body class="theme-stylish">
     <header>
-        <h1>会議室予約表示</h1>
+        <h1>会議室予約表示Ver1.2</h1>
         <button id="settings_button">設定</button> <span id="display_calendar_summary_top"></span>
     </header>
 
@@ -630,7 +769,8 @@
             preAnnouncementSuffix: "開始",
             preAnnouncementDefaultText: "ご案内", // 予約前案内がない場合のデフォルト文言
             eventSummary: "緊急会議",
-            lastEvents: [] // 最後に取得したイベントデータをここに保存（案内文用）
+            lastEvents: [], // 最後に取得したイベントデータをここに保存（案内文用）
+            theme: "stylish" // デフォルトテーマをstylishに設定
         };
         let appSettings = {}; // 現在のアプリ設定
 
@@ -1011,7 +1151,7 @@
                         const bIsCurrent = (currentTime >= startB && currentTime < endB);
 
                         const aStartsSoon = (startA > currentTime && (startA.getTime() - currentTime.getTime()) <= (appSettings.preAnnouncementMinutes * 60 * 1000));
-                        const bStartsSoon = (startB > currentTime && (startB.getTime() - currentTime.getTime()) <= (appSettings.preAnnouncementMinutes * 60 * 1000));
+                        const bStartsSoon = (startB > currentTime && (b.getTime() - currentTime.getTime()) <= (appSettings.preAnnouncementMinutes * 60 * 1000));
 
                         // 1. 現在進行中のイベントが最優先
                         if (aIsCurrent && !bIsCurrent) return -1; 
