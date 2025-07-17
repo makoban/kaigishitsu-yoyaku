@@ -116,7 +116,7 @@
             position: absolute;
             top: 25px; /* H1と設定ボタンの間に配置 */
             left: 20px; /* H1の左端に合わせる */
-            font-size: 1.5em; /* 適切なサイズに */
+            font-size: 1.8em; /* カレンダーサマリーを大きく */
             font-weight: 500;
             color: var(--light-text-color);
             transform: translateY(50px); /* H1の下にスペースを開ける */
@@ -287,7 +287,7 @@
             box-shadow: 0 4px 8px rgba(0,0,0,0.15); /* 影を追加 */
         }
         #authorize_button:hover, #switch_account_button:hover {
-            background-color: #5a7d71; 
+            background-color: #31429f; /* Hover color for Indigo */
             box-shadow: 0 6px 12px rgba(0,0,0,0.2); /* ホバー時の影を濃く */
         }
         #authorize_button:active, #switch_account_button:active {
@@ -550,7 +550,7 @@
                 font-size: 2.2em;
             }
             #display_calendar_summary_top {
-                font-size: 1.2em;
+                font-size: 1.5em; /* レスポンシブでも少し大きく */
                 transform: translateY(40px);
             }
             #top_bar {
@@ -614,7 +614,7 @@
                 font-size: 1.8em;
             }
             #display_calendar_summary_top {
-                font-size: 1em;
+                font-size: 1.2em; /* レスポンシブでも少し大きく */
                 transform: translateY(30px);
             }
             #current_datetime {
@@ -637,7 +637,7 @@
 </head>
 <body class="theme-stylish">
     <header>
-        <h1>会議室予約表示Ver1.2</h1>
+        <h1 id="main_app_title">会議室予約表示Ver1.2</h1>
         <button id="settings_button">設定</button> <span id="display_calendar_summary_top"></span>
     </header>
 
@@ -689,6 +689,15 @@
             </div>
 
             <div class="setting-group">
+                <h3>表示タイトル設定</h3>
+                <label for="main_title_input">メインタイトル:</label>
+                <input type="text" id="main_title_input" value="会議室予約表示Ver1.2">
+
+                <label for="event_list_title_input">イベントリストタイトル:</label>
+                <input type="text" id="event_list_title_input" value="現在の会議室の予定">
+            </div>
+
+            <div class="setting-group">
                 <h3>案内板の表示設定</h3>
                 <label for="available_text_input">空室時の表記:</label>
                 <input type="text" id="available_text_input" value="空室です">
@@ -731,7 +740,7 @@
 
     <div id="container">
         <div id="event_list_container" class="panel">
-            <h2>現在の会議室の予定</h2>
+            <h2 id="event_list_section_title">現在の会議室の予定</h2>
             <ul id="event_list">
                 <li>イベントを読み込み中...</li>
             </ul>
@@ -770,7 +779,9 @@
             preAnnouncementDefaultText: "ご案内", // 予約前案内がない場合のデフォルト文言
             eventSummary: "緊急会議",
             lastEvents: [], // 最後に取得したイベントデータをここに保存（案内文用）
-            theme: "stylish" // デフォルトテーマをstylishに設定
+            theme: "stylish", // デフォルトテーマをstylishに設定
+            mainTitle: "会議室予約表示Ver1.2", // メインタイトルのデフォルト値
+            eventListTitle: "現在の会議室の予定" // イベントリストタイトルのデフォルト値
         };
         let appSettings = {}; // 現在のアプリ設定
 
@@ -786,6 +797,7 @@
             loadSettings();
             applySettingsToUI();
             applyTheme(appSettings.theme);
+            updateDisplayTitles(); // 題名と項目題名を初期表示に反映
 
             // UI要素の取得
             const settingsButton = document.getElementById('settings_button');
@@ -798,6 +810,8 @@
             // 設定UI要素の取得 (設定保存/適用用)
             const themeSelect = document.getElementById('theme_select');
             const refreshIntervalSelect = document.getElementById('refresh_interval_select');
+            const mainTitleInput = document.getElementById('main_title_input'); // 新しい設定項目
+            const eventListTitleInput = document.getElementById('event_list_title_input'); // 新しい設定項目
             const availableTextInput = document.getElementById('available_text_input');
             const inProgressPrefixInput = document.getElementById('in_progress_prefix_input');
             const inProgressSuffixInput = document.getElementById('in_progress_suffix_input');
@@ -847,6 +861,8 @@
             // --- 各種設定UI要素のイベントリスナー ---
             themeSelect.onchange = (e) => { appSettings.theme = e.target.value; saveSettings(); applyTheme(appSettings.theme); };
             refreshIntervalSelect.onchange = (e) => { appSettings.refreshInterval = parseInt(e.target.value); saveSettings(); startAutoRefresh(); };
+            mainTitleInput.onchange = (e) => { appSettings.mainTitle = e.target.value; saveSettings(); updateDisplayTitles(); }; // 新しい設定項目のイベントリスナー
+            eventListTitleInput.onchange = (e) => { appSettings.eventListTitle = e.target.value; saveSettings(); updateDisplayTitles(); }; // 新しい設定項目のイベントリスナー
             availableTextInput.onchange = (e) => { appSettings.availableText = e.target.value; saveSettings(); updateEventHighlightsAndAnnouncement(appSettings.lastEvents || []); }; 
             inProgressPrefixInput.onchange = (e) => { appSettings.inProgressPrefix = e.target.value; saveSettings(); updateEventHighlightsAndAnnouncement(appSettings.lastEvents || []); };
             inProgressSuffixInput.onchange = (e) => { appSettings.inProgressSuffix = e.target.value; saveSettings(); updateEventHighlightsAndAnnouncement(appSettings.lastEvents || []); };
@@ -912,6 +928,8 @@
         function applySettingsToUI() {
             document.getElementById('theme_select').value = appSettings.theme;
             document.getElementById('refresh_interval_select').value = appSettings.refreshInterval;
+            document.getElementById('main_title_input').value = appSettings.mainTitle; // 新しい設定項目
+            document.getElementById('event_list_title_input').value = appSettings.eventListTitle; // 新しい設定項目
             document.getElementById('available_text_input').value = appSettings.availableText;
             document.getElementById('in_progress_prefix_input').value = appSettings.inProgressPrefix;
             document.getElementById('in_progress_suffix_input').value = appSettings.inProgressSuffix;
@@ -934,6 +952,13 @@
             const eventSummary = appSettings.eventSummary || "緊急会議";
             document.getElementById('add_30min_event_button').textContent = `${eventSummary} (30分)`;
             document.getElementById('add_60min_event_button').textContent = `${eventSummary} (60分)`;
+        }
+
+        // 題名と項目題名を更新する関数
+        function updateDisplayTitles() {
+            document.getElementById('main_app_title').textContent = appSettings.mainTitle;
+            document.getElementById('event_list_section_title').textContent = appSettings.eventListTitle;
+            console.log(`✅ 表示タイトルを更新しました: メイン「${appSettings.mainTitle}」、イベントリスト「${appSettings.eventListTitle}」`);
         }
 
 
