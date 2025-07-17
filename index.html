@@ -50,24 +50,24 @@
             --box-shadow: 0 2px 8px rgba(0,0,0,0.12);
         }
 
-        /* スタイリッシュテーマ */
+        /* スタイリッシュテーマ (白黒グレー基調) */
         body.theme-stylish {
-            --primary-color: #3f51b5; /* Indigo */
-            --secondary-color: #00bcd4; /* Cyan */
-            --accent-color: #90a4ae; /* Blue Grey */
-            --text-color: #212121; /* Dark Gray */
-            --light-text-color: #424242;
-            --background-color: #eceff1; /* Light Blue Grey */
-            --panel-bg-color: #ffffff;
-            --border-color: #cfd8dc;
-            --error-color: #d32f2f;
-            --delete-button-color: #d32f2f;
-            --highlight-color: #e0f2f7; /* Light Cyan */
-            --announcement-bg-color: #ff8a65; /* Deep Orange */
-            --announcement-text-color: white;
-            --available-color: #80cbc4; /* Teal */
-            --pre-announcement-bg-color: #4db6ac; /* Light Teal */
-            --pre-announcement-text-color: white;
+            --primary-color: #333333; /* Dark Gray / Almost Black */
+            --secondary-color: #666666; /* Medium Gray */
+            --accent-color: #999999; /* Lighter Gray */
+            --text-color: #333333; /* Dark Gray for main text */
+            --light-text-color: #555555; /* Slightly lighter gray for sub text */
+            --background-color: #f0f0f0; /* Very Light Gray */
+            --panel-bg-color: #ffffff; /* White for panels/cards */
+            --border-color: #dddddd; /* Light gray border */
+            --error-color: #cc0000; /* Red for errors (kept for visibility) */
+            --delete-button-color: #cc0000; /* Red for delete buttons */
+            --highlight-color: #e0e0e0; /* Light gray for current event highlight */
+            --announcement-bg-color: #444444; /* Dark gray for announcement background */
+            --announcement-text-color: white; /* White for announcement text */
+            --available-color: #cccccc; /* Medium gray for "Available" background */
+            --pre-announcement-bg-color: #555555; /* Slightly lighter dark gray for pre-announcement */
+            --pre-announcement-text-color: white; /* White for pre-announcement text */
             --border-radius: 8px; /* 標準的な角 */
             --box-shadow: 0 6px 20px rgba(0,0,0,0.1);
         }
@@ -198,7 +198,7 @@
             display: none; 
         }
         #settings_button:hover {
-            background-color: #5a6268;
+            background-color: #777777; /* Lighter hover for accent */
             box-shadow: 0 6px 12px rgba(0,0,0,0.25); /* ホバー時の影を濃く */
         }
 
@@ -266,7 +266,7 @@
         #auth_status {
             margin-bottom: 25px; 
             padding: 20px; 
-            background-color: #e9f5ff; 
+            background-color: #e9f5ff; /* 認証ステータスは青系を維持 */
             border: 1px solid #cce5ff;
             border-radius: var(--border-radius); 
             text-align: center;
@@ -287,7 +287,7 @@
             box-shadow: 0 4px 8px rgba(0,0,0,0.15); /* 影を追加 */
         }
         #authorize_button:hover, #switch_account_button:hover {
-            background-color: #31429f; /* Hover color for Indigo */
+            background-color: #555555; /* Darker gray hover for primary */
             box-shadow: 0 6px 12px rgba(0,0,0,0.2); /* ホバー時の影を濃く */
         }
         #authorize_button:active, #switch_account_button:active {
@@ -341,7 +341,7 @@
             box-shadow: 0 2px 5px rgba(0,0,0,0.1); /* 影を追加 */
         }
         .select-button:hover {
-            background-color: #008c9e; /* Hover color for Cyan */
+            background-color: #444444; /* Darker hover for secondary */
             box-shadow: 0 4px 8px rgba(0,0,0,0.15); /* ホバー時の影を濃く */
         }
         .select-button:active {
@@ -430,7 +430,7 @@
         #event_list li.current-event {
             background-color: var(--highlight-color);
             border-color: var(--primary-color); /* ハイライト時の枠線の色を primary color に */
-            box-shadow: 0 6px 20px rgba(63, 81, 181, 0.3); /* Primary color に合わせた影 */
+            box-shadow: 0 6px 20px rgba(0,0,0,0.15); /* Primary color に合わせた影 */
         }
 
         .event-details {
@@ -482,7 +482,7 @@
             max-width: 250px; /* ボタンの最大幅を制限して整列しやすくする */
         }
         .action-button:hover {
-            background-color: #31429f; /* Hover color for Indigo */
+            background-color: #555555; /* Darker gray hover for primary */
             box-shadow: 0 6px 12px rgba(0,0,0,0.2); /* ホバー時の影を濃く */
         }
         .action-button:active {
@@ -505,7 +505,7 @@
             margin-top: 25px; 
             text-align: center;
             font-size: 1.2em; 
-            background-color: #ffe0e0;
+            background-color: #ffe0e0; /* エラーメッセージの背景は赤系を維持 */
             padding: 20px; 
             border-radius: var(--border-radius); /* テーマに合わせる */
             border: 1px solid var(--error-color);
@@ -528,7 +528,7 @@
             box-shadow: 0 2px 5px rgba(0,0,0,0.1); /* 影を追加 */
         }
         .event-delete-button:hover {
-            background-color: #c82333; 
+            background-color: #a00000; /* Darker red hover for delete */
             box-shadow: 0 4px 8px rgba(0,0,0,0.15); /* ホバー時の影を濃く */
         }
         .event-delete-button:active {
