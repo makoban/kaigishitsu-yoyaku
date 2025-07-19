@@ -4,7 +4,7 @@
     <title>会議室予約表示</title>
     <script src="https://apis.google.com/js/api.js"></script>
     <script src="https://accounts.google.com/gsi/client"></script>
-    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;500;700&family=Zen+Kaku+Gothic+New:wght@400;500;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;500;700&family=Zen+Kaku+Gothic+New:wght+400;500;700&display=swap" rel="stylesheet">
     <style>
         /* デフォルトテーマ (ポップ/Pop) - 明るくフレンドリーな色合い */
         :root {
@@ -690,6 +690,14 @@
             </div>
 
             <div class="setting-group">
+                <h3>表示期間設定 🗓️</h3>
+                <label for="display_past_hours_input">現在時刻から何時間前まで表示するか:</label>
+                <input type="number" id="display_past_hours_input" min="0" max="24" value="2">
+                <label for="display_future_hours_input">現在時刻から何時間後まで表示するか:</label>
+                <input type="number" id="display_future_hours_input" min="0" max="72" value="12">
+            </div>
+
+            <div class="setting-group">
                 <h3>表示タイトル設定</h3>
                 <label for="main_title_input">メインタイトル:</label>
                 <input type="text" id="main_title_input" value="会議室予約表示Ver1.2">
@@ -771,6 +779,8 @@
         // デフォルト設定値
         const DEFAULT_SETTINGS = {
             refreshInterval: 30, // 秒
+            displayPastHours: 2, // 新規: 現在時刻から過去何時間分のイベントを表示するか
+            displayFutureHours: 12, // 新規: 現在時刻から未来何時間分のイベントを表示するか
             availableText: "空室です",
             inProgressPrefix: "ただいま",
             inProgressSuffix: "中です",
@@ -811,6 +821,8 @@
             // 設定UI要素の取得 (設定保存/適用用)
             const themeSelect = document.getElementById('theme_select');
             const refreshIntervalSelect = document.getElementById('refresh_interval_select');
+            const displayPastHoursInput = document.getElementById('display_past_hours_input'); // 追加
+            const displayFutureHoursInput = document.getElementById('display_future_hours_input'); // 追加
             const mainTitleInput = document.getElementById('main_title_input'); // 新しい設定項目
             const eventListTitleInput = document.getElementById('event_list_title_input'); // 新しい設定項目
             const availableTextInput = document.getElementById('available_text_input');
@@ -862,6 +874,8 @@
             // --- 各種設定UI要素のイベントリスナー ---
             themeSelect.onchange = (e) => { appSettings.theme = e.target.value; saveSettings(); applyTheme(appSettings.theme); };
             refreshIntervalSelect.onchange = (e) => { appSettings.refreshInterval = parseInt(e.target.value); saveSettings(); startAutoRefresh(); };
+            displayPastHoursInput.onchange = (e) => { appSettings.displayPastHours = parseInt(e.target.value); saveSettings(); listEvents(); }; // 追加
+            displayFutureHoursInput.onchange = (e) => { appSettings.displayFutureHours = parseInt(e.target.value); saveSettings(); listEvents(); }; // 追加
             mainTitleInput.onchange = (e) => { appSettings.mainTitle = e.target.value; saveSettings(); updateDisplayTitles(); }; // 新しい設定項目のイベントリスナー
             eventListTitleInput.onchange = (e) => { appSettings.eventListTitle = e.target.value; saveSettings(); updateDisplayTitles(); }; // 新しい設定項目のイベントリスナー
             availableTextInput.onchange = (e) => { appSettings.availableText = e.target.value; saveSettings(); updateEventHighlightsAndAnnouncement(appSettings.lastEvents || []); }; 
@@ -929,6 +943,8 @@
         function applySettingsToUI() {
             document.getElementById('theme_select').value = appSettings.theme;
             document.getElementById('refresh_interval_select').value = appSettings.refreshInterval;
+            document.getElementById('display_past_hours_input').value = appSettings.displayPastHours; // 追加
+            document.getElementById('display_future_hours_input').value = appSettings.displayFutureHours; // 追加
             document.getElementById('main_title_input').value = appSettings.mainTitle; // 新しい設定項目
             document.getElementById('event_list_title_input').value = appSettings.eventListTitle; // 新しい設定項目
             document.getElementById('available_text_input').value = appSettings.availableText;
@@ -1147,8 +1163,9 @@
             displayError(''); 
 
             const now = new Date();
-            const timeMin = new Date(now.getTime() - (2 * 60 * 60 * 1000)).toISOString(); 
-            const timeMax = new Date(now.getTime() + (12 * 60 * 60 * 1000)).toISOString(); 
+            // 以前の固定値 (2時間前, 12時間後) を設定値で置き換え
+            const timeMin = new Date(now.getTime() - (appSettings.displayPastHours * 60 * 60 * 1000)).toISOString(); 
+            const timeMax = new Date(now.getTime() + (appSettings.displayFutureHours * 60 * 60 * 1000)).toISOString(); 
 
             console.log(`--- listEvents: イベント取得を試みます。カレンダーID: ${currentCalendarId}, 期間: ${timeMin} から ${timeMax} ---`);
 
@@ -1231,18 +1248,18 @@
 
                         if (event.start.date && !event.start.dateTime) { 
                              eventDetailsHtml = `
-                                <div class="event-details">
-                                    <span class="event-time">${startDate} (終日)</span>
-                                    <span class="event-summary">${event.summary || 'タイトルなし'}</span>
-                                </div>
-                            `;
+                                 <div class="event-details">
+                                     <span class="event-time">${startDate} (終日)</span>
+                                     <span class="event-summary">${event.summary || 'タイトルなし'}</span>
+                                 </div>
+                             `;
                         } else {
                             eventDetailsHtml = `
-                                <div class="event-details">
-                                    <span class="event-time">${startDate} ${startTime} - ${endTime}</span>
-                                    <span class="event-summary">${event.summary || 'タイトルなし'}</span>
-                                </div>
-                            `;
+                                 <div class="event-details">
+                                     <span class="event-time">${startDate} ${startTime} - ${endTime}</span>
+                                     <span class="event-summary">${event.summary || 'タイトルなし'}</span>
+                                 </div>
+                             `;
                         }
                         
                         li.innerHTML = eventDetailsHtml + `<button class="event-delete-button" data-event-id="${event.id}">削除</button>`;
