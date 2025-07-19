@@ -26,6 +26,7 @@
             --pre-announcement-text-color: #333;
             --border-radius: 12px;
             --box-shadow: 0 4px 10px rgba(0,0,0,0.08);
+            --base-font-size: 16px; /* 追加: 基本フォントサイズ */
         }
 
         /* シックテーマ */
@@ -84,10 +85,24 @@
             align-items: center; /* 中央揃え */
             min-height: 100vh;
             box-sizing: border-box;
-            font-size: 16px; /* 全体のベースフォントサイズを調整 */
-            transition: background-color 0.3s ease, color 0.3s ease; /* テーマ切り替え時のアニメーション */
+            font-size: var(--base-font-size); /* 変更: CSS変数を使用 */
+            transition: background-color 0.3s ease, color 0.3s ease, font-size 0.3s ease; /* テーマ切り替え時のアニメーション */
         }
 
+        h1 {
+            font-size: 2.5em; /* 相対単位 */
+        }
+        h2 {
+            font-size: 2em; /* 相対単位 */
+        }
+        h3 {
+            font-size: 1.5em; /* 相対単位 */
+        }
+        h4 {
+            font-size: 1.2em; /* 相対単位 */
+        }
+        
+        /* h1, h2, h3, h4 のスタイルは残しつつ、em単位で相対的に変更 */
         h1, h2, h3, h4 {
             color: var(--primary-color);
             margin-top: 0;
@@ -95,7 +110,6 @@
             font-weight: 500;
             transition: color 0.3s ease; /* テーマ切り替え時のアニメーション */
         }
-
         /* Header */
         header {
             width: 100%; /* 親要素の幅に合わせる */
@@ -107,10 +121,6 @@
             position: relative; /* カレンダー名配置のため */
             padding: 0 20px; /* 左右の余白 */
             box-sizing: border-box; /* paddingを含めて幅を計算 */
-        }
-        header h1 {
-            margin: 0;
-            font-size: 2.5em; /* H1を調整 */
         }
         #display_calendar_summary_top { /* カレンダー名（上部）のスタイル */
             position: absolute;
@@ -540,14 +550,14 @@
         @media (max-width: 768px) {
             body {
                 padding: 15px;
-                font-size: 14px; /* レスポンシブフォントサイズ */
+                font-size: var(--base-font-size); /* 相対単位なのでそのまま */
             }
             header, #top_bar, #container, .error-message {
                 padding: 0 10px;
                 max-width: 100%; /* 小さい画面では全幅を使用 */
             }
             header h1 {
-                font-size: 2em; /* 調整 */
+                font-size: 2em; /* 相対単位 */
             }
             #display_calendar_summary_top {
                 font-size: 1.3em; /* レスポンシブでも少し大きく */
@@ -557,15 +567,15 @@
                 padding: 15px 20px;
             }
             #current_datetime {
-                font-size: 1em; /* 調整 */
+                font-size: 1.1em; /* 相対単位 */
             }
             #pre_announcement_text, #announcement_text {
-                font-size: 1.4em; /* 調整 */
+                font-size: 1.4em; /* 相対単位 */
                 padding: 10px 15px;
             }
             #settings_button {
                 padding: 8px 18px; /* 調整 */
-                font-size: 0.85em; /* 調整 */
+                font-size: 0.85em; /* 相対単位 */
                 top: 15px;
                 right: 15px;
             }
@@ -580,7 +590,7 @@
             }
             #authorize_button, #switch_account_button, .select-button, .action-button {
                 padding: 10px 18px; /* 調整 */
-                font-size: 0.95em; /* 調整 */
+                font-size: 0.95em; /* 相対単位 */
             }
             #event_list_container {
                 padding: 18px; /* 調整 */
@@ -591,7 +601,7 @@
                 padding: 12px; /* 調整 */
             }
             .event-time, .event-summary {
-                font-size: 1em; /* 調整 */
+                font-size: 1em; /* 相対単位 */
             }
             .event-delete-button {
                 margin-left: 0; /* 左マージンをなくす */
@@ -612,24 +622,24 @@
 
         @media (max-width: 480px) {
             header h1 {
-                font-size: 1.6em; /* 調整 */
+                font-size: 1.6em; /* 相対単位 */
             }
             #display_calendar_summary_top {
-                font-size: 1.1em; /* 調整 */
+                font-size: 1.1em; /* 相対単位 */
                 transform: translateY(25px); /* 調整 */
             }
             #current_datetime {
-                font-size: 0.9em; /* 調整 */
+                font-size: 0.9em; /* 相対単位 */
             }
             #pre_announcement_text, #announcement_text {
-                font-size: 1.1em; /* 調整 */
+                font-size: 1.1em; /* 相対単位 */
                 padding: 7px 10px; /* 調整 */
             }
             .setting-group label, .setting-group input, .setting-group select {
-                font-size: 0.85em; /* 調整 */
+                font-size: 0.85em; /* 相対単位 */
             }
             #authorize_button, #switch_account_button, .select-button, .action-button, .event-delete-button {
-                font-size: 0.85em; /* 調整 */
+                font-size: 0.85em; /* 相対単位 */
                 padding: 8px 12px; /* 調整 */
             }
         }
@@ -695,6 +705,12 @@
                 <input type="number" id="display_past_hours_input" min="0" max="24" value="2">
                 <label for="display_future_hours_input">現在時刻から何時間後まで表示するか:</label>
                 <input type="number" id="display_future_hours_input" min="0" max="72" value="12">
+            </div>
+
+            <div class="setting-group">
+                <h3>フォントサイズ設定 🅰️</h3>
+                <label for="base_font_size_input">基本フォントサイズ (px):</label>
+                <input type="number" id="base_font_size_input" min="10" max="30" value="16">
             </div>
 
             <div class="setting-group">
@@ -779,8 +795,9 @@
         // デフォルト設定値
         const DEFAULT_SETTINGS = {
             refreshInterval: 30, // 秒
-            displayPastHours: 2, // 新規: 現在時刻から過去何時間分のイベントを表示するか
-            displayFutureHours: 12, // 新規: 現在時刻から未来何時間分のイベントを表示するか
+            displayPastHours: 2, // 現在時刻から過去何時間分のイベントを表示するか
+            displayFutureHours: 12, // 現在時刻から未来何時間分のイベントを表示するか
+            baseFontSize: 16, // 新規: 基本フォントサイズ (px)
             availableText: "空室です",
             inProgressPrefix: "ただいま",
             inProgressSuffix: "中です",
@@ -808,6 +825,7 @@
             loadSettings();
             applySettingsToUI();
             applyTheme(appSettings.theme);
+            applyBaseFontSize(appSettings.baseFontSize); // 追加: フォントサイズを適用
             updateDisplayTitles(); // 題名と項目題名を初期表示に反映
 
             // UI要素の取得
@@ -821,10 +839,11 @@
             // 設定UI要素の取得 (設定保存/適用用)
             const themeSelect = document.getElementById('theme_select');
             const refreshIntervalSelect = document.getElementById('refresh_interval_select');
-            const displayPastHoursInput = document.getElementById('display_past_hours_input'); // 追加
-            const displayFutureHoursInput = document.getElementById('display_future_hours_input'); // 追加
-            const mainTitleInput = document.getElementById('main_title_input'); // 新しい設定項目
-            const eventListTitleInput = document.getElementById('event_list_title_input'); // 新しい設定項目
+            const displayPastHoursInput = document.getElementById('display_past_hours_input');
+            const displayFutureHoursInput = document.getElementById('display_future_hours_input');
+            const baseFontSizeInput = document.getElementById('base_font_size_input'); // 追加
+            const mainTitleInput = document.getElementById('main_title_input'); 
+            const eventListTitleInput = document.getElementById('event_list_title_input'); 
             const availableTextInput = document.getElementById('available_text_input');
             const inProgressPrefixInput = document.getElementById('in_progress_prefix_input');
             const inProgressSuffixInput = document.getElementById('in_progress_suffix_input');
@@ -874,10 +893,11 @@
             // --- 各種設定UI要素のイベントリスナー ---
             themeSelect.onchange = (e) => { appSettings.theme = e.target.value; saveSettings(); applyTheme(appSettings.theme); };
             refreshIntervalSelect.onchange = (e) => { appSettings.refreshInterval = parseInt(e.target.value); saveSettings(); startAutoRefresh(); };
-            displayPastHoursInput.onchange = (e) => { appSettings.displayPastHours = parseInt(e.target.value); saveSettings(); listEvents(); }; // 追加
-            displayFutureHoursInput.onchange = (e) => { appSettings.displayFutureHours = parseInt(e.target.value); saveSettings(); listEvents(); }; // 追加
-            mainTitleInput.onchange = (e) => { appSettings.mainTitle = e.target.value; saveSettings(); updateDisplayTitles(); }; // 新しい設定項目のイベントリスナー
-            eventListTitleInput.onchange = (e) => { appSettings.eventListTitle = e.target.value; saveSettings(); updateDisplayTitles(); }; // 新しい設定項目のイベントリスナー
+            displayPastHoursInput.onchange = (e) => { appSettings.displayPastHours = parseInt(e.target.value); saveSettings(); listEvents(); };
+            displayFutureHoursInput.onchange = (e) => { appSettings.displayFutureHours = parseInt(e.target.value); saveSettings(); listEvents(); };
+            baseFontSizeInput.onchange = (e) => { appSettings.baseFontSize = parseInt(e.target.value); saveSettings(); applyBaseFontSize(appSettings.baseFontSize); }; // 追加
+            mainTitleInput.onchange = (e) => { appSettings.mainTitle = e.target.value; saveSettings(); updateDisplayTitles(); }; 
+            eventListTitleInput.onchange = (e) => { appSettings.eventListTitle = e.target.value; saveSettings(); updateDisplayTitles(); }; 
             availableTextInput.onchange = (e) => { appSettings.availableText = e.target.value; saveSettings(); updateEventHighlightsAndAnnouncement(appSettings.lastEvents || []); }; 
             inProgressPrefixInput.onchange = (e) => { appSettings.inProgressPrefix = e.target.value; saveSettings(); updateEventHighlightsAndAnnouncement(appSettings.lastEvents || []); };
             inProgressSuffixInput.onchange = (e) => { appSettings.inProgressSuffix = e.target.value; saveSettings(); updateEventHighlightsAndAnnouncement(appSettings.lastEvents || []); };
@@ -943,10 +963,11 @@
         function applySettingsToUI() {
             document.getElementById('theme_select').value = appSettings.theme;
             document.getElementById('refresh_interval_select').value = appSettings.refreshInterval;
-            document.getElementById('display_past_hours_input').value = appSettings.displayPastHours; // 追加
-            document.getElementById('display_future_hours_input').value = appSettings.displayFutureHours; // 追加
-            document.getElementById('main_title_input').value = appSettings.mainTitle; // 新しい設定項目
-            document.getElementById('event_list_title_input').value = appSettings.eventListTitle; // 新しい設定項目
+            document.getElementById('display_past_hours_input').value = appSettings.displayPastHours;
+            document.getElementById('display_future_hours_input').value = appSettings.displayFutureHours;
+            document.getElementById('base_font_size_input').value = appSettings.baseFontSize; // 追加
+            document.getElementById('main_title_input').value = appSettings.mainTitle; 
+            document.getElementById('event_list_title_input').value = appSettings.eventListTitle; 
             document.getElementById('available_text_input').value = appSettings.availableText;
             document.getElementById('in_progress_prefix_input').value = appSettings.inProgressPrefix;
             document.getElementById('in_progress_suffix_input').value = appSettings.inProgressSuffix;
@@ -962,6 +983,12 @@
             document.body.classList.remove('theme-pop', 'theme-chic', 'theme-stylish');
             document.body.classList.add(`theme-${themeName}`);
             console.log(`テーマを "${themeName}" に変更しました。`);
+        }
+
+        // 新規: 基本フォントサイズを適用する関数
+        function applyBaseFontSize(fontSize) {
+            document.documentElement.style.setProperty('--base-font-size', `${fontSize}px`);
+            console.log(`基本フォントサイズを ${fontSize}px に設定しました。`);
         }
 
         // 追加ボタンのテキストを更新する関数
@@ -1194,7 +1221,7 @@
                         const bIsCurrent = (currentTime >= startB && currentTime < endB);
 
                         const aStartsSoon = (startA > currentTime && (startA.getTime() - currentTime.getTime()) <= (appSettings.preAnnouncementMinutes * 60 * 1000));
-                        const bStartsSoon = (startB > currentTime && (startB.getTime() - currentTime.getTime()) <= (appSettings.preAnnouncementMinutes * 60 * 1000)); // `b` を `startB` に修正
+                        const bStartsSoon = (startB > currentTime && (startB.getTime() - currentTime.getTime()) <= (appSettings.preAnnouncementMinutes * 60 * 1000)); // ここを修正
 
                         // 1. 現在進行中のイベントが最優先
                         if (aIsCurrent && !bIsCurrent) return -1; 
@@ -1286,7 +1313,7 @@
                 updateActionButtonStates(); // ボタンの有効/無効状態を更新
 
             } catch (err) {
-                console.error(`❌ イベントの取得エラー (${currentCalendarSummary}):`, err.result ? err.result.error : err);
+                console.error(`❌ イベントの取得エラー (${currentCalendarId}):`, err.result ? err.result.error : err);
                 displayError(`イベントの取得中にエラーが発生しました: ${err.result && err.result.error && err.result.error.message ? err.result.error.message : err.message}`);
                 eventListUl.innerHTML = '<li class="error-message">イベントの読み込みに失敗しました。</li>';
                 updateActionButtonStates(); // エラー時もボタンの有効/無効状態を更新
