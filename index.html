@@ -1194,7 +1194,7 @@
                         const bIsCurrent = (currentTime >= startB && currentTime < endB);
 
                         const aStartsSoon = (startA > currentTime && (startA.getTime() - currentTime.getTime()) <= (appSettings.preAnnouncementMinutes * 60 * 1000));
-                        const bStartsSoon = (startB > currentTime && (b.getTime() - currentTime.getTime()) <= (appSettings.preAnnouncementMinutes * 60 * 1000));
+                        const bStartsSoon = (startB > currentTime && (startB.getTime() - currentTime.getTime()) <= (appSettings.preAnnouncementMinutes * 60 * 1000)); // `b` を `startB` に修正
 
                         // 1. 現在進行中のイベントが最優先
                         if (aIsCurrent && !bIsCurrent) return -1; 
