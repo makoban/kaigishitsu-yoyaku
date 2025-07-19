@@ -4,7 +4,7 @@
     <title>会議室予約表示</title>
     <script src="https://apis.google.com/js/api.js"></script>
     <script src="https://accounts.google.com/gsi/client"></script>
-    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;500;700&family=Zen+Kaku+Gothic+New:wght+400;500;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;500;700&family=Zen+Kaku+Gothic+New:wght@400;500;700&display=swap" rel="stylesheet">
     <style>
         /* デフォルトテーマ (ポップ/Pop) - 明るくフレンドリーな色合い */
         :root {
@@ -26,7 +26,8 @@
             --pre-announcement-text-color: #333;
             --border-radius: 12px;
             --box-shadow: 0 4px 10px rgba(0,0,0,0.08);
-            --base-font-size: 16px; /* 追加: 基本フォントサイズ */
+            --base-font-size: 16px; /* 基本フォントサイズ */
+            --base-font-family: 'Zen Kaku Gothic New', 'Noto Sans JP', sans-serif; /* 新規: 基本フォントファミリー */
         }
 
         /* シックテーマ */
@@ -75,7 +76,7 @@
 
 
         body {
-            font-family: 'Zen Kaku Gothic New', 'Noto Sans JP', sans-serif; /* Zen Kaku Gothic New を優先 */
+            font-family: var(--base-font-family); /* 変更: CSS変数を使用 */
             margin: 0;
             padding: 20px;
             background-color: var(--background-color);
@@ -85,8 +86,8 @@
             align-items: center; /* 中央揃え */
             min-height: 100vh;
             box-sizing: border-box;
-            font-size: var(--base-font-size); /* 変更: CSS変数を使用 */
-            transition: background-color 0.3s ease, color 0.3s ease, font-size 0.3s ease; /* テーマ切り替え時のアニメーション */
+            font-size: var(--base-font-size); /* CSS変数を使用 */
+            transition: background-color 0.3s ease, color 0.3s ease, font-size 0.3s ease, font-family 0.3s ease; /* transitionに追加 */
         }
 
         h1 {
@@ -714,6 +715,15 @@
             </div>
 
             <div class="setting-group">
+                <h3>フォントの種類設定 🔡</h3>
+                <label for="font_family_select">フォントの種類:</label>
+                <select id="font_family_select">
+                    <option value="'Zen Kaku Gothic New', 'Noto Sans JP', sans-serif">Zen Kaku Gothic New (標準)</option>
+                    <option value="'Noto Sans JP', sans-serif">Noto Sans JP</option>
+                    </select>
+            </div>
+
+            <div class="setting-group">
                 <h3>表示タイトル設定</h3>
                 <label for="main_title_input">メインタイトル:</label>
                 <input type="text" id="main_title_input" value="会議室予約表示Ver1.2">
@@ -797,7 +807,8 @@
             refreshInterval: 30, // 秒
             displayPastHours: 2, // 現在時刻から過去何時間分のイベントを表示するか
             displayFutureHours: 12, // 現在時刻から未来何時間分のイベントを表示するか
-            baseFontSize: 16, // 新規: 基本フォントサイズ (px)
+            baseFontSize: 16, // 基本フォントサイズ (px)
+            baseFontFamily: "'Zen Kaku Gothic New', 'Noto Sans JP', sans-serif", // 新規: 基本フォントファミリー
             availableText: "空室です",
             inProgressPrefix: "ただいま",
             inProgressSuffix: "中です",
@@ -825,7 +836,8 @@
             loadSettings();
             applySettingsToUI();
             applyTheme(appSettings.theme);
-            applyBaseFontSize(appSettings.baseFontSize); // 追加: フォントサイズを適用
+            applyBaseFontSize(appSettings.baseFontSize);
+            applyFontFamily(appSettings.baseFontFamily); // 追加: フォントファミリーを適用
             updateDisplayTitles(); // 題名と項目題名を初期表示に反映
 
             // UI要素の取得
@@ -841,7 +853,8 @@
             const refreshIntervalSelect = document.getElementById('refresh_interval_select');
             const displayPastHoursInput = document.getElementById('display_past_hours_input');
             const displayFutureHoursInput = document.getElementById('display_future_hours_input');
-            const baseFontSizeInput = document.getElementById('base_font_size_input'); // 追加
+            const baseFontSizeInput = document.getElementById('base_font_size_input');
+            const fontFamilySelect = document.getElementById('font_family_select'); // 追加
             const mainTitleInput = document.getElementById('main_title_input'); 
             const eventListTitleInput = document.getElementById('event_list_title_input'); 
             const availableTextInput = document.getElementById('available_text_input');
@@ -895,7 +908,8 @@
             refreshIntervalSelect.onchange = (e) => { appSettings.refreshInterval = parseInt(e.target.value); saveSettings(); startAutoRefresh(); };
             displayPastHoursInput.onchange = (e) => { appSettings.displayPastHours = parseInt(e.target.value); saveSettings(); listEvents(); };
             displayFutureHoursInput.onchange = (e) => { appSettings.displayFutureHours = parseInt(e.target.value); saveSettings(); listEvents(); };
-            baseFontSizeInput.onchange = (e) => { appSettings.baseFontSize = parseInt(e.target.value); saveSettings(); applyBaseFontSize(appSettings.baseFontSize); }; // 追加
+            baseFontSizeInput.onchange = (e) => { appSettings.baseFontSize = parseInt(e.target.value); saveSettings(); applyBaseFontSize(appSettings.baseFontSize); };
+            fontFamilySelect.onchange = (e) => { appSettings.baseFontFamily = e.target.value; saveSettings(); applyFontFamily(appSettings.baseFontFamily); }; // 追加
             mainTitleInput.onchange = (e) => { appSettings.mainTitle = e.target.value; saveSettings(); updateDisplayTitles(); }; 
             eventListTitleInput.onchange = (e) => { appSettings.eventListTitle = e.target.value; saveSettings(); updateDisplayTitles(); }; 
             availableTextInput.onchange = (e) => { appSettings.availableText = e.target.value; saveSettings(); updateEventHighlightsAndAnnouncement(appSettings.lastEvents || []); }; 
@@ -965,7 +979,8 @@
             document.getElementById('refresh_interval_select').value = appSettings.refreshInterval;
             document.getElementById('display_past_hours_input').value = appSettings.displayPastHours;
             document.getElementById('display_future_hours_input').value = appSettings.displayFutureHours;
-            document.getElementById('base_font_size_input').value = appSettings.baseFontSize; // 追加
+            document.getElementById('base_font_size_input').value = appSettings.baseFontSize;
+            document.getElementById('font_family_select').value = appSettings.baseFontFamily; // 追加
             document.getElementById('main_title_input').value = appSettings.mainTitle; 
             document.getElementById('event_list_title_input').value = appSettings.eventListTitle; 
             document.getElementById('available_text_input').value = appSettings.availableText;
@@ -985,10 +1000,16 @@
             console.log(`テーマを "${themeName}" に変更しました。`);
         }
 
-        // 新規: 基本フォントサイズを適用する関数
+        // 基本フォントサイズを適用する関数
         function applyBaseFontSize(fontSize) {
             document.documentElement.style.setProperty('--base-font-size', `${fontSize}px`);
             console.log(`基本フォントサイズを ${fontSize}px に設定しました。`);
+        }
+
+        // 新規: フォントファミリーを適用する関数
+        function applyFontFamily(fontFamily) {
+            document.documentElement.style.setProperty('--base-font-family', fontFamily);
+            console.log(`フォントファミリーを "${fontFamily}" に設定しました。`);
         }
 
         // 追加ボタンのテキストを更新する関数
