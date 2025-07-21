@@ -670,7 +670,7 @@
 </head>
 <body class="theme-stylish">
     <header>
-        <h1 id="main_app_title">会議室予約表示Ver1.31</h1>
+        <h1 id="main_app_title">会議室予約表示Ver1.34</h1>
         <button id="settings_button">設定</button> <span id="display_calendar_summary_top"></span>
     </header>
 
@@ -894,12 +894,49 @@
                     delimiter: ','
                 });
                 
-                allowedCalendars = parsedData.data.filter(row => row.calendar_id && row.calendar_id.trim() !== '');
+                // CSVデータをフィルタリング（IDがあるもののみ）
+                const rawCalendars = parsedData.data.filter(row => row.calendar_id && row.calendar_id.trim() !== '');
                 
-                statusElement.textContent = `✅ 許可リスト読み込み完了 (${allowedCalendars.length}件)`;
+                // 有効期限チェックを追加
+                const today = new Date();
+                today.setHours(0, 0, 0, 0); // 時刻を00:00:00に設定（日付のみで比較）
+                
+                allowedCalendars = rawCalendars.filter(calendar => {
+                    if (!calendar.valid_until || calendar.valid_until.trim() === '') {
+                        console.warn(`⚠️ カレンダー ${calendar.calendar_id} の有効期限が設定されていません。許可しません。`);
+                        return false;
+                    }
+                    
+                    // 有効期限をパース（YYYY-MM-DD形式を想定）
+                    const validUntilDate = new Date(calendar.valid_until);
+                    validUntilDate.setHours(23, 59, 59, 999); // 有効期限日の終日まで有効
+                    
+                    if (isNaN(validUntilDate.getTime())) {
+                        console.warn(`⚠️ カレンダー ${calendar.calendar_id} の有効期限形式が不正です: ${calendar.valid_until}`);
+                        return false;
+                    }
+                    
+                    if (today > validUntilDate) {
+                        console.warn(`⚠️ カレンダー ${calendar.calendar_id} の有効期限が切れています: ${calendar.valid_until}`);
+                        return false;
+                    }
+                    
+                    console.log(`✅ カレンダー ${calendar.calendar_id} は有効です (期限: ${calendar.valid_until})`);
+                    return true;
+                });
+                
+                const expiredCount = rawCalendars.length - allowedCalendars.length;
+                
+                statusElement.textContent = `✅ 許可リスト読み込み完了 (有効: ${allowedCalendars.length}件, 期限切れ: ${expiredCount}件)`;
                 statusElement.className = 'calendar-security-status success';
                 
-                console.log('✅ 許可カレンダーリスト:', allowedCalendars);
+                // 詳細ログ
+                console.log('✅ 有効な許可カレンダーリスト:', allowedCalendars);
+                if (expiredCount > 0) {
+                    const expiredCalendars = rawCalendars.filter(cal => !allowedCalendars.includes(cal));
+                    console.log('⚠️ 期限切れカレンダー:', expiredCalendars);
+                }
+                
                 return true;
                 
             } catch (error) {
@@ -907,18 +944,46 @@
                 statusElement.textContent = `❌ 許可リスト読み込み失敗: ${error.message}`;
                 statusElement.className = 'calendar-security-status error';
                 
-                // フォールバック：初期カレンダーのみ許可
+                // フォールバック：初期カレンダーのみ許可（期限なし）
                 allowedCalendars = [{
                     calendar_id: INITIAL_PUBLIC_CALENDAR_ID,
-                    display_name: '初期設定カレンダー'
+                    valid_until: '2099-12-31',
+                    company_name: '初期設定',
+                    memo: 'デフォルトカレンダー'
                 }];
                 return false;
             }
         }
 
-        // 最小限追加：カレンダーID許可チェック関数
+        // 最小限追加：カレンダーID許可チェック関数（有効期限も含む）
         function isCalendarAllowed(calendarId) {
-            return allowedCalendars.some(allowed => allowed.calendar_id === calendarId);
+            const today = new Date();
+            today.setHours(0, 0, 0, 0);
+            
+            return allowedCalendars.some(allowed => {
+                if (allowed.calendar_id !== calendarId) {
+                    return false;
+                }
+                
+                const validUntilDate = new Date(allowed.valid_until);
+                validUntilDate.setHours(23, 59, 59, 999);
+                
+                return today <= validUntilDate;
+            });
+        }
+
+        // 修正：カレンダー情報取得（サマリーを取得）
+        async function getCalendarSummary(calendarId) {
+            try {
+                const response = await gapi.client.calendar.calendars.get({
+                    calendarId: calendarId
+                });
+                return response.result.summary || calendarId;
+            } catch (error) {
+                console.warn(`カレンダーサマリー取得エラー (${calendarId}):`, error);
+                // エラー時はIDをそのまま返す
+                return calendarId;
+            }
         }
 
         document.addEventListener('DOMContentLoaded', () => {
@@ -1151,7 +1216,7 @@
             gapi.client.init({
                 apiKey: API_KEY,
                 discoveryDocs: DISCOVERY_DOCS,
-            }).then(() => {
+            }).then(async () => {
                 console.log('✅ gapi client initialized for read-only access (API Key only).');
                 
                 console.log('--- initGapiClientForRead: localStorageからアクティブカレンダーを読み込み試行 ---');
@@ -1162,16 +1227,42 @@
                     // 最小限追加：保存されたカレンダーIDの許可チェック
                     if (isCalendarAllowed(savedActiveId)) {
                         currentCalendarId = savedActiveId;
+                        // 修正：保存されたサマリーを使うが、実際のサマリーを取得し直す
                         currentCalendarSummary = savedActiveSummary;
+                        
+                        // サマリーを再取得して更新
+                        try {
+                            const actualSummary = await getCalendarSummary(savedActiveId);
+                            if (actualSummary !== savedActiveId) { // IDと異なる場合のみ更新
+                                currentCalendarSummary = actualSummary;
+                                localStorage.setItem(LOCAL_STORAGE_ACTIVE_CALENDAR_SUMMARY_KEY, actualSummary);
+                            }
+                        } catch (error) {
+                            console.warn('サマリー再取得に失敗しました:', error);
+                        }
+                        
                         console.log(`✅ localStorageからアクティブカレンダーを読み込みました: ${currentCalendarSummary} (${currentCalendarId})`);
                     } else {
-                        console.warn(`⚠️ 保存されたカレンダーID (${savedActiveId}) は許可されていません。初期設定カレンダーを使用します。`);
+                        console.warn(`⚠️ 保存されたカレンダーID (${savedActiveId}) は許可されていません（期限切れ含む）。初期設定カレンダーを使用します。`);
                         currentCalendarId = INITIAL_PUBLIC_CALENDAR_ID; 
-                        currentCalendarSummary = "初期設定カレンダー"; 
+                        
+                        // 修正：初期カレンダーのサマリーを取得
+                        try {
+                            currentCalendarSummary = await getCalendarSummary(INITIAL_PUBLIC_CALENDAR_ID);
+                        } catch (error) {
+                            currentCalendarSummary = "初期設定カレンダー";
+                        }
                     }
                 } else {
                     currentCalendarId = INITIAL_PUBLIC_CALENDAR_ID; 
-                    currentCalendarSummary = "初期設定カレンダー"; 
+                    
+                    // 修正：初期カレンダーのサマリーを取得
+                    try {
+                        currentCalendarSummary = await getCalendarSummary(INITIAL_PUBLIC_CALENDAR_ID);
+                    } catch (error) {
+                        currentCalendarSummary = "初期設定カレンダー";
+                    }
+                    
                     console.log(`ℹ️ localStorageにアクティブカレンダーが見つかりませんでした。初期設定カレンダー (${INITIAL_PUBLIC_CALENDAR_ID}) を使用します。`);
                 }
                 updateDisplayedCalendarInfo();
@@ -1205,6 +1296,10 @@
                         document.getElementById('switch_account_button').style.display = 'block'; 
                         document.getElementById('calendar_selection_panel').style.display = 'block'; 
                         console.log('✅ 書き込み権限のためのアクセストークンを取得しました。');
+                        
+                        // アカウント切り替え時：現在のカレンダーIDの許可チェック
+                        checkCurrentCalendarAfterAuth();
+                        
                         listWritableCalendars(); 
                     } else {
                         isAuthorizedForWrite = false;
@@ -1226,6 +1321,71 @@
                     console.error('❌ GISトークンクライアントエラー（書き込み用）:', error);
                 }
             });
+        }
+
+        // 新規追加：認証後の現在カレンダーチェック
+        async function checkCurrentCalendarAfterAuth() {
+            console.log('--- checkCurrentCalendarAfterAuth: 認証後のカレンダーチェック ---');
+            
+            // 現在のカレンダーIDが許可されているかチェック
+            if (!isCalendarAllowed(currentCalendarId)) {
+                console.warn(`⚠️ 現在のカレンダーID (${currentCalendarId}) は許可されていません。初期カレンダーに戻します。`);
+                
+                // 許可されている最初のカレンダーまたは初期カレンダーに設定
+                if (allowedCalendars.length > 0) {
+                    const firstAllowedCalendar = allowedCalendars[0];
+                    currentCalendarId = firstAllowedCalendar.calendar_id;
+                    currentCalendarSummary = firstAllowedCalendar.display_name || firstAllowedCalendar.calendar_id;
+                    
+                    // ローカルストレージも更新
+                    localStorage.setItem(LOCAL_STORAGE_ACTIVE_CALENDAR_ID_KEY, currentCalendarId);
+                    localStorage.setItem(LOCAL_STORAGE_ACTIVE_CALENDAR_SUMMARY_KEY, currentCalendarSummary);
+                    
+                    console.log(`✅ 許可されたカレンダーに変更しました: ${currentCalendarSummary} (${currentCalendarId})`);
+                } else {
+                    // フォールバック
+                    currentCalendarId = INITIAL_PUBLIC_CALENDAR_ID;
+                    currentCalendarSummary = "初期設定カレンダー";
+                    
+                    localStorage.setItem(LOCAL_STORAGE_ACTIVE_CALENDAR_ID_KEY, currentCalendarId);
+                    localStorage.setItem(LOCAL_STORAGE_ACTIVE_CALENDAR_SUMMARY_KEY, currentCalendarSummary);
+                    
+                    console.log(`⚠️ 許可カレンダーが見つからないため、初期カレンダーに設定しました: ${currentCalendarId}`);
+                }
+                
+                // 表示を更新
+                updateDisplayedCalendarInfo();
+                listEvents();
+            } else {
+                console.log(`✅ 現在のカレンダーID (${currentCalendarId}) は許可されています。`);
+            }
+            
+            // 新しいアカウントでアクセス可能なカレンダーをチェック
+            try {
+                const response = await gapi.client.calendar.calendarList.list();
+                const accessibleCalendars = response.result.items || [];
+                const writableCalendars = accessibleCalendars.filter(calendar => 
+                    calendar.accessRole === 'owner' || calendar.accessRole === 'writer'
+                );
+                const allowedWritableCalendars = writableCalendars.filter(calendar => 
+                    isCalendarAllowed(calendar.id)
+                );
+                
+                if (allowedWritableCalendars.length === 0) {
+                    document.getElementById('auth_status').textContent = '⚠️ このアカウントでは許可されたカレンダーにアクセスできません。';
+                    document.getElementById('auth_status').style.color = 'orange';
+                    console.warn('❌ 新しいアカウントでは許可されたカレンダーにアクセスできません。');
+                } else {
+                    document.getElementById('auth_status').textContent = `✅ 操作権限が認証されました (許可カレンダー: ${allowedWritableCalendars.length}件)`;
+                    document.getElementById('auth_status').style.color = 'green';
+                    console.log(`✅ 新しいアカウントで許可されたカレンダーにアクセス可能: ${allowedWritableCalendars.length}件`);
+                }
+                
+            } catch (err) {
+                console.error('❌ アカウント切り替え後のカレンダーチェックエラー:', err);
+                document.getElementById('auth_status').textContent = '⚠️ カレンダーアクセス確認中にエラーが発生しました。';
+                document.getElementById('auth_status').style.color = 'orange';
+            }
         }
 
         function handleActionTrigger(event) {
@@ -1350,9 +1510,9 @@
 
             // 最小限追加：現在のカレンダーIDの許可チェック
             if (!isCalendarAllowed(currentCalendarId)) {
-                console.error(`❌ 現在のカレンダーID (${currentCalendarId}) は許可されていません。`);
-                displayError('現在選択中のカレンダーは許可されていません。設定から別のカレンダーを選択してください。');
-                eventListUl.innerHTML = '<li class="error-message">許可されていないカレンダーです。</li>';
+                console.error(`❌ 現在のカレンダーID (${currentCalendarId}) は許可されていないか、有効期限が切れています。`);
+                displayError('現在選択中のカレンダーは許可されていないか、有効期限が切れています。設定から別のカレンダーを選択してください。');
+                eventListUl.innerHTML = '<li class="error-message">許可されていないか期限切れのカレンダーです。</li>';
                 return;
             }
 
@@ -1596,8 +1756,8 @@
 
             // 最小限追加：カレンダーID許可チェック
             if (!isCalendarAllowed(currentCalendarId)) {
-                displayError('現在選択中のカレンダーは許可されていません。設定から別のカレンダーを選択してください。');
-                console.log(`🚨 イベント追加: カレンダーID (${currentCalendarId}) が許可されていません。`);
+                displayError('現在選択中のカレンダーは許可されていないか、有効期限が切れています。設定から別のカレンダーを選択してください。');
+                console.log(`🚨 イベント追加: カレンダーID (${currentCalendarId}) が許可されていないか期限切れです。`);
                 return;
             }
 
@@ -1649,8 +1809,8 @@
 
             // 最小限追加：カレンダーID許可チェック
             if (!isCalendarAllowed(currentCalendarId)) {
-                displayError('現在選択中のカレンダーは許可されていません。設定から別のカレンダーを選択してください。');
-                console.log(`🚨 イベント削除: カレンダーID (${currentCalendarId}) が許可されていません。`);
+                displayError('現在選択中のカレンダーは許可されていないか、有効期限が切れています。設定から別のカレンダーを選択してください。');
+                console.log(`🚨 イベント削除: カレンダーID (${currentCalendarId}) が許可されていないか期限切れです。`);
                 return;
             }
 
