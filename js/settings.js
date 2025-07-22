@@ -68,6 +68,7 @@ function updateDisplayTitles() {
     console.log(`✅ 表示タイトルを更新しました: メイン「${appSettings.mainTitle}」、イベントリスト「${appSettings.eventListTitle}」`);
 }
 
+
 /**
  * Google Calendar APIからカレンダーのサマリー（名前）を取得します。
  * 失敗した場合はカレンダーIDを返します。
@@ -89,6 +90,7 @@ async function getCalendarSummary(calendarId) {
         return calendarId;
     }
 }
+
 
 /**
  * 許可されたカレンダーのCSVリストを読み込みます。
