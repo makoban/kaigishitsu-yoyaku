@@ -3,7 +3,7 @@
 /**
  * アプリ設定をUI要素に適用します。
  */
-function applySettingsToUI() {
+window.applySettingsToUI = function() { // グローバル化
     document.getElementById('theme_select').value = appSettings.theme;
     document.getElementById('refresh_interval_select').value = appSettings.refreshInterval;
     document.getElementById('display_past_hours_input').value = appSettings.displayPastHours;
@@ -26,7 +26,7 @@ function applySettingsToUI() {
  * 選択されたテーマをボディに適用します。
  * @param {string} themeName - テーマ名 ('pop', 'chic', 'stylish')
  */
-function applyTheme(themeName) {
+window.applyTheme = function(themeName) { // グローバル化
     document.body.classList.remove('theme-pop', 'theme-chic', 'theme-stylish');
     document.body.classList.add(`theme-${themeName}`);
     console.log(`テーマを "${themeName}" に変更しました。`);
@@ -36,7 +36,7 @@ function applyTheme(themeName) {
  * 基本フォントサイズをCSSカスタムプロパティとして適用します。
  * @param {number} fontSize - 基本フォントサイズ (px)
  */
-function applyBaseFontSize(fontSize) {
+window.applyBaseFontSize = function(fontSize) { // グローバル化
     document.documentElement.style.setProperty('--base-font-size', `${fontSize}px`);
     console.log(`基本フォントサイズを ${fontSize}px に設定しました。`);
 }
@@ -45,7 +45,7 @@ function applyBaseFontSize(fontSize) {
  * フォントファミリーをCSSカスタムプロパティとして適用します。
  * @param {string} fontFamily - フォントファミリーの文字列
  */
-function applyFontFamily(fontFamily) {
+window.applyFontFamily = function(fontFamily) { // グローバル化
     document.documentElement.style.setProperty('--base-font-family', fontFamily);
     console.log(`フォントファミリーを "${fontFamily}" に設定しました。`);
 }
@@ -53,7 +53,7 @@ function applyFontFamily(fontFamily) {
 /**
  * 「緊急会議」ボタンのテキストを現在の設定に合わせて更新します。
  */
-function updateAddButtonText() {
+window.updateAddButtonText = function() { // グローバル化
     const eventSummary = appSettings.eventSummary || "緊急会議";
     document.getElementById('add_30min_event_button').textContent = `${eventSummary} (30分)`;
     document.getElementById('add_60min_event_button').textContent = `${eventSummary} (60分)`;
@@ -62,7 +62,7 @@ function updateAddButtonText() {
 /**
  * メインタイトルとイベントリストのタイトルを現在の設定に合わせて更新します。
  */
-function updateDisplayTitles() {
+window.updateDisplayTitles = function() { // グローバル化
     document.getElementById('main_app_title').textContent = appSettings.mainTitle;
     document.getElementById('event_list_section_title').textContent = appSettings.eventListTitle;
     console.log(`✅ 表示タイトルを更新しました: メイン「${appSettings.mainTitle}」、イベントリスト「${appSettings.eventListTitle}」`);
@@ -75,10 +75,11 @@ function updateDisplayTitles() {
  * @param {string} calendarId - 取得するカレンダーのID
  * @returns {Promise<string>} カレンダーのサマリー、またはカレンダーID
  */
-async function getCalendarSummary(calendarId) {
+window.getCalendarSummary = async function(calendarId) { // グローバル化
     try {
-        if (!gapi.client || !gapi.client.calendar) {
-            console.warn('gapi.client.calendar が未初期化のためサマリー取得をスキップします。');
+        // gapi.client.calendar が初期化されていない可能性があるのでチェックを強化
+        if (!gapi.client || !gapi.client.calendar || !gapi.client.calendar.calendars) {
+            console.warn('gapi.client.calendar が未初期化またはAPIサービスが利用不可のためサマリー取得をスキップします。');
             return calendarId;
         }
         const response = await gapi.client.calendar.calendars.get({
@@ -97,7 +98,7 @@ async function getCalendarSummary(calendarId) {
  * 各カレンダーの有効期限をチェックし、`allowedCalendars`配列を更新します。
  * @returns {Promise<boolean>} 読み込みが成功したかを示すPromise
  */
-async function loadAllowedCalendars() {
+window.loadAllowedCalendars = async function() { // グローバル化
     const statusElement = document.getElementById('calendar_security_status');
     try {
         statusElement.textContent = '許可リストを読み込み中...';
@@ -127,7 +128,7 @@ async function loadAllowedCalendars() {
         let validCount = 0;
         let expiredCount = 0;
         
-        allowedCalendars = rawCalendars.map(calendar => {
+        window.allowedCalendars = rawCalendars.map(calendar => { // グローバル変数に代入
             const validUntilValue = calendar.valid_until || calendar['有効年月日'] || calendar['有効期限'];
             
             if (!validUntilValue || validUntilValue.trim() === '') {
@@ -198,7 +199,7 @@ async function loadAllowedCalendars() {
         statusElement.textContent = `❌ 許可リスト読み込み失敗: ${error.message}`;
         statusElement.className = 'calendar-security-status error';
         
-        allowedCalendars = [{
+        window.allowedCalendars = [{ // グローバル変数に代入
             calendar_id: INITIAL_PUBLIC_CALENDAR_ID,
             valid_until: '2099-12-31',
             company_name: '初期設定',
@@ -214,7 +215,7 @@ async function loadAllowedCalendars() {
  * @param {string} calendarId - チェックするカレンダーID
  * @returns {boolean} 許可リストに存在すればtrue、そうでなければfalse
  */
-function isCalendarAllowed(calendarId) {
+window.isCalendarAllowed = function(calendarId) { // グローバル化
     return allowedCalendars.some(allowed => allowed.calendar_id === calendarId);
 }
 
@@ -224,7 +225,7 @@ function isCalendarAllowed(calendarId) {
  * @param {string} calendarId - チェックするカレンダーID
  * @returns {boolean} 有効期限内であればtrue、そうでなければfalse
  */
-function isCalendarValid(calendarId) {
+window.isCalendarValid = function(calendarId) { // グローバル化
     const calendar = allowedCalendars.find(allowed => allowed.calendar_id === calendarId);
     return calendar && !calendar.isExpired;
 }
@@ -234,7 +235,7 @@ function isCalendarValid(calendarId) {
  * UIの表示と設定パネルの閉じられ制御を更新します。
  * `currentCalendarState` グローバル変数を更新します。
  */
-function checkCurrentCalendarStatus() {
+window.checkCurrentCalendarStatus = function() { // グローバル化
     const statusElement = document.getElementById('calendar_security_status');
     const foundCalendarInAllowedList = allowedCalendars.find(cal => cal.calendar_id === currentCalendarId);
     const closeButton = document.getElementById('close_settings_panel');
@@ -273,7 +274,7 @@ function checkCurrentCalendarStatus() {
  * Google Identity Services (GIS) クライアントを初期化し、
  * 書き込み操作のための認証フローを設定します。
  */
-function initGisClientForWrite() {
+window.initGisClientForWrite = function() { // グローバル化
     console.log('--- initGisClientForWrite: GISクライアント初期化中 ---');
     // ★ tokenClient がここで初期化され、グローバル変数に割り当てられる ★
     tokenClient = google.accounts.oauth2.initTokenClient({
@@ -329,7 +330,7 @@ function initGisClientForWrite() {
  * 認証が完了した後、現在選択されているカレンダーが適切であるかを確認し、
  * 必要に応じて適切なカレンダーに切り替えます。
  */
-async function checkCurrentCalendarAfterAuth() {
+window.checkCurrentCalendarAfterAuth = async function() { // グローバル化
     console.log('--- checkCurrentCalendarAfterAuth: 認証後のカレンダーチェック ---');
     
     // loadAllowedCalendars() を再度呼び出して、最新のCSV内容を反映
@@ -401,7 +402,7 @@ async function checkCurrentCalendarAfterAuth() {
  * 認証済みユーザーが書き込み可能なカレンダーのリストを取得し、設定パネルに表示します。
  * 許可リストでフィルタリングされ、期限切れのカレンダーも情報とともに表示されます。
  */
-async function listWritableCalendars() {
+window.listWritableCalendars = async function() { // グローバル化
     const writableCalendarListUl = document.getElementById('writable_calendar_list');
     writableCalendarListUl.innerHTML = '<li>カレンダーを読み込み中...</li>';
     displayError('');
@@ -413,6 +414,13 @@ async function listWritableCalendars() {
     }
 
     try {
+        // gapi.client.calendar が初期化されていることを確認
+        if (!gapi.client || !gapi.client.calendar || !gapi.client.calendar.calendarList) {
+            console.warn('gapi.client.calendar が未初期化またはAPIサービスが利用不可のため書き込み可能カレンダーリスト取得をスキップします。');
+            writableCalendarListUl.innerHTML = '<li>カレンダーリストのAPIが準備できていません。しばらくしてから再度お試しください。</li>';
+            return;
+        }
+
         const response = await gapi.client.calendar.calendarList.list();
         const allCalendars = response.result.items;
         const writableCalendars = allCalendars.filter(calendar => 
@@ -506,18 +514,25 @@ async function listWritableCalendars() {
  * これらのカレンダーはallowed_calendars.csvに登録されているかどうかを問いません。
  * 主にユーザーが自分のカレンダーIDを調べるために使用します。
  */
-async function listAccessibleCalendars() {
+window.listAccessibleCalendars = async function() { // グローバル化
     const accessibleCalendarListUl = document.getElementById('accessible_calendar_list');
     accessibleCalendarListUl.innerHTML = '<li>カレンダーを読み込み中...</li>';
     console.log('--- listAccessibleCalendars: アクセス可能カレンダーリスト取得中 ---');
 
-    if (!isAuthorizedForWrite) { // isAuthorizedForWriteスコープがあればcalendarList.listも許可されます
+    if (!isAuthorizedForWrite) { 
         accessibleCalendarListUl.innerHTML = '<li>Googleアカウントで認証すると、アクセス可能なカレンダーリストが表示されます。</li>';
-        document.getElementById('accessible_calendar_list_section').style.display = 'block'; // 認証促す表示のためセクションは表示
+        document.getElementById('accessible_calendar_list_section').style.display = 'block'; 
         return;
     }
 
     try {
+        // gapi.client.calendar が初期化されていることを確認
+        if (!gapi.client || !gapi.client.calendar || !gapi.client.calendar.calendarList) {
+            console.warn('gapi.client.calendar が未初期化またはAPIサービスが利用不可のためアクセス可能カレンダーリスト取得をスキップします。');
+            accessibleCalendarListUl.innerHTML = '<li>カレンダーリストのAPIが準備できていません。しばらくしてから再度お試しください。</li>';
+            return;
+        }
+
         const response = await gapi.client.calendar.calendarList.list();
         const allAccessibleCalendars = response.result.items;
 
