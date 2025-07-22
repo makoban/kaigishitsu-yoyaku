@@ -435,6 +435,26 @@
             color: #721c24;
         }
 
+        /* 追加：トップ期限切れ警告スタイル */
+        .top-expired-warning {
+            background-color: #dc3545;
+            color: white;
+            font-weight: bold;
+            padding: 15px 20px;
+            text-align: center;
+            font-size: 1.2em;
+            border-radius: var(--border-radius);
+            margin: 10px 0;
+            box-shadow: 0 4px 8px rgba(220, 53, 69, 0.3);
+            animation: pulse-warning 2s infinite;
+        }
+
+        @keyframes pulse-warning {
+            0% { opacity: 1; }
+            50% { opacity: 0.8; }
+            100% { opacity: 1; }
+        }
+
         /* 追加：期限切れカレンダー表示用スタイル */
         .expired-calendar-notice {
             background-color: #f8d7da;
@@ -941,7 +961,7 @@
         const LOCAL_STORAGE_SETTINGS_KEY = 'appSettings'; // 設定保存用キー
 
         // 追加：バージョン情報
-        const APP_VERSION = 'Ver1.36';
+        const APP_VERSION = 'Ver1.37';
 
         // 最小限追加：カレンダーID管理
         const GITHUB_PAGES_BASE_URL = window.location.origin + window.location.pathname.replace(/\/[^\/]*$/, '');
@@ -1155,7 +1175,41 @@
             }
         }
 
-        // 新規追加：期限切れカレンダー通知表示
+        // 新規追加：トップエリア期限切れ警告表示
+        function displayTopExpiredWarning() {
+            const announcementElement = document.getElementById('announcement_text');
+            if (!announcementElement) return;
+            
+            const currentCalendar = allowedCalendars.find(cal => cal.calendar_id === currentCalendarId);
+            const calendarName = currentCalendarSummary || currentCalendarId;
+            const companyName = currentCalendar ? currentCalendar.company_name : '';
+            const validUntil = currentCalendar ? currentCalendar.valid_until : '';
+            
+            announcementElement.innerHTML = `
+                <div class="top-expired-warning">
+                    🚫 使用不可: ${calendarName} (有効期限切れ: ${validUntil})
+                    <br>別のアカウントでログインしてください
+                </div>
+            `;
+            announcementElement.style.display = 'block';
+            
+            console.log('🚨 トップエリアに期限切れ警告を表示しました');
+        }
+
+        // 新規追加：トップエリア期限切れ警告クリア
+        function clearTopExpiredWarning() {
+            const announcementElement = document.getElementById('announcement_text');
+            if (!announcementElement) return;
+            
+            // 期限切れ警告がある場合のみクリア
+            if (announcementElement.innerHTML.includes('top-expired-warning')) {
+                announcementElement.innerHTML = '';
+                announcementElement.style.display = 'none';
+                console.log('✅ トップエリアの期限切れ警告をクリアしました');
+            }
+        }
+
+        // 新規追加：期限切れカレンダー通知表示（設定画面用）
         function displayExpiredCalendarNotice(expiredCalendar) {
             const errorContainer = document.getElementById('error_message');
             if (!errorContainer) return;
