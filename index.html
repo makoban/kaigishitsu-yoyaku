@@ -496,6 +496,44 @@
             outline: none;
         }
 
+        /* New section for Accessible Calendars */
+        #accessible_calendar_list_section {
+            margin-top: 25px;
+            padding-top: 25px;
+            border-top: 1px dashed var(--border-color);
+        }
+        #accessible_calendar_list {
+            list-style: none;
+            padding: 0;
+        }
+        #accessible_calendar_list li {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 8px 0;
+            border-bottom: 1px solid #f7f7f7;
+            font-size: 0.95em;
+            flex-wrap: wrap;
+        }
+        #accessible_calendar_list li:last-child {
+            border-bottom: none;
+        }
+        .copy-id-button {
+            padding: 5px 10px;
+            font-size: 0.8em;
+            background-color: #007BFF;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            margin-left: 10px;
+            transition: background-color 0.2s ease;
+        }
+        .copy-id-button:hover {
+            background-color: #0056B3;
+        }
+
+
         /* Main Content Area */
         #container {
             flex-grow: 1;
@@ -735,6 +773,17 @@
                 margin-bottom: 10px;
                 width: 100%;
             }
+            #accessible_calendar_list li {
+                flex-direction: column;
+                align-items: flex-start;
+            }
+            #accessible_calendar_list li span {
+                margin-bottom: 5px;
+            }
+            .copy-id-button {
+                margin-left: 0;
+                width: 100%;
+            }
         }
 
         @media (max-width: 480px) {
@@ -771,7 +820,7 @@
 </head>
 <body class="theme-stylish">
     <header>
-        <h1 id="main_app_title">会議室予約表示Ver1.4</h1>
+        <h1 id="main_app_title">会議室予約表示Ver1.5</h1>
         <button id="settings_button">設定</button> 
         <div id="version_info"></div>
         <span id="display_calendar_summary_top"></span>
@@ -806,11 +855,22 @@
                     ※認証後、表示・操作するカレンダーを選択してください。
                 </p>
                 <div id="calendar_selection_panel" style="display: none;">
-                    <div style="height: 3em; margin-bottom: 1em;"></div> <h4>表示・操作するカレンダーを選択</h4>
+                    <div style="height: 3em; margin-bottom: 1em;"></div> <h4>表示・操作するカレンダーを選択 (許可リスト登録済み)</h4>
                     <ul id="writable_calendar_list">
                         <li>認証後、カレンダーを読み込み中...</li>
                     </ul>
                 </div>
+
+                <div id="accessible_calendar_list_section" class="setting-group" style="display: none;">
+                    <h4>このアカウントでアクセス可能なカレンダー (CSV未登録含む)</h4>
+                    <p style="font-size: 0.85em; color: var(--light-text-color); margin-bottom: 10px;">
+                        ※ここに表示されたIDをCSVファイルに登録してご利用ください。
+                    </p>
+                    <ul id="accessible_calendar_list">
+                        <li>認証後、カレンダーを読み込み中...</li>
+                    </ul>
+                </div>
+
             </div>
             <div class="setting-group">
                 <h3>テーマ設定</h3>
