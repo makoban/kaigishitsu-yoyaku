@@ -54,6 +54,7 @@ const DEFAULT_SETTINGS = {
 };
 let appSettings = {}; // 現在のアプリ設定
 
+// ★この tokenClient が main.js から参照できるようにグローバルに定義されている必要があります★
 let tokenClient; 
 let isAuthorizedForWrite = false; 
 let currentCalendarId = INITIAL_PUBLIC_CALENDAR_ID; 
