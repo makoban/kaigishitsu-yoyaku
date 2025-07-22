@@ -370,6 +370,14 @@ window.checkCurrentCalendarAfterAuth = async function() { // グローバル化
     }
     
     try {
+        // gapi.client.calendar が初期化されていることを確認
+        if (!gapi.client || !gapi.client.calendar || !gapi.client.calendar.calendarList) {
+            console.warn('gapi.client.calendar が未初期化またはAPIサービスが利用不可のためカレンダーリストのチェックをスキップします。');
+            document.getElementById('auth_status').textContent = '⚠️ カレンダーリストAPIが準備できていません。しばらくしてから再度お試しください。';
+            document.getElementById('auth_status').style.color = 'orange';
+            return;
+        }
+
         const response = await gapi.client.calendar.calendarList.list();
         const accessibleCalendars = response.result.items || [];
         const writableCalendars = accessibleCalendars.filter(calendar => 
