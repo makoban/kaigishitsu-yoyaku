@@ -25,6 +25,8 @@
             --available-color: #a5d6a7; /* Light Green */
             --pre-announcement-bg-color: #add8e6; /* Light Blue for pre-announcement */
             --pre-announcement-text-color: #333;
+            --expired-bg-color: #dc3545; /* Red for expired */
+            --expired-text-color: white; /* White text for expired */
             --border-radius: 12px;
             --box-shadow: 0 4px 10px rgba(0,0,0,0.08);
             --base-font-size: 16px; /* 基本フォントサイズ */
@@ -49,6 +51,8 @@
             --available-color: #a1887f; /* Muted Green-Brown */
             --pre-announcement-bg-color: #8d6e63; /* Medium Brown */
             --pre-announcement-text-color: white;
+            --expired-bg-color: #c62828; /* Dark Red */
+            --expired-text-color: white;
             --border-radius: 4px; /* シャープな角 */
             --box-shadow: 0 2px 8px rgba(0,0,0,0.12);
         }
@@ -71,6 +75,8 @@
             --available-color: #85CEFF; /* Light blue for "Available" */
             --pre-announcement-bg-color: #64B5F6; /* Slightly darker blue for pre-announcement */
             --pre-announcement-text-color: white; /* White for pre-announcement text */
+            --expired-bg-color: #DC3545; /* Red for expired */
+            --expired-text-color: white;
             --border-radius: 8px; /* 標準的な角 */
             --box-shadow: 0 6px 20px rgba(0,0,0,0.1);
         }
@@ -189,6 +195,17 @@
         #announcement_text.available { /* 空室時のスタイル */
             background-color: var(--available-color);
             color: var(--text-color);
+        }
+        #announcement_text.expired { /* 期限切れ時のスタイル - 追加 */
+            background-color: var(--expired-bg-color);
+            color: var(--expired-text-color);
+            animation: pulse-warning 2s infinite;
+        }
+
+        @keyframes pulse-warning {
+            0% { opacity: 1; }
+            50% { opacity: 0.8; }
+            100% { opacity: 1; }
         }
 
         /* Settings Button */
@@ -447,12 +464,6 @@
             margin: 10px 0;
             box-shadow: 0 4px 8px rgba(220, 53, 69, 0.3);
             animation: pulse-warning 2s infinite;
-        }
-
-        @keyframes pulse-warning {
-            0% { opacity: 1; }
-            50% { opacity: 0.8; }
-            100% { opacity: 1; }
         }
 
         /* 追加：期限切れカレンダー表示用スタイル */
@@ -961,7 +972,7 @@
         const LOCAL_STORAGE_SETTINGS_KEY = 'appSettings'; // 設定保存用キー
 
         // 追加：バージョン情報
-        const APP_VERSION = 'Ver1.37';
+        const APP_VERSION = 'Ver1.37-Fixed';
 
         // 最小限追加：カレンダーID管理
         const GITHUB_PAGES_BASE_URL = window.location.origin + window.location.pathname.replace(/\/[^\/]*$/, '');
@@ -1163,6 +1174,9 @@
                 // 設定画面を強制的に開く
                 document.getElementById('settings_panel').classList.add('open');
                 
+                // トップ画面に期限切れ警告を表示 - 修正: ここを追加
+                displayTopExpiredWarning();
+                
                 // 期限切れの場合は赤色表示 + 他アカウント促し
                 const currentCalendar = allowedCalendars.find(cal => cal.calendar_id === currentCalendarId);
                 if (currentCalendar && currentCalendar.isExpired) {
@@ -1172,38 +1186,43 @@
                 }
             } else {
                 console.log('✅ 現在のカレンダーは有効です');
+                // 有効な場合は期限切れ警告をクリア - 修正: ここを追加
+                clearTopExpiredWarning();
             }
         }
 
-        // 新規追加：トップエリア期限切れ警告表示
+        // 修正：トップエリア期限切れ警告表示
         function displayTopExpiredWarning() {
+            console.log('🚨 displayTopExpiredWarning が呼び出されました');
+            
             const announcementElement = document.getElementById('announcement_text');
-            if (!announcementElement) return;
+            if (!announcementElement) {
+                console.error('❌ announcement_text 要素が見つかりません');
+                return;
+            }
             
             const currentCalendar = allowedCalendars.find(cal => cal.calendar_id === currentCalendarId);
             const calendarName = currentCalendarSummary || currentCalendarId;
             const companyName = currentCalendar ? currentCalendar.company_name : '';
             const validUntil = currentCalendar ? currentCalendar.valid_until : '';
             
-            announcementElement.innerHTML = `
-                <div class="top-expired-warning">
-                    🚫 使用不可: ${calendarName} (有効期限切れ: ${validUntil})
-                    <br>別のアカウントでログインしてください
-                </div>
-            `;
+            // 期限切れ専用のクラスを追加
+            announcementElement.classList.remove('available');
+            announcementElement.classList.add('expired');
+            announcementElement.textContent = `🚫 使用不可: ${calendarName} (有効期限切れ: ${validUntil}) - 別のアカウントでログインしてください`;
             announcementElement.style.display = 'block';
             
-            console.log('🚨 トップエリアに期限切れ警告を表示しました');
+            console.log('🚨 トップエリアに期限切れ警告を表示しました:', announcementElement.textContent);
         }
 
-        // 新規追加：トップエリア期限切れ警告クリア
+        // 修正：トップエリア期限切れ警告クリア
         function clearTopExpiredWarning() {
             const announcementElement = document.getElementById('announcement_text');
             if (!announcementElement) return;
             
-            // 期限切れ警告がある場合のみクリア
-            if (announcementElement.innerHTML.includes('top-expired-warning')) {
-                announcementElement.innerHTML = '';
+            // 期限切れクラスがある場合のみクリア
+            if (announcementElement.classList.contains('expired')) {
+                announcementElement.classList.remove('expired');
                 announcementElement.style.display = 'none';
                 console.log('✅ トップエリアの期限切れ警告をクリアしました');
             }
@@ -1211,7 +1230,7 @@
 
         // 新規追加：期限切れカレンダー通知表示（設定画面用）
         function displayExpiredCalendarNotice(expiredCalendar) {
-            const errorContainer = document.getElementById('error_message');
+            const errorContainer = document.getElementById('error_display');
             if (!errorContainer) return;
             
             const companyName = expiredCalendar.company_name || '不明';
@@ -1334,7 +1353,18 @@
                 
                 if (clickCount === 1) {
                     clickTimer = setTimeout(() => {
-                        // 通常のクリック処理
+                        // 通常のクリック処理 - 修正: 期限チェック追加
+                        console.log('--- 更新ボタンがクリックされました ---');
+                        
+                        // 期限切れチェックを実行
+                        if (!isCalendarValid(currentCalendarId)) {
+                            console.log('🚨 更新時: カレンダーが期限切れです');
+                            checkAndControlSettingsAccess();
+                        } else {
+                            // 期限切れ警告をクリア
+                            clearTopExpiredWarning();
+                        }
+                        
                         listEvents();
                         clickCount = 0;
                     }, 400); // 400ms待つ
@@ -1735,8 +1765,19 @@
                     allowedWritableCalendars.forEach(calendar => {
                         const li = document.createElement('li');
                         const isCurrent = (calendar.id === currentCalendarId) ? ' (現在選択中)' : '';
+                        
+                        // 修正：期限表示を追加
+                        const allowedCalendar = allowedCalendars.find(allowed => allowed.calendar_id === calendar.id);
+                        const expiryInfo = allowedCalendar ? getExpiryDisplay(allowedCalendar.valid_until) : { text: '期限不明', class: 'expired' };
+                        
                         li.innerHTML = `
-                            <span>${calendar.summary}${isCurrent}</span>
+                            <div class="calendar-info">
+                                <div class="calendar-name">${calendar.summary}${isCurrent}</div>
+                                <div class="calendar-details">
+                                    ${allowedCalendar ? allowedCalendar.company_name || '' : ''}
+                                    <span class="calendar-expiry ${expiryInfo.class}">${expiryInfo.text}</span>
+                                </div>
+                            </div>
                             <button class="select-button" 
                                 data-calendar-id="${calendar.id}" 
                                 data-calendar-summary="${calendar.summary}">選択</button>
@@ -1764,9 +1805,16 @@
                             currentCalendarSummary = newActiveSummary;
                             updateDisplayedCalendarInfo(); 
                             console.log(`✅ アクティブカレンダーが選択・保存されました: ${currentCalendarSummary} (${currentCalendarId})`);
+                            
+                            // 修正：カレンダー切り替え時に期限チェック
+                            checkAndControlSettingsAccess();
+                            
                             listEvents(); 
                             
-                            document.getElementById('settings_panel').classList.remove('open'); 
+                            // 期限切れでない場合のみ設定画面を閉じる
+                            if (canCloseSettings) {
+                                document.getElementById('settings_panel').classList.remove('open'); 
+                            }
                         };
                     });
                 } else {
@@ -1808,7 +1856,16 @@
                 clearInterval(refreshIntervalId); 
             }
             // appSettingsから更新間隔を取得 (秒をミリ秒に変換)
-            refreshIntervalId = setInterval(listEvents, appSettings.refreshInterval * 1000);
+            refreshIntervalId = setInterval(() => {
+                // 修正：自動更新時にも期限チェック
+                if (!isCalendarValid(currentCalendarId)) {
+                    console.log('🚨 自動更新時: カレンダーが期限切れです');
+                    checkAndControlSettingsAccess();
+                } else {
+                    clearTopExpiredWarning();
+                }
+                listEvents();
+            }, appSettings.refreshInterval * 1000);
             console.log(`--- 自動更新を開始しました: ${appSettings.refreshInterval}秒間隔 ---`);
         }
 
@@ -1816,12 +1873,19 @@
             const eventListUl = document.getElementById('event_list');
             displayError(''); 
 
-            // 最小限追加：現在のカレンダーIDの許可チェック
+            // 修正：現在のカレンダーIDの許可チェック強化
             if (!isCalendarAllowed(currentCalendarId)) {
-                console.error(`❌ 現在のカレンダーID (${currentCalendarId}) は許可されていないか、有効期限が切れています。`);
-                displayError('現在選択中のカレンダーは許可されていないか、有効期限が切れています。設定から別のカレンダーを選択してください。');
-                eventListUl.innerHTML = '<li class="error-message">許可されていないか期限切れのカレンダーです。</li>';
+                console.error(`❌ 現在のカレンダーID (${currentCalendarId}) は許可されていません。`);
+                displayError('現在選択中のカレンダーは許可されていません。設定から別のカレンダーを選択してください。');
+                eventListUl.innerHTML = '<li class="error-message">許可されていないカレンダーです。</li>';
                 return;
+            }
+            
+            // 修正：期限切れチェックを追加し、期限切れでもイベント表示は行うが警告表示
+            if (!isCalendarValid(currentCalendarId)) {
+                console.warn(`⚠️ 現在のカレンダーID (${currentCalendarId}) は有効期限が切れています。`);
+                displayTopExpiredWarning();
+                // 期限切れでもイベント表示は継続（読み取り専用として）
             }
 
             const now = new Date();
@@ -1955,7 +2019,7 @@
             }
         }
         
-        // イベントのハイライトと案内文だけを更新する関数
+        // 修正：イベントのハイライトと案内文更新（期限切れ考慮）
         function updateEventHighlightsAndAnnouncement(events) {
             const now = new Date();
             let currentEventFound = false;
@@ -2016,30 +2080,40 @@
                 preAnnouncementTextElement.style.display = 'block'; // 常に表示
             }
 
-            // 現在の案内文（使用中 or 空室）の表示更新
+            // 修正：現在の案内文（使用中 or 空室 or 期限切れ）の表示更新
             const announcementTextElement = document.getElementById('announcement_text');
+            
+            // 期限切れチェックを最優先
+            if (!isCalendarValid(currentCalendarId)) {
+                // 期限切れの場合は期限切れ警告を優先表示
+                displayTopExpiredWarning();
+                return; // 他の案内文は表示しない
+            }
+            
             if (currentEventFound) {
                 announcementTextElement.textContent = `${appSettings.inProgressPrefix}「${currentEventSummary}」${appSettings.inProgressSuffix}`;
-                announcementTextElement.classList.remove('available'); 
+                announcementTextElement.classList.remove('available', 'expired'); 
                 announcementTextElement.style.display = 'block';
             } else { // 進行中のイベントがない場合
                 announcementTextElement.textContent = appSettings.availableText;
+                announcementTextElement.classList.remove('expired');
                 announcementTextElement.classList.add('available'); 
                 announcementTextElement.style.display = 'block'; 
             }
         }
 
-        // 予約・削除ボタンの有効/無効を切り替える関数
+        // 修正：予約・削除ボタンの有効/無効を切り替える関数（期限切れ考慮）
         function updateActionButtonStates() {
             const add30Button = document.getElementById('add_30min_event_button');
             const add60Button = document.getElementById('add_60min_event_button');
             const deleteButtons = document.querySelectorAll('.event-delete-button');
 
-            // 最小限追加：許可チェックも含める
+            // 修正：期限切れチェックも含める
             const isCurrentCalendarAllowed = isCalendarAllowed(currentCalendarId);
-            const canPerformOperations = isAuthorizedForWrite && isCurrentCalendarAllowed;
+            const isCurrentCalendarValid = isCalendarValid(currentCalendarId);
+            const canPerformOperations = isAuthorizedForWrite && isCurrentCalendarAllowed && isCurrentCalendarValid;
 
-            // 認証状態と許可状態に応じてボタンを有効/無効化
+            // 認証状態、許可状態、期限状態に応じてボタンを有効/無効化
             add30Button.disabled = !canPerformOperations;
             add60Button.disabled = !canPerformOperations;
 
@@ -2047,7 +2121,7 @@
                 button.disabled = !canPerformOperations;
             });
 
-            console.log(`ℹ️ 操作ボタンの状態を更新しました。認証済み: ${isAuthorizedForWrite}, カレンダー許可: ${isCurrentCalendarAllowed}`);
+            console.log(`ℹ️ 操作ボタンの状態を更新しました。認証済み: ${isAuthorizedForWrite}, カレンダー許可: ${isCurrentCalendarAllowed}, カレンダー有効: ${isCurrentCalendarValid}`);
         }
 
         async function handleAddEvent(durationMinutes) {
@@ -2062,10 +2136,18 @@
                 return;
             }
 
-            // 最小限追加：カレンダーID許可チェック
+            // 修正：カレンダーID許可チェック強化
             if (!isCalendarAllowed(currentCalendarId)) {
-                displayError('現在選択中のカレンダーは許可されていないか、有効期限が切れています。設定から別のカレンダーを選択してください。');
-                console.log(`🚨 イベント追加: カレンダーID (${currentCalendarId}) が許可されていないか期限切れです。`);
+                displayError('現在選択中のカレンダーは許可されていません。設定から別のカレンダーを選択してください。');
+                console.log(`🚨 イベント追加: カレンダーID (${currentCalendarId}) が許可されていません。`);
+                return;
+            }
+            
+            // 修正：期限切れチェック追加
+            if (!isCalendarValid(currentCalendarId)) {
+                displayError('現在選択中のカレンダーは有効期限が切れています。別のアカウントでログインするか、有効なカレンダーを選択してください。');
+                console.log(`🚨 イベント追加: カレンダーID (${currentCalendarId}) が期限切れです。`);
+                document.getElementById('settings_panel').classList.add('open');
                 return;
             }
 
@@ -2115,10 +2197,18 @@
                 return;
             }
 
-            // 最小限追加：カレンダーID許可チェック
+            // 修正：カレンダーID許可チェック強化
             if (!isCalendarAllowed(currentCalendarId)) {
-                displayError('現在選択中のカレンダーは許可されていないか、有効期限が切れています。設定から別のカレンダーを選択してください。');
-                console.log(`🚨 イベント削除: カレンダーID (${currentCalendarId}) が許可されていないか期限切れです。`);
+                displayError('現在選択中のカレンダーは許可されていません。設定から別のカレンダーを選択してください。');
+                console.log(`🚨 イベント削除: カレンダーID (${currentCalendarId}) が許可されていません。`);
+                return;
+            }
+            
+            // 修正：期限切れチェック追加
+            if (!isCalendarValid(currentCalendarId)) {
+                displayError('現在選択中のカレンダーは有効期限が切れています。別のアカウントでログインするか、有効なカレンダーを選択してください。');
+                console.log(`🚨 イベント削除: カレンダーID (${currentCalendarId}) が期限切れです。`);
+                document.getElementById('settings_panel').classList.add('open');
                 return;
             }
 
