@@ -8,6 +8,8 @@ const CLIENT_ID = '155458326593-redrcpnqa2iqapvg8p1kb3cgegeenvse.apps.googleuser
 
 const DISCOVERY_DOCS = ["https://www.googleapis.com/discovery/v1/apis/calendar/v3/rest"];
 const WRITE_SCOPES = 'https://www.googleapis.com/auth/calendar.events'; 
+// 'https://www.googleapis.com/auth/calendar.readonly' はカレンダーリスト取得に十分ですが、
+// 'calendar.events' (書き込み権限を含む) があれば、通常 'calendar.readonly' もカバーします。
 
 const LOCAL_STORAGE_ACTIVE_CALENDAR_ID_KEY = 'activeCalendarId';
 const LOCAL_STORAGE_ACTIVE_CALENDAR_SUMMARY_KEY = 'activeCalendarSummary';
@@ -44,6 +46,8 @@ window.DEFAULT_SETTINGS = { // グローバルアクセス可能に
 };
 window.appSettings = {}; 
 
+// ★この tokenClient が main.js から参照できるようにグローバルに定義されている必要があります★
+// gapi.clientオブジェクトもグローバルで共有されるため、Windowオブジェクトに明示的に割り当てることが推奨される
 window.tokenClient; 
 window.isAuthorizedForWrite = false; 
 window.currentCalendarId = INITIAL_PUBLIC_CALENDAR_ID; 
