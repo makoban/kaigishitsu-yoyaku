@@ -8,12 +8,16 @@ const CLIENT_ID = '155458326593-redrcpnqa2iqapvg8p1kb3cgegeenvse.apps.googleuser
 
 const DISCOVERY_DOCS = ["https://www.googleapis.com/discovery/v1/apis/calendar/v3/rest"];
 const WRITE_SCOPES = 'https://www.googleapis.com/auth/calendar.events'; 
+// 広範なカレンダー情報へのアクセスも必要になるため、可能であれば追加のスコープ検討も
+// 'https://www.googleapis.com/auth/calendar.readonly' はカレンダーリスト取得に十分ですが、
+// 'calendar.events' (書き込み権限を含む) があれば、通常 'calendar.readonly' もカバーします。
+// ただし、もし calendarList.list で公開カレンダーのみ表示するなどの要件があれば、個別に検討が必要です。
 
 const LOCAL_STORAGE_ACTIVE_CALENDAR_ID_KEY = 'activeCalendarId';
 const LOCAL_STORAGE_ACTIVE_CALENDAR_SUMMARY_KEY = 'activeCalendarSummary';
 const LOCAL_STORAGE_SETTINGS_KEY = 'appSettings'; 
 
-const APP_VERSION = 'Ver1.4'; // バージョンをVer1.4に変更
+const APP_VERSION = 'Ver1.5'; // バージョンをVer1.5に変更
 
 const GITHUB_PAGES_BASE_URL = window.location.origin + window.location.pathname.replace(/\/[^\/]*$/, '');
 const ALLOWED_CALENDARS_CSV_PATH = GITHUB_PAGES_BASE_URL + '/allowed_calendars.csv';
@@ -45,7 +49,7 @@ const DEFAULT_SETTINGS = {
     eventSummary: "緊急会議",
     lastEvents: [], // 最後に取得したイベントデータをここに保存（案内文用）
     theme: "stylish", // デフォルトテーマをstylishに設定
-    mainTitle: "会議室予約表示Ver1.4", // メインタイトルのデフォルト値
+    mainTitle: "会議室予約表示Ver1.5", // メインタイトルのデフォルト値
     eventListTitle: "現在の会議室の予定" // イベントリストタイトルのデフォルト値
 };
 let appSettings = {}; // 現在のアプリ設定
