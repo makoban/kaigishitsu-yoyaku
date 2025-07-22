@@ -46,6 +46,11 @@ document.addEventListener('DOMContentLoaded', () => {
             checkCurrentCalendarStatus(); // 設定パネルを開いた際に状態をチェック
             if (isAuthorizedForWrite) {
                 listWritableCalendars(); 
+                listAccessibleCalendars(); // 追加: アクセス可能なカレンダーリストを表示
+            } else {
+                // 認証されていない場合は、アクセス可能リストのセクションを表示するが、内容は認証を促すメッセージ
+                document.getElementById('accessible_calendar_list_section').style.display = 'block';
+                document.getElementById('accessible_calendar_list').innerHTML = '<li>Googleアカウントで認証すると、アクセス可能なカレンダーリストが表示されます。</li>';
             }
         } else {
             displayError(''); // パネルが閉じたらエラー表示をクリア
@@ -271,7 +276,7 @@ async function listEvents() {
             errorMessageText = 'APIの初期化に失敗しました。';
         }
         displayError(errorMessageText + '設定から別のカレンダーを選択してください。');
-        eventListUl.innerHTML = `<li class="error-message">イベントの読み込みに失敗しました。${errorMessageText}</li>`; // エラーメッセージを追加
+        eventListUl.innerHTML = `<li class="error-message">イベントの読み込みに失敗しました。${errorMessageText}</li>`; 
         updateActionButtonStates(); 
         return;
     }
