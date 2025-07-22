@@ -275,6 +275,7 @@ function checkCurrentCalendarStatus() {
  */
 function initGisClientForWrite() {
     console.log('--- initGisClientForWrite: GISクライアント初期化中 ---');
+    // ★ tokenClient がここで初期化され、グローバル変数に割り当てられる ★
     tokenClient = google.accounts.oauth2.initTokenClient({
         client_id: CLIENT_ID,
         scope: WRITE_SCOPES,
@@ -291,9 +292,11 @@ function initGisClientForWrite() {
                 document.getElementById('accessible_calendar_list_section').style.display = 'block'; // 追加: アクセス可能リストを表示
                 console.log('✅ 書き込み権限のためのアクセストークンを取得しました。');
                 
+                // 認証成功後、カレンダー状態を再チェックし、リストを更新
                 checkCurrentCalendarAfterAuth(); 
                 listWritableCalendars(); 
                 listAccessibleCalendars(); // 追加: アクセス可能なカレンダーリストを表示
+                updateActionButtonStates(); // ボタンの状態を更新
             } else {
                 isAuthorizedForWrite = false;
                 document.getElementById('auth_status').textContent = '操作権限の認証に失敗しました。';
@@ -304,6 +307,7 @@ function initGisClientForWrite() {
                 document.getElementById('accessible_calendar_list_section').style.display = 'none'; // 追加: アクセス可能リストを非表示
                 console.error('❌ 書き込み権限のためのアクセストークン取得に失敗しました。', tokenResponse);
                 checkCurrentCalendarStatus(); 
+                updateActionButtonStates(); // ボタンの状態を更新
             }
         },
         error_callback: (error) => {
@@ -316,6 +320,7 @@ function initGisClientForWrite() {
             document.getElementById('accessible_calendar_list_section').style.display = 'none'; // 追加: アクセス可能リストを非表示
             console.error('❌ GISトークンクライアントエラー（書き込み用）:', error);
             checkCurrentCalendarStatus(); 
+            updateActionButtonStates(); // ボタンの状態を更新
         }
     });
 }
