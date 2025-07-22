@@ -144,7 +144,7 @@ document.addEventListener('DOMContentLoaded', () => {
     mainTitleInput.onchange = (e) => { appSettings.mainTitle = e.target.value; saveSettings(); updateDisplayTitles(); }; 
     eventListTitleInput.onchange = (e) => { appSettings.eventListTitle = e.target.value; saveSettings(); updateDisplayTitles(); }; 
     availableTextInput.onchange = (e) => { appSettings.availableText = e.target.value; saveSettings(); updateEventHighlightsAndAnnouncement(appSettings.lastEvents || []); }; 
-    inProgressPrefixInput.onchange = (e) => { appSettings.inProgressPrefix = e.target.value; saveSettings(); updateEventHighlightsAndouncement(appSettings.lastEvents || []); };
+    inProgressPrefixInput.onchange = (e) => { appSettings.inProgressPrefix = e.target.value; saveSettings(); updateEventHighlightsAndAnnouncement(appSettings.lastEvents || []); };
     inProgressSuffixInput.onchange = (e) => { appSettings.inProgressSuffix = e.target.value; saveSettings(); updateEventHighlightsAndAnnouncement(appSettings.lastEvents || []); };
     preAnnouncementMinutesSelect.onchange = (e) => { appSettings.preAnnouncementMinutes = parseInt(e.target.value); saveSettings(); updateEventHighlightsAndAnnouncement(appSettings.lastEvents || []); }; 
     preAnnouncementPrefixInput.onchange = (e) => { appSettings.preAnnouncementPrefix = e.target.value; saveSettings(); updateEventHighlightsAndAnnouncement(appSettings.lastEvents || []); }; 
@@ -271,7 +271,7 @@ async function listEvents() {
             errorMessageText = 'APIの初期化に失敗しました。';
         }
         displayError(errorMessageText + '設定から別のカレンダーを選択してください。');
-        eventListUl.innerHTML = `<li class="error-message">${errorMessageText}</li>`;
+        eventListUl.innerHTML = `<li class="error-message">イベントの読み込みに失敗しました。${errorMessageText}</li>`; // エラーメッセージを追加
         updateActionButtonStates(); 
         return;
     }
@@ -393,8 +393,13 @@ async function listEvents() {
 
     } catch (err) {
         console.error(`❌ イベントの取得エラー (${currentCalendarId}):`, err.result ? err.result.error : err);
-        displayError(`イベントの取得中にエラーが発生しました: ${err.result && err.result.error && err.result.error.message ? err.result.error.message : err.message}`);
-        eventListUl.innerHTML = '<li class="error-message">イベントの読み込みに失敗しました。</li>';
+        // APIエラー時の表示を強化
+        let apiErrorMessage = 'イベントの読み込みに失敗しました。';
+        if (err.result && err.result.error && err.result.error.message) {
+            apiErrorMessage += `エラー: ${err.result.error.message}`;
+        }
+        displayError(apiErrorMessage);
+        eventListUl.innerHTML = `<li class="error-message">${apiErrorMessage}</li>`;
         updateActionButtonStates(); 
     }
 }
