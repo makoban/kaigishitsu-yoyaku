@@ -30,7 +30,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const mainTitleInput = document.getElementById('main_title_input'); 
     const eventListTitleInput = document.getElementById('event_list_title_input'); 
     const availableTextInput = document.getElementById('available_text_input');
-    const inProgressPrefixInput = document = document.getElementById('in_progress_prefix_input');
+    const inProgressPrefixInput = document.getElementById('in_progress_prefix_input');
     const inProgressSuffixInput = document.getElementById('in_progress_suffix_input');
     const preAnnouncementMinutesSelect = document.getElementById('pre_announcement_minutes_select'); 
     const preAnnouncementPrefixInput = document.getElementById('pre_announcement_prefix_input'); 
@@ -161,8 +161,8 @@ document.addEventListener('DOMContentLoaded', () => {
     authorizeButton.onclick = () => {
         console.log('--- Googleアカウントで認証ボタンがクリックされました（操作用）。認証フローを開始します。---');
         // tokenClient が初期化されていることを確認してから呼び出す
-        if (tokenClient) {
-            tokenClient.requestAccessToken({ prompt: 'consent', ux_mode: 'popup' }); 
+        if (window.tokenClient) { // window.tokenClient に変更
+            window.tokenClient.requestAccessToken({ prompt: 'consent', ux_mode: 'popup' }); 
         } else {
             console.error('認証クライアント (tokenClient) がまだ初期化されていません。しばらくお待ちください。');
             displayError('認証機能の準備ができていません。ページを再読み込みするか、しばらくしてからもう一度お試しください。');
@@ -171,8 +171,8 @@ document.addEventListener('DOMContentLoaded', () => {
     switchAccountButton.onclick = () => { 
         console.log('--- 別のアカウントで認証ボタンがクリックされました。アカウント選択を強制します。---');
         // tokenClient が初期化されていることを確認してから呼び出す
-        if (tokenClient) {
-            tokenClient.requestAccessToken({ prompt: 'select_account', ux_mode: 'popup' }); 
+        if (window.tokenClient) { // window.tokenClient に変更
+            window.tokenClient.requestAccessToken({ prompt: 'select_account', ux_mode: 'popup' }); 
         } else {
             console.error('認証クライアント (tokenClient) がまだ初期化されていません。しばらくお待ちください。');
             displayError('認証機能の準備ができていません。ページを再読み込みするか、しばらくしてからもう一度お試しください。');
@@ -195,13 +195,11 @@ document.addEventListener('DOMContentLoaded', () => {
         console.log('--- gapiクライアントロードを開始 ---');
         gapi.load('client', () => { // gapiクライアントのロード完了後に実行
             initGapiClientForRead(); // gapiクライアントの初期化
-            // initGisClientForWrite() は initGapiClientForRead() の中で非同期に呼び出されるため、
-            // tokenClient の準備にはさらに時間がかかる可能性がある。
-            // ユーザーがクリックするまで待機させるのがベスト。
-
-            // 初期ロード時にイベントを表示し、自動更新を開始
-            listEvents(); 
-            startAutoRefresh(); 
+            // gapi.client.init() が完了するのを待ってからイベントリストを取得し、自動更新を開始
+            // initGapiClientForRead() の中で gapi.client.init().then(...) が呼ばれるため、
+            // そのthenブロックの中で listEvents() と startAutoRefresh() を呼び出すのが正しい順序。
+            // ここでの直接の呼び出しは、initGapiClientForReadが非同期完了する前に実行されてしまう。
+            // 以下の listEvents() と startAutoRefresh() の呼び出しは initGapiClientForRead() のthen() ブロック内に移動済み。
         });
     });
 });
@@ -248,6 +246,11 @@ function initGapiClientForRead() {
         
         checkCurrentCalendarStatus(); 
         updateDisplayedCalendarInfo();
+
+        // ★★★ ここで listEvents() と startAutoRefresh() を呼び出すように変更 ★★★
+        // gapi.client が完全に初期化され、APIサービスが利用可能になってからイベントリストの取得を開始
+        listEvents(); 
+        startAutoRefresh(); 
 
         console.log('--- initGapiClientForRead: GISクライアント初期化を開始（書き込み操作用） ---');
         initGisClientForWrite();
@@ -305,6 +308,15 @@ async function listEvents() {
     console.log(`--- listEvents: イベント取得を試みます。カレンダーID: ${currentCalendarId}, 期間: ${timeMin} から ${timeMax} ---`);
 
     try {
+        // gapi.client.calendar.events が初期化されていることを再確認
+        if (!gapi.client || !gapi.client.calendar || !gapi.client.calendar.events) {
+            console.error('gapi.client.calendar.events が未初期化のためイベント取得をスキップします。');
+            displayError('APIサービスが準備できていません。しばらくしてからページを再読み込みしてください。');
+            eventListUl.innerHTML = `<li class="error-message">APIサービスが準備できていません。</li>`;
+            updateActionButtonStates();
+            return;
+        }
+
         const response = await gapi.client.calendar.events.list({
             'calendarId': currentCalendarId,
             'timeMin': timeMin,
@@ -419,6 +431,8 @@ async function listEvents() {
         let apiErrorMessage = 'イベントの読み込みに失敗しました。';
         if (err.result && err.result.error && err.result.error.message) {
             apiErrorMessage += `エラー: ${err.result.error.message}`;
+        } else if (err.status === 401 || err.status === 403) { // 401/403エラー時の具体的なメッセージ
+            apiErrorMessage += '権限エラー: GoogleカレンダーAPIへのアクセスが許可されていません。GCPの設定（APIキー、OAuth同意画面、カレンダー共有設定）を確認してください。';
         }
         displayError(apiErrorMessage);
         eventListUl.innerHTML = `<li class="error-message">${apiErrorMessage}</li>`;
@@ -501,7 +515,7 @@ function updateActionButtonStates() {
     const add60Button = document.getElementById('add_60min_event_button');
     const deleteButtons = document.querySelectorAll('.event-delete-button');
 
-    const canPerformOperations = isAuthorizedForWrite && currentCalendarState === 'ok';
+    const canPerformOperations = window.isAuthorizedForWrite && window.currentCalendarState === 'ok'; // window経由でアクセス
 
     add30Button.disabled = !canPerformOperations;
     add60Button.disabled = !canPerformOperations;
@@ -510,7 +524,7 @@ function updateActionButtonStates() {
         button.disabled = !canPerformOperations;
     });
 
-    console.log(`ℹ️ 操作ボタンの状態を更新しました。認証済み: ${isAuthorizedForWrite}, カレンダー状態: ${currentCalendarState}`);
+    console.log(`ℹ️ 操作ボタンの状態を更新しました。認証済み: ${window.isAuthorizedForWrite}, カレンダー状態: ${window.currentCalendarState}`);
 }
 
 /**
@@ -521,7 +535,7 @@ function updateActionButtonStates() {
 async function handleAddEvent(durationMinutes) {
     checkCurrentCalendarStatus(); 
 
-    if (!isAuthorizedForWrite) {
+    if (!window.isAuthorizedForWrite) { // window経由でアクセス
         document.getElementById('settings_panel').classList.add('open');
         document.getElementById('auth_status').textContent = `イベントを追加するにはGoogleアカウントで認証してください。`;
         document.getElementById('auth_status').style.color = 'blue';
@@ -588,7 +602,7 @@ async function handleAddEvent(durationMinutes) {
 async function handleDeleteEvent(eventIdToDelete) {
     checkCurrentCalendarStatus(); 
 
-    if (!isAuthorizedForWrite) {
+    if (!window.isAuthorizedForWrite) { // window経由でアクセス
         document.getElementById('settings_panel').classList.add('open');
         document.getElementById('auth_status').textContent = `イベントを削除するにはGoogleアカウントで認証してください。`;
         document.getElementById('auth_status').style.color = 'blue';
