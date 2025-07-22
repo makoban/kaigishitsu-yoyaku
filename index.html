@@ -789,7 +789,6 @@
             <h2>設定</h2>
             <hr>
             
-            <!-- 最小限追加：カレンダーセキュリティ状態表示 -->
             <div class="setting-group">
                 <h3>🔐 カレンダーセキュリティ</h3>
                 <div id="calendar_security_status" class="calendar-security-status">
@@ -1157,7 +1156,7 @@
 
         // 新規追加：期限切れカレンダー通知表示
         function displayExpiredCalendarNotice(expiredCalendar) {
-            const errorContainer = document.getElementById('error_message');
+            const errorContainer = document.getElementById('error_display');
             if (!errorContainer) return;
             
             const companyName = expiredCalendar.company_name || '不明';
@@ -2090,3 +2089,4 @@
     </script>
 </body>
 </html>
+[cite_start]``` [cite: 1]
