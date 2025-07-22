@@ -288,10 +288,12 @@ function initGisClientForWrite() {
                 document.getElementById('authorize_button').style.display = 'none'; 
                 document.getElementById('switch_account_button').style.display = 'block'; 
                 document.getElementById('calendar_selection_panel').style.display = 'block'; 
+                document.getElementById('accessible_calendar_list_section').style.display = 'block'; // 追加: アクセス可能リストを表示
                 console.log('✅ 書き込み権限のためのアクセストークンを取得しました。');
                 
                 checkCurrentCalendarAfterAuth(); 
                 listWritableCalendars(); 
+                listAccessibleCalendars(); // 追加: アクセス可能なカレンダーリストを表示
             } else {
                 isAuthorizedForWrite = false;
                 document.getElementById('auth_status').textContent = '操作権限の認証に失敗しました。';
@@ -299,6 +301,7 @@ function initGisClientForWrite() {
                 document.getElementById('authorize_button').style.display = 'block'; 
                 document.getElementById('switch_account_button').style.display = 'none'; 
                 document.getElementById('calendar_selection_panel').style.display = 'none'; 
+                document.getElementById('accessible_calendar_list_section').style.display = 'none'; // 追加: アクセス可能リストを非表示
                 console.error('❌ 書き込み権限のためのアクセストークン取得に失敗しました。', tokenResponse);
                 checkCurrentCalendarStatus(); 
             }
@@ -310,6 +313,7 @@ function initGisClientForWrite() {
             document.getElementById('authorize_button').style.display = 'block'; 
             document.getElementById('switch_account_button').style.display = 'none'; 
             document.getElementById('calendar_selection_panel').style.display = 'none'; 
+            document.getElementById('accessible_calendar_list_section').style.display = 'none'; // 追加: アクセス可能リストを非表示
             console.error('❌ GISトークンクライアントエラー（書き込み用）:', error);
             checkCurrentCalendarStatus(); 
         }
@@ -323,6 +327,9 @@ function initGisClientForWrite() {
 async function checkCurrentCalendarAfterAuth() {
     console.log('--- checkCurrentCalendarAfterAuth: 認証後のカレンダーチェック ---');
     
+    // loadAllowedCalendars() を再度呼び出して、最新のCSV内容を反映
+    await loadAllowedCalendars();
+
     const foundCalendar = allowedCalendars.find(cal => cal.calendar_id === currentCalendarId);
 
     if (!foundCalendar || foundCalendar.isExpired) {
@@ -382,6 +389,7 @@ async function checkCurrentCalendarAfterAuth() {
         document.getElementById('auth_status').style.color = 'orange';
     }
     checkCurrentCalendarStatus(); 
+    updateActionButtonStates(); // 認証後、ボタンの状態も更新を確実にする
 }
 
 /**
@@ -489,12 +497,63 @@ async function listWritableCalendars() {
 }
 
 /**
- * メイン画面とヘッダーに表示されるカレンダー情報を更新します。
+ * 認証済みユーザーがアクセス可能な全てのカレンダーのリストを取得し、設定パネルに表示します。
+ * これらのカレンダーはallowed_calendars.csvに登録されているかどうかを問いません。
+ * 主にユーザーが自分のカレンダーIDを調べるために使用します。
  */
-function updateDisplayedCalendarInfo() {
-    const topSummaryElement = document.getElementById('display_calendar_summary_top');
-    if (topSummaryElement) {
-        topSummaryElement.textContent = currentCalendarSummary;
+async function listAccessibleCalendars() {
+    const accessibleCalendarListUl = document.getElementById('accessible_calendar_list');
+    accessibleCalendarListUl.innerHTML = '<li>カレンダーを読み込み中...</li>';
+    console.log('--- listAccessibleCalendars: アクセス可能カレンダーリスト取得中 ---');
+
+    if (!isAuthorizedForWrite) { // isAuthorizedForWriteスコープがあればcalendarList.listも許可されます
+        accessibleCalendarListUl.innerHTML = '<li>Googleアカウントで認証すると、アクセス可能なカレンダーリストが表示されます。</li>';
+        document.getElementById('accessible_calendar_list_section').style.display = 'block'; // 認証促す表示のためセクションは表示
+        return;
     }
-    console.log(`ℹ️ 表示カレンダー情報を更新しました: ${currentCalendarSummary}`);
+
+    try {
+        const response = await gapi.client.calendar.calendarList.list();
+        const allAccessibleCalendars = response.result.items;
+
+        if (allAccessibleCalendars && allAccessibleCalendars.length > 0) {
+            accessibleCalendarListUl.innerHTML = '';
+            allAccessibleCalendars.forEach(calendar => {
+                const li = document.createElement('li');
+                const isAlreadyAllowed = isCalendarAllowed(calendar.id);
+                const allowedStatusText = isAlreadyAllowed ? ' (CSV登録済み)' : '';
+                
+                li.innerHTML = `
+                    <span>${calendar.summary || calendar.id} (${calendar.id})${allowedStatusText}</span>
+                    <button class="copy-id-button" data-id="${calendar.id}">IDコピー</button>
+                `;
+                accessibleCalendarListUl.appendChild(li);
+            });
+
+            document.querySelectorAll('.copy-id-button').forEach(button => {
+                button.onclick = (event) => {
+                    const calendarIdToCopy = event.target.dataset.id;
+                    navigator.clipboard.writeText(calendarIdToCopy).then(() => {
+                        event.target.textContent = 'コピー完了!';
+                        setTimeout(() => {
+                            event.target.textContent = 'IDコピー';
+                        }, 1500);
+                    }).catch(err => {
+                        console.error('IDコピーに失敗しました:', err);
+                        alert('IDのコピーに失敗しました。手動でコピーしてください: ' + calendarIdToCopy);
+                    });
+                };
+            });
+            console.log('✅ アクセス可能なカレンダーリストを正常に表示しました:', allAccessibleCalendars);
+            document.getElementById('accessible_calendar_list_section').style.display = 'block';
+        } else {
+            accessibleCalendarListUl.innerHTML = '<li>アクセス可能なカレンダーが見つかりませんでした。</li>';
+            console.log(`ℹ️ アクセス可能なカレンダーが見つかりませんでした。`);
+            document.getElementById('accessible_calendar_list_section').style.display = 'block';
+        }
+    } catch (err) {
+        console.error('❌ アクセス可能カレンダーリストの取得エラー:', err);
+        accessibleCalendarListUl.innerHTML = '<li>カレンダーリストの取得中にエラーが発生しました。<br>認証状態とネットワーク接続を確認してください。</li>';
+        document.getElementById('accessible_calendar_list_section').style.display = 'block';
+    }
 }
