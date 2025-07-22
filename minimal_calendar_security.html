@@ -429,6 +429,37 @@
             border-color: #f5c6cb;
             color: #721c24;
         }
+        .calendar-security-status.expired {
+            background-color: #f8d7da;
+            border-color: #f5c6cb;
+            color: #721c24;
+        }
+
+        /* 追加：期限切れカレンダー表示用スタイル */
+        .expired-calendar-notice {
+            background-color: #f8d7da;
+            border: 1px solid #f5c6cb;
+            border-radius: var(--border-radius);
+            padding: 15px;
+            margin: 15px 0;
+            color: #721c24;
+            font-size: 0.9em;
+            line-height: 1.5;
+        }
+        .expired-calendar-name {
+            color: #dc3545;
+            font-weight: bold;
+            font-size: 1.1em;
+        }
+        .switch-account-notice {
+            margin-top: 10px;
+            font-style: italic;
+            color: #856404;
+            background-color: #fff3cd;
+            padding: 8px;
+            border-radius: 4px;
+            border-left: 4px solid #ffc107;
+        }
 
         /* Settings Options */
         .setting-group {
@@ -650,6 +681,11 @@
                 top: 15px;
                 right: 15px;
             }
+            #version_info {
+                top: 55px; /* 設定ボタンの位置に合わせて調整 */
+                right: 15px;
+                font-size: 0.75em;
+            }
             #settings_content {
                 width: 100%;
                 max-width: 100%;
@@ -689,6 +725,16 @@
                 max-width: unset;
                 width: 100%;
             }
+            /* カレンダー情報のレスポンシブ対応 */
+            #writable_calendar_list li {
+                flex-direction: column;
+                align-items: flex-start;
+            }
+            .calendar-info {
+                margin-right: 0;
+                margin-bottom: 10px;
+                width: 100%;
+            }
         }
 
         @media (max-width: 480px) {
@@ -705,6 +751,12 @@
             #pre_announcement_text, #announcement_text {
                 font-size: 1.1em; /* 相対単位 */
                 padding: 7px 10px; /* 調整 */
+            }
+            #version_info {
+                top: 50px;
+                right: 10px;
+                font-size: 0.7em;
+                padding: 3px 6px;
             }
             .setting-group label, .setting-group input, .setting-group select {
                 font-size: 0.85em; /* 相対単位 */
@@ -951,20 +1003,26 @@
                     delimiter: ','
                 });
                 
-                // CSVデータをフィルタリング（IDがあるもののみ）
+                // CSVデータをフィルタリング（IDがあるもののみ、期限切れでも含める）
                 const rawCalendars = parsedData.data.filter(row => row.calendar_id && row.calendar_id.trim() !== '');
                 
-                // 有効期限チェックを追加（日本語ヘッダー対応）
+                // 修正：期限切れでも除外せず、期限状態を追加
                 const today = new Date();
                 today.setHours(0, 0, 0, 0); // 時刻を00:00:00に設定（日付のみで比較）
                 
-                allowedCalendars = rawCalendars.filter(calendar => {
+                let validCount = 0;
+                let expiredCount = 0;
+                
+                allowedCalendars = rawCalendars.map(calendar => {
                     // 日本語ヘッダーと英語ヘッダーの両方に対応
                     const validUntilValue = calendar.valid_until || calendar['有効年月日'] || calendar['有効期限'];
                     
                     if (!validUntilValue || validUntilValue.trim() === '') {
-                        console.warn(`⚠️ カレンダー ${calendar.calendar_id} の有効期限が設定されていません。許可しません。`);
-                        return false;
+                        console.warn(`⚠️ カレンダー ${calendar.calendar_id} の有効期限が設定されていません。`);
+                        calendar.isExpired = true;
+                        calendar.expiryReason = '期限設定なし';
+                        expiredCount++;
+                        return calendar;
                     }
                     
                     // 複数の日付フォーマットに対応
@@ -994,35 +1052,42 @@
                     
                     if (isNaN(validUntilDate.getTime())) {
                         console.warn(`⚠️ カレンダー ${calendar.calendar_id} の有効期限形式が不正です: ${validUntilValue}`);
-                        return false;
+                        calendar.isExpired = true;
+                        calendar.expiryReason = '期限形式不正';
+                        expiredCount++;
+                        return calendar;
                     }
                     
                     if (today > validUntilDate) {
                         console.warn(`⚠️ カレンダー ${calendar.calendar_id} の有効期限が切れています: ${validUntilValue} (今日: ${today.toLocaleDateString()})`);
-                        return false;
+                        calendar.isExpired = true;
+                        calendar.expiryReason = '期限切れ';
+                        expiredCount++;
+                    } else {
+                        console.log(`✅ カレンダー ${calendar.calendar_id} は有効です (期限: ${validUntilValue}, 今日: ${today.toLocaleDateString()})`);
+                        calendar.isExpired = false;
+                        validCount++;
                     }
-                    
-                    console.log(`✅ カレンダー ${calendar.calendar_id} は有効です (期限: ${validUntilValue}, 今日: ${today.toLocaleDateString()})`);
                     
                     // データを統一フォーマットに正規化（英語ヘッダー形式に）
                     calendar.valid_until = validUntilValue;
                     calendar.company_name = calendar.company_name || calendar['会社名'] || '';
                     calendar.memo = calendar.memo || calendar['メモ'] || '';
                     
-                    return true;
+                    return calendar;
                 });
                 
-                const expiredCount = rawCalendars.length - allowedCalendars.length;
-                
-                statusElement.textContent = `✅ 許可リスト読み込み完了 (有効: ${allowedCalendars.length}件, 期限切れ: ${expiredCount}件)`;
-                statusElement.className = 'calendar-security-status success';
+                // ステータス表示を期限切れの有無で変更
+                if (expiredCount > 0) {
+                    statusElement.textContent = `⚠️ 許可リスト読み込み完了 (有効: ${validCount}件, 期限切れ: ${expiredCount}件)`;
+                    statusElement.className = 'calendar-security-status expired';
+                } else {
+                    statusElement.textContent = `✅ 許可リスト読み込み完了 (有効: ${validCount}件)`;
+                    statusElement.className = 'calendar-security-status success';
+                }
                 
                 // 詳細ログ
-                console.log('✅ 有効な許可カレンダーリスト:', allowedCalendars);
-                if (expiredCount > 0) {
-                    const expiredCalendars = rawCalendars.filter(cal => !allowedCalendars.includes(cal));
-                    console.log('⚠️ 期限切れカレンダー:', expiredCalendars);
-                }
+                console.log('✅ 許可カレンダーリスト（期限切れ含む）:', allowedCalendars);
                 
                 return true;
                 
@@ -1036,44 +1101,22 @@
                     calendar_id: INITIAL_PUBLIC_CALENDAR_ID,
                     valid_until: '2099-12-31',
                     company_name: '初期設定',
-                    memo: 'デフォルトカレンダー'
+                    memo: 'デフォルトカレンダー',
+                    isExpired: false
                 }];
                 return false;
             }
         }
 
-        // 最小限追加：カレンダーID許可チェック関数（有効期限も含む）
+        // 修正：カレンダーID許可チェック関数（期限切れは許可するが、期限状態を返す）
         function isCalendarAllowed(calendarId) {
-            const today = new Date();
-            today.setHours(0, 0, 0, 0);
-            
-            return allowedCalendars.some(allowed => {
-                if (allowed.calendar_id !== calendarId) {
-                    return false;
-                }
-                
-                // 複数の日付フォーマットに対応
-                let validUntilDate;
-                const dateStr = allowed.valid_until.trim();
-                
-                if (dateStr.includes('/')) {
-                    const parts = dateStr.split('/');
-                    if (parts.length === 3) {
-                        const year = parseInt(parts[0]);
-                        const month = parseInt(parts[1]) - 1;
-                        const day = parseInt(parts[2]);
-                        validUntilDate = new Date(year, month, day);
-                    }
-                } else if (dateStr.includes('-')) {
-                    validUntilDate = new Date(dateStr);
-                } else {
-                    validUntilDate = new Date(dateStr);
-                }
-                
-                validUntilDate.setHours(23, 59, 59, 999);
-                
-                return today <= validUntilDate;
-            });
+            return allowedCalendars.some(allowed => allowed.calendar_id === calendarId);
+        }
+
+        // 新規追加：カレンダーが有効期限内かチェック
+        function isCalendarValid(calendarId) {
+            const calendar = allowedCalendars.find(allowed => allowed.calendar_id === calendarId);
+            return calendar && !calendar.isExpired;
         }
 
         // 修正：カレンダー情報取得（サマリーを取得）
@@ -1090,19 +1133,49 @@
             }
         }
 
-        // 追加：設定画面脱出制御チェック
+        // 追加：設定画面脱出制御チェック（期限切れ対応）
         function checkAndControlSettingsAccess() {
-            const currentCalendarValid = isCalendarAllowed(currentCalendarId);
+            const currentCalendarValid = isCalendarValid(currentCalendarId); // 修正：期限チェックに変更
             canCloseSettings = currentCalendarValid;
             
             if (!currentCalendarValid) {
                 console.log('🚨 現在のカレンダーが有効期限切れのため、設定画面脱出を制限します');
                 // 設定画面を強制的に開く
                 document.getElementById('settings_panel').classList.add('open');
-                displayError('現在のカレンダーの有効期限が切れています。有効なカレンダーを選択してください。');
+                
+                // 期限切れの場合は赤色表示 + 他アカウント促し
+                const currentCalendar = allowedCalendars.find(cal => cal.calendar_id === currentCalendarId);
+                if (currentCalendar && currentCalendar.isExpired) {
+                    displayExpiredCalendarNotice(currentCalendar);
+                } else {
+                    displayError('現在のカレンダーの有効期限が切れています。有効なカレンダーを選択してください。');
+                }
             } else {
                 console.log('✅ 現在のカレンダーは有効です');
             }
+        }
+
+        // 新規追加：期限切れカレンダー通知表示
+        function displayExpiredCalendarNotice(expiredCalendar) {
+            const errorContainer = document.getElementById('error_message');
+            if (!errorContainer) return;
+            
+            const companyName = expiredCalendar.company_name || '不明';
+            const calendarName = currentCalendarSummary || expiredCalendar.calendar_id;
+            const validUntil = expiredCalendar.valid_until || '不明';
+            
+            errorContainer.innerHTML = `
+                <div class="expired-calendar-notice">
+                    <div class="expired-calendar-name">⚠️ 有効期限切れ: ${calendarName}</div>
+                    <div>会社名: ${companyName}</div>
+                    <div>有効期限: ${validUntil}</div>
+                    <div class="switch-account-notice">
+                        💡 このカレンダーは有効期限が切れています。<br>
+                        別のGoogleアカウントでログインするか、管理者に期限延長を依頼してください。
+                    </div>
+                </div>
+            `;
+            errorContainer.style.display = 'block';
         }
 
         // 追加：有効期限の表示用ヘルパー関数
@@ -1410,34 +1483,25 @@
                 const savedActiveSummary = localStorage.getItem(LOCAL_STORAGE_ACTIVE_CALENDAR_SUMMARY_KEY);
 
                 if (savedActiveId && savedActiveSummary) { 
-                    // 最小限追加：保存されたカレンダーIDの許可チェック
-                    if (isCalendarAllowed(savedActiveId)) {
-                        currentCalendarId = savedActiveId;
-                        // 修正：保存されたサマリーを使うが、実際のサマリーを取得し直す
-                        currentCalendarSummary = savedActiveSummary;
-                        
-                        // サマリーを再取得して更新
-                        try {
-                            const actualSummary = await getCalendarSummary(savedActiveId);
-                            if (actualSummary !== savedActiveId) { // IDと異なる場合のみ更新
-                                currentCalendarSummary = actualSummary;
-                                localStorage.setItem(LOCAL_STORAGE_ACTIVE_CALENDAR_SUMMARY_KEY, actualSummary);
-                            }
-                        } catch (error) {
-                            console.warn('サマリー再取得に失敗しました:', error);
+                    // 修正：保存されたカレンダーIDをそのまま使用（期限切れでも）
+                    currentCalendarId = savedActiveId;
+                    currentCalendarSummary = savedActiveSummary;
+                    
+                    // サマリーを再取得して更新
+                    try {
+                        const actualSummary = await getCalendarSummary(savedActiveId);
+                        if (actualSummary !== savedActiveId) { // IDと異なる場合のみ更新
+                            currentCalendarSummary = actualSummary;
+                            localStorage.setItem(LOCAL_STORAGE_ACTIVE_CALENDAR_SUMMARY_KEY, actualSummary);
                         }
-                        
+                    } catch (error) {
+                        console.warn('サマリー再取得に失敗しました:', error);
+                    }
+                    
+                    if (isCalendarValid(savedActiveId)) {
                         console.log(`✅ localStorageからアクティブカレンダーを読み込みました: ${currentCalendarSummary} (${currentCalendarId})`);
                     } else {
-                        console.warn(`⚠️ 保存されたカレンダーID (${savedActiveId}) は許可されていません（期限切れ含む）。初期設定カレンダーを使用します。`);
-                        currentCalendarId = INITIAL_PUBLIC_CALENDAR_ID; 
-                        
-                        // 修正：初期カレンダーのサマリーを取得
-                        try {
-                            currentCalendarSummary = await getCalendarSummary(INITIAL_PUBLIC_CALENDAR_ID);
-                        } catch (error) {
-                            currentCalendarSummary = "初期設定カレンダー";
-                        }
+                        console.warn(`⚠️ 保存されたカレンダーID (${savedActiveId}) は有効期限が切れていますが、そのまま使用します。`);
                     }
                 } else {
                     currentCalendarId = INITIAL_PUBLIC_CALENDAR_ID; 
