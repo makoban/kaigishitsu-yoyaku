@@ -30,7 +30,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const mainTitleInput = document.getElementById('main_title_input'); 
     const eventListTitleInput = document.getElementById('event_list_title_input'); 
     const availableTextInput = document.getElementById('available_text_input');
-    const inProgressPrefixInput = document.getElementById('in_progress_prefix_input');
+    const inProgressPrefixInput = document = document.getElementById('in_progress_prefix_input');
     const inProgressSuffixInput = document.getElementById('in_progress_suffix_input');
     const preAnnouncementMinutesSelect = document.getElementById('pre_announcement_minutes_select'); 
     const preAnnouncementPrefixInput = document.getElementById('pre_announcement_prefix_input'); 
@@ -160,11 +160,23 @@ document.addEventListener('DOMContentLoaded', () => {
     // --- 認証関連ボタンのイベントリスナー ---
     authorizeButton.onclick = () => {
         console.log('--- Googleアカウントで認証ボタンがクリックされました（操作用）。認証フローを開始します。---');
-        tokenClient.requestAccessToken({ prompt: 'consent', ux_mode: 'popup' }); 
+        // tokenClient が初期化されていることを確認してから呼び出す
+        if (tokenClient) {
+            tokenClient.requestAccessToken({ prompt: 'consent', ux_mode: 'popup' }); 
+        } else {
+            console.error('認証クライアント (tokenClient) がまだ初期化されていません。しばらくお待ちください。');
+            displayError('認証機能の準備ができていません。ページを再読み込みするか、しばらくしてからもう一度お試しください。');
+        }
     };
     switchAccountButton.onclick = () => { 
         console.log('--- 別のアカウントで認証ボタンがクリックされました。アカウント選択を強制します。---');
-        tokenClient.requestAccessToken({ prompt: 'select_account', ux_mode: 'popup' }); 
+        // tokenClient が初期化されていることを確認してから呼び出す
+        if (tokenClient) {
+            tokenClient.requestAccessToken({ prompt: 'select_account', ux_mode: 'popup' }); 
+        } else {
+            console.error('認証クライアント (tokenClient) がまだ初期化されていません。しばらくお待ちください。');
+            displayError('認証機能の準備ができていません。ページを再読み込みするか、しばらくしてからもう一度お試しください。');
+        }
     };
 
     // --- 操作ボタンのイベントリスナー ---
@@ -181,7 +193,16 @@ document.addEventListener('DOMContentLoaded', () => {
         checkCurrentCalendarStatus(); // 起動時のカレンダー状態チェック
         
         console.log('--- gapiクライアントロードを開始 ---');
-        gapi.load('client', initGapiClientForRead);
+        gapi.load('client', () => { // gapiクライアントのロード完了後に実行
+            initGapiClientForRead(); // gapiクライアントの初期化
+            // initGisClientForWrite() は initGapiClientForRead() の中で非同期に呼び出されるため、
+            // tokenClient の準備にはさらに時間がかかる可能性がある。
+            // ユーザーがクリックするまで待機させるのがベスト。
+
+            // 初期ロード時にイベントを表示し、自動更新を開始
+            listEvents(); 
+            startAutoRefresh(); 
+        });
     });
 });
 
@@ -227,10 +248,6 @@ function initGapiClientForRead() {
         
         checkCurrentCalendarStatus(); 
         updateDisplayedCalendarInfo();
-
-        console.log(`--- initGapiClientForRead: イベントリスト表示を開始 (カレンダーID: ${currentCalendarId}) ---`);
-        listEvents(); 
-        startAutoRefresh(); 
 
         console.log('--- initGapiClientForRead: GISクライアント初期化を開始（書き込み操作用） ---');
         initGisClientForWrite();
