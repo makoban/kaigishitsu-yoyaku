@@ -214,6 +214,22 @@
             box-shadow: 0 6px 12px rgba(0,0,0,0.25); /* ホバー時の影を濃く */
         }
 
+        /* Version Info */
+        #version_info {
+            position: fixed;
+            top: 70px; /* 設定ボタンの下 */
+            right: 20px;
+            z-index: 100;
+            font-size: 0.8em;
+            color: var(--light-text-color);
+            background-color: var(--panel-bg-color);
+            padding: 5px 10px;
+            border-radius: var(--border-radius);
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            border: 1px solid var(--border-color);
+            transition: background-color 0.3s ease, color 0.3s ease;
+        }
+
         /* Settings Panel */
         #settings_panel {
             position: fixed; 
@@ -337,9 +353,42 @@
             padding: 12px 0; /* パディングを調整 */
             border-bottom: 1px solid #f7f7f7;
             font-size: 1.05em; /* フォントサイズを調整 */
+            flex-wrap: wrap; /* 長い場合は折り返し */
         }
         #writable_calendar_list li:last-child {
             border-bottom: none;
+        }
+        
+        /* 追加：カレンダー情報表示エリア */
+        .calendar-info {
+            flex: 1;
+            margin-right: 10px;
+        }
+        .calendar-name {
+            font-weight: 500;
+            margin-bottom: 3px;
+        }
+        .calendar-details {
+            font-size: 0.85em;
+            color: var(--light-text-color);
+        }
+        .calendar-expiry {
+            font-size: 0.8em;
+            padding: 2px 6px;
+            border-radius: 3px;
+            margin-left: 8px;
+        }
+        .calendar-expiry.valid {
+            background-color: #d4edda;
+            color: #155724;
+        }
+        .calendar-expiry.warning {
+            background-color: #fff3cd;
+            color: #856404;
+        }
+        .calendar-expiry.expired {
+            background-color: #f8d7da;
+            color: #721c24;
         }
         .select-button {
             padding: 10px 20px; /* ボタンを調整 */
@@ -670,8 +719,10 @@
 </head>
 <body class="theme-stylish">
     <header>
-        <h1 id="main_app_title">会議室予約表示Ver1.34</h1>
-        <button id="settings_button">設定</button> <span id="display_calendar_summary_top"></span>
+        <h1 id="main_app_title">会議室予約表示Ver1.2</h1>
+        <button id="settings_button">設定</button> 
+        <div id="version_info"></div>
+        <span id="display_calendar_summary_top"></span>
     </header>
 
     <div id="top_bar">
@@ -837,10 +888,16 @@
         const LOCAL_STORAGE_ACTIVE_CALENDAR_SUMMARY_KEY = 'activeCalendarSummary';
         const LOCAL_STORAGE_SETTINGS_KEY = 'appSettings'; // 設定保存用キー
 
+        // 追加：バージョン情報
+        const APP_VERSION = 'Ver1.36';
+
         // 最小限追加：カレンダーID管理
         const GITHUB_PAGES_BASE_URL = window.location.origin + window.location.pathname.replace(/\/[^\/]*$/, '');
         const ALLOWED_CALENDARS_CSV_PATH = GITHUB_PAGES_BASE_URL + '/allowed_calendars.csv';
         let allowedCalendars = []; // 許可されたカレンダーのリスト
+        
+        // 追加：設定画面脱出制御
+        let canCloseSettings = true; // 設定画面を閉じることができるかどうか
 
         // デフォルト設定値
         const DEFAULT_SETTINGS = {
@@ -897,31 +954,61 @@
                 // CSVデータをフィルタリング（IDがあるもののみ）
                 const rawCalendars = parsedData.data.filter(row => row.calendar_id && row.calendar_id.trim() !== '');
                 
-                // 有効期限チェックを追加
+                // 有効期限チェックを追加（日本語ヘッダー対応）
                 const today = new Date();
                 today.setHours(0, 0, 0, 0); // 時刻を00:00:00に設定（日付のみで比較）
                 
                 allowedCalendars = rawCalendars.filter(calendar => {
-                    if (!calendar.valid_until || calendar.valid_until.trim() === '') {
+                    // 日本語ヘッダーと英語ヘッダーの両方に対応
+                    const validUntilValue = calendar.valid_until || calendar['有効年月日'] || calendar['有効期限'];
+                    
+                    if (!validUntilValue || validUntilValue.trim() === '') {
                         console.warn(`⚠️ カレンダー ${calendar.calendar_id} の有効期限が設定されていません。許可しません。`);
                         return false;
                     }
                     
-                    // 有効期限をパース（YYYY-MM-DD形式を想定）
-                    const validUntilDate = new Date(calendar.valid_until);
+                    // 複数の日付フォーマットに対応
+                    let validUntilDate;
+                    const dateStr = validUntilValue.trim();
+                    
+                    // パターン1: YYYY/M/D または YYYY/MM/DD
+                    if (dateStr.includes('/')) {
+                        const parts = dateStr.split('/');
+                        if (parts.length === 3) {
+                            const year = parseInt(parts[0]);
+                            const month = parseInt(parts[1]) - 1; // Dateオブジェクトは0ベース
+                            const day = parseInt(parts[2]);
+                            validUntilDate = new Date(year, month, day);
+                        }
+                    }
+                    // パターン2: YYYY-MM-DD
+                    else if (dateStr.includes('-')) {
+                        validUntilDate = new Date(dateStr);
+                    }
+                    // パターン3: その他の形式
+                    else {
+                        validUntilDate = new Date(dateStr);
+                    }
+                    
                     validUntilDate.setHours(23, 59, 59, 999); // 有効期限日の終日まで有効
                     
                     if (isNaN(validUntilDate.getTime())) {
-                        console.warn(`⚠️ カレンダー ${calendar.calendar_id} の有効期限形式が不正です: ${calendar.valid_until}`);
+                        console.warn(`⚠️ カレンダー ${calendar.calendar_id} の有効期限形式が不正です: ${validUntilValue}`);
                         return false;
                     }
                     
                     if (today > validUntilDate) {
-                        console.warn(`⚠️ カレンダー ${calendar.calendar_id} の有効期限が切れています: ${calendar.valid_until}`);
+                        console.warn(`⚠️ カレンダー ${calendar.calendar_id} の有効期限が切れています: ${validUntilValue} (今日: ${today.toLocaleDateString()})`);
                         return false;
                     }
                     
-                    console.log(`✅ カレンダー ${calendar.calendar_id} は有効です (期限: ${calendar.valid_until})`);
+                    console.log(`✅ カレンダー ${calendar.calendar_id} は有効です (期限: ${validUntilValue}, 今日: ${today.toLocaleDateString()})`);
+                    
+                    // データを統一フォーマットに正規化（英語ヘッダー形式に）
+                    calendar.valid_until = validUntilValue;
+                    calendar.company_name = calendar.company_name || calendar['会社名'] || '';
+                    calendar.memo = calendar.memo || calendar['メモ'] || '';
+                    
                     return true;
                 });
                 
@@ -965,7 +1052,24 @@
                     return false;
                 }
                 
-                const validUntilDate = new Date(allowed.valid_until);
+                // 複数の日付フォーマットに対応
+                let validUntilDate;
+                const dateStr = allowed.valid_until.trim();
+                
+                if (dateStr.includes('/')) {
+                    const parts = dateStr.split('/');
+                    if (parts.length === 3) {
+                        const year = parseInt(parts[0]);
+                        const month = parseInt(parts[1]) - 1;
+                        const day = parseInt(parts[2]);
+                        validUntilDate = new Date(year, month, day);
+                    }
+                } else if (dateStr.includes('-')) {
+                    validUntilDate = new Date(dateStr);
+                } else {
+                    validUntilDate = new Date(dateStr);
+                }
+                
                 validUntilDate.setHours(23, 59, 59, 999);
                 
                 return today <= validUntilDate;
@@ -986,7 +1090,68 @@
             }
         }
 
+        // 追加：設定画面脱出制御チェック
+        function checkAndControlSettingsAccess() {
+            const currentCalendarValid = isCalendarAllowed(currentCalendarId);
+            canCloseSettings = currentCalendarValid;
+            
+            if (!currentCalendarValid) {
+                console.log('🚨 現在のカレンダーが有効期限切れのため、設定画面脱出を制限します');
+                // 設定画面を強制的に開く
+                document.getElementById('settings_panel').classList.add('open');
+                displayError('現在のカレンダーの有効期限が切れています。有効なカレンダーを選択してください。');
+            } else {
+                console.log('✅ 現在のカレンダーは有効です');
+            }
+        }
+
+        // 追加：有効期限の表示用ヘルパー関数
+        function getExpiryDisplay(validUntilStr) {
+            if (!validUntilStr) return { text: '期限不明', class: 'expired' };
+            
+            const today = new Date();
+            today.setHours(0, 0, 0, 0);
+            
+            let validUntilDate;
+            const dateStr = validUntilStr.trim();
+            
+            // 日付パース
+            if (dateStr.includes('/')) {
+                const parts = dateStr.split('/');
+                if (parts.length === 3) {
+                    const year = parseInt(parts[0]);
+                    const month = parseInt(parts[1]) - 1;
+                    const day = parseInt(parts[2]);
+                    validUntilDate = new Date(year, month, day);
+                }
+            } else if (dateStr.includes('-')) {
+                validUntilDate = new Date(dateStr);
+            } else {
+                validUntilDate = new Date(dateStr);
+            }
+            
+            if (isNaN(validUntilDate.getTime())) {
+                return { text: '期限不明', class: 'expired' };
+            }
+            
+            validUntilDate.setHours(23, 59, 59, 999);
+            
+            const diffTime = validUntilDate.getTime() - today.getTime();
+            const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+            
+            if (diffDays < 0) {
+                return { text: `期限切れ`, class: 'expired' };
+            } else if (diffDays <= 7) {
+                return { text: `${diffDays}日後期限`, class: 'warning' };
+            } else {
+                return { text: `${validUntilStr}まで`, class: 'valid' };
+            }
+        }
+
         document.addEventListener('DOMContentLoaded', () => {
+            // バージョン情報を表示
+            document.getElementById('version_info').textContent = APP_VERSION;
+            
             // 設定をロードし、UIとアプリに適用
             loadSettings();
             applySettingsToUI();
@@ -1081,11 +1246,29 @@
                 }
             });
 
-            // 設定パネルを閉じるボタン
+            // 修正：設定パネルを閉じるボタン（脱出制御追加）
             closeSettingsPanelButton.onclick = () => {
+                if (!canCloseSettings) {
+                    displayError('有効なカレンダーを選択してください。現在のカレンダーは有効期限が切れています。');
+                    console.log('🚨 設定画面からの脱出がブロックされました：有効期限切れカレンダー');
+                    return;
+                }
                 settingsPanel.classList.remove('open');
                 displayError(''); 
             };
+            
+            // 修正：設定パネル外クリックでの閉鎖も制御
+            settingsPanel.addEventListener('click', (e) => {
+                if (e.target === settingsPanel) { // パネル外をクリック
+                    if (!canCloseSettings) {
+                        displayError('有効なカレンダーを選択してください。現在のカレンダーは有効期限が切れています。');
+                        console.log('🚨 設定画面からの脱出がブロックされました：有効期限切れカレンダー');
+                        return;
+                    }
+                    settingsPanel.classList.remove('open');
+                    displayError('');
+                }
+            });
 
             // --- 各種設定UI要素のイベントリスナー ---
             themeSelect.onchange = (e) => { appSettings.theme = e.target.value; saveSettings(); applyTheme(appSettings.theme); };
@@ -1127,6 +1310,9 @@
             // 最小限追加：許可カレンダーリストを読み込んでからgapi初期化
             console.log('--- 許可カレンダーリストの読み込みを開始 ---');
             loadAllowedCalendars().then(() => {
+                // 追加：起動時の脱出制御チェック
+                checkAndControlSettingsAccess();
+                
                 console.log('--- gapiクライアントロードを開始 ---');
                 gapi.load('client', initGapiClientForRead);
             });
@@ -1265,6 +1451,10 @@
                     
                     console.log(`ℹ️ localStorageにアクティブカレンダーが見つかりませんでした。初期設定カレンダー (${INITIAL_PUBLIC_CALENDAR_ID}) を使用します。`);
                 }
+                
+                // 追加：起動時の脱出制御チェック
+                checkAndControlSettingsAccess();
+                
                 updateDisplayedCalendarInfo();
 
                 console.log(`--- initGapiClientForRead: イベントリスト表示を開始 (カレンダーID: ${currentCalendarId}) ---`);
