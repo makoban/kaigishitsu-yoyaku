@@ -3,7 +3,7 @@
 // ★★★ ここをあなたの情報に置き換えてください ★★★
 const API_KEY = 'AIzaSyAANqYZlhyRKj7VAuFbFYQ0hYWPNkd1j70';
 const INITIAL_PUBLIC_CALENDAR_ID = 'kaigishitsu20000101@gmail.com';
-const CLIENT_ID = '155458326593-g92losmr00mjj7g4sung2k8kjv9d01b.apps.googleusercontent.com';
+const CLIENT_ID = '155458326593-g92losmr00mji7g4sun62lk8kjv9d01b.apps.googleusercontent.com';
 // ★★★ ここまで ★★★
 
 const DISCOVERY_DOCS = ["https://www.googleapis.com/discovery/v1/apis/calendar/v3/rest"];
