@@ -2,114 +2,12 @@
 <html>
 <head>
     <title>API通信テスト</title>
-    <meta charset="utf-8" />
-    <style>
-        body { font-family: sans-serif; padding: 20px; }
-        .log-success { color: green; }
-        .log-error { color: red; }
-        .status-container { margin-top: 20px; padding: 15px; border: 1px solid #ccc; border-radius: 5px; }
-        button { padding: 10px 20px; font-size: 16px; margin-top: 10px; }
-    </style>
+    <script src="https://apis.google.com/js/api.js"></script>
+    <script src="https://accounts.google.com/gsi/client"></script>
 </head>
 <body>
     <h1>API通信テストプログラム</h1>
-    <p>このプログラムは、Google Calendar APIとの通信が正常に行えるかを確認します。</p>
     
-    <div class="status-container">
-        <h2>テスト結果ログ</h2>
-        <pre id="log"></pre>
-        <button id="auth-button" style="display: none;">認証開始</button>
-    </div>
-
-    <script src="https://apis.google.com/js/api.js"></script>
-    <script src="https://accounts.google.com/gsi/client"></script>
-
-    <script>
-        // ★★★ ここにあなたのAPIキーとクライアントIDを正確に貼り付けてください ★★★
-        const API_KEY = 'AIzaSyAANqYZlhyRKj7VAuFbFYQ0hYWPNkd1j70';
-        const CLIENT_ID = '155458326593-g92losmr00mji7g4sun62lk8kjv9d01b.apps.googleusercontent.com';
-        
-        const DISCOVERY_DOCS = ["https://www.googleapis.com/discovery/v1/apis/calendar/v3/rest"];
-        const SCOPES = 'https://www.googleapis.com/auth/calendar.readonly';
-
-        let tokenClient;
-        const logElement = document.getElementById('log');
-        const authButton = document.getElementById('auth-button');
-
-        function appendLog(message, className = '') {
-            const span = document.createElement('span');
-            span.textContent = message;
-            span.className = className;
-            logElement.appendChild(span);
-            logElement.appendChild(document.createElement('br'));
-        }
-
-        // gapiクライアントのロードと初期化
-        function initGapiClient() {
-            appendLog('--- gapiクライアントロードを開始 ---');
-            gapi.load('client', () => {
-                appendLog('--- gapiクライアントの初期化を開始 ---');
-                gapi.client.init({
-                    apiKey: API_KEY,
-                    discoveryDocs: DISCOVERY_DOCS,
-                }).then(() => {
-                    appendLog('✅ gapiクライアントの初期化に成功しました。', 'log-success');
-                    initGisClient();
-                }).catch(err => {
-                    appendLog('❌ gapiクライアントの初期化に失敗しました。', 'log-error');
-                    appendLog('エラー詳細: ' + JSON.stringify(err), 'log-error');
-                });
-            });
-        }
-
-        // GISクライアントの初期化
-        function initGisClient() {
-            appendLog('--- GISクライアントの初期化を開始 ---');
-            tokenClient = google.accounts.oauth2.initTokenClient({
-                client_id: CLIENT_ID,
-                scope: SCOPES,
-                callback: (tokenResponse) => {
-                    if (tokenResponse && tokenResponse.access_token) {
-                        gapi.client.setToken(tokenResponse);
-                        appendLog('✅ 認証トークンの取得に成功しました。', 'log-success');
-                        listCalendars();
-                    } else {
-                        appendLog('❌ 認証トークンの取得に失敗しました。', 'log-error');
-                    }
-                }
-            });
-            authButton.style.display = 'block';
-        }
-
-        // カレンダーリストの取得
-        async function listCalendars() {
-            appendLog('--- カレンダーリストの取得を開始 ---');
-            try {
-                const response = await gapi.client.calendar.calendarList.list();
-                const calendars = response.result.items;
-                if (calendars && calendars.length > 0) {
-                    appendLog(`✅ カレンダーリストの取得に成功しました。(${calendars.length}件)`, 'log-success');
-                    calendars.forEach(calendar => {
-                        appendLog(`- ${calendar.summary} (${calendar.id})`);
-                    });
-                } else {
-                    appendLog('ℹ️ カレンダーが見つかりませんでした。');
-                }
-            } catch (err) {
-                appendLog('❌ カレンダーリストの取得に失敗しました。', 'log-error');
-                appendLog('エラー詳細: ' + JSON.stringify(err), 'log-error');
-            }
-        }
-
-        authButton.onclick = () => {
-            appendLog('--- 認証フローを開始します ---');
-            if (tokenClient) {
-                tokenClient.requestAccessToken({ prompt: 'consent' });
-            }
-        };
-
-        // アプリ起動
-        window.onload = initGapiClient;
-    </script>
+    <script src="js/utils.js"></script>
 </body>
 </html>
