@@ -1,56 +1,56 @@
 // js/utils.js
 
 // ★★★ ここをあなたの情報に置き換えてください ★★★
-const API_KEY = 'AIzaSyAANqYZlhyRKj7VAuFbFYQ0hYWPNkd1j70';             
-const INITIAL_PUBLIC_CALENDAR_ID = 'kaigishitsu20000101@gmail.com'; 
+const API_KEY = 'AIzaSyDUFH1jbIa66NjzSM8I9Xpicwo6I6H2sB8';
+const INITIAL_PUBLIC_CALENDAR_ID = 'kaigishitsu20000101@gmail.com';
 const CLIENT_ID = '155458326593-g92losmr00mjj7g4sung2k8kjv9d01b.apps.googleusercontent.com';
 // ★★★ ここまで ★★★
 
 const DISCOVERY_DOCS = ["https://www.googleapis.com/discovery/v1/apis/calendar/v3/rest"];
-const WRITE_SCOPES = 'https://www.googleapis.com/auth/calendar.events'; 
+const WRITE_SCOPES = 'https://www.googleapis.com/auth/calendar.events';
 
 const LOCAL_STORAGE_ACTIVE_CALENDAR_ID_KEY = 'activeCalendarId';
 const LOCAL_STORAGE_ACTIVE_CALENDAR_SUMMARY_KEY = 'activeCalendarSummary';
-const LOCAL_STORAGE_SETTINGS_KEY = 'appSettings'; 
+const LOCAL_STORAGE_SETTINGS_KEY = 'appSettings';
 
 // バージョン情報を1.4に変更
-const APP_VERSION = 'Ver1.4'; 
+const APP_VERSION = 'Ver1.41';
 
 const GITHUB_PAGES_BASE_URL = window.location.origin + window.location.pathname.replace(/\/[^\/]*$/, '');
 const ALLOWED_CALENDARS_CSV_PATH = GITHUB_PAGES_BASE_URL + '/allowed_calendars.csv';
 
 // グローバル変数として定義し、他のJSファイルからアクセスできるようにする
-window.allowedCalendars = []; 
-window.canCloseSettings = true; 
+window.allowedCalendars = [];
+window.canCloseSettings = true;
 window.currentCalendarState = 'ok';
 
 window.DEFAULT_SETTINGS = { // グローバルアクセス可能に
     refreshInterval: 30, // 秒
-    displayPastHours: 2, 
-    displayFutureHours: 12, 
-    baseFontSize: 16, 
-    baseFontFamily: "'Zen Kaku Gothic New', 'Noto Sans JP', sans-serif", 
+    displayPastHours: 2,
+    displayFutureHours: 12,
+    baseFontSize: 16,
+    baseFontFamily: "'Zen Kaku Gothic New', 'Noto Sans JP', sans-serif",
     availableText: "空室です",
     inProgressPrefix: "ただいま",
     inProgressSuffix: "中です",
-    preAnnouncementMinutes: 5, 
+    preAnnouncementMinutes: 5,
     preAnnouncementPrefix: "まもなく",
     preAnnouncementSuffix: "開始",
-    preAnnouncementDefaultText: "ご案内", 
+    preAnnouncementDefaultText: "ご案内",
     eventSummary: "緊急会議",
-    lastEvents: [], 
-    theme: "stylish", 
+    lastEvents: [],
+    theme: "stylish",
     mainTitle: "会議室予約表示Ver1.4", // バージョン更新
-    eventListTitle: "現在の会議室の予定" 
+    eventListTitle: "現在の会議室の予定"
 };
-window.appSettings = {}; 
+window.appSettings = {};
 
-window.tokenClient; 
-window.isAuthorizedForWrite = false; 
-window.currentCalendarId = INITIAL_PUBLIC_CALENDAR_ID; 
-window.currentCalendarSummary = "初期設定カレンダー"; 
-window.refreshIntervalId; 
-window.lastFetchedEventsString = ""; 
+window.tokenClient;
+window.isAuthorizedForWrite = false;
+window.currentCalendarId = INITIAL_PUBLIC_CALENDAR_ID;
+window.currentCalendarSummary = "初期設定カレンダー";
+window.refreshIntervalId;
+window.lastFetchedEventsString = "";
 
 /**
  * 画面下部にエラーメッセージを表示またはクリアします。
@@ -75,11 +75,11 @@ window.displayError = function(msg) {
 window.displayExpiredCalendarNotice = function(expiredCalendar) {
     const errorContainer = document.getElementById('error_display');
     if (!errorContainer) return;
-    
+
     const companyName = expiredCalendar.company_name || '不明';
     const calendarName = currentCalendarSummary || expiredCalendar.calendar_id;
     const validUntil = expiredCalendar.valid_until || '不明';
-    
+
     errorContainer.innerHTML = `
         <div class="expired-calendar-notice">
             <div class="expired-calendar-name">⚠️ 有効期限切れ: ${calendarName}</div>
@@ -101,13 +101,13 @@ window.displayExpiredCalendarNotice = function(expiredCalendar) {
  */
 window.getExpiryDisplay = function(validUntilStr) {
     if (!validUntilStr) return { text: '期限不明', class: 'expired' };
-    
+
     const today = new Date();
     today.setHours(0, 0, 0, 0);
-    
+
     let validUntilDate;
     const dateStr = validUntilStr.trim();
-    
+
     if (dateStr.includes('/')) {
         const parts = dateStr.split('/');
         if (parts.length === 3) {
@@ -121,16 +121,16 @@ window.getExpiryDisplay = function(validUntilStr) {
     } else {
         validUntilDate = new Date(dateStr);
     }
-    
+
     if (isNaN(validUntilDate.getTime())) {
         return { text: '期限不明', class: 'expired' };
     }
-    
+
     validUntilDate.setHours(23, 59, 59, 999);
-    
+
     const diffTime = validUntilDate.getTime() - today.getTime();
     const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-    
+
     if (diffDays < 0) {
         return { text: `期限切れ`, class: 'expired' };
     } else if (diffDays <= 7) {
