@@ -13,7 +13,7 @@ const LOCAL_STORAGE_ACTIVE_CALENDAR_ID_KEY = 'activeCalendarId';
 const LOCAL_STORAGE_ACTIVE_CALENDAR_SUMMARY_KEY = 'activeCalendarSummary';
 const LOCAL_STORAGE_SETTINGS_KEY = 'appSettings';
 
-// バージョン情報を1.4に変更
+// バージョン情報を1.41に統一
 const APP_VERSION = 'Ver1.41';
 
 const GITHUB_PAGES_BASE_URL = window.location.origin + window.location.pathname.replace(/\/[^\/]*$/, '');
@@ -40,7 +40,7 @@ window.DEFAULT_SETTINGS = { // グローバルアクセス可能に
     eventSummary: "緊急会議",
     lastEvents: [],
     theme: "stylish",
-    mainTitle: "会議室予約表示Ver1.4", // バージョン更新
+    mainTitle: "会議室予約表示Ver1.41", // バージョンを統一
     eventListTitle: "現在の会議室の予定"
 };
 window.appSettings = {};
