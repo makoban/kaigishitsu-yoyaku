@@ -1,13 +1,962 @@
 <!DOCTYPE html>
 <html>
 <head>
-    <title>API通信テスト</title>
+    <title>会議室予約表示</title>
     <script src="https://apis.google.com/js/api.js"></script>
     <script src="https://accounts.google.com/gsi/client"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
+    <link href="https://fonts.googleapis.com/css2?family=M+PLUS+Rounded+1c&family=Mochiy+Pop+One&family=Rampart+One&family=Roboto:ital,wght@0,100..900;1,100..900&family=Shippori+Antique+B1&family=Zen+Antique&family=Zen+Old+Mincho&display=swap" rel="stylesheet">
+    <style>
+        /* デフォルトテーマ (ポップ/Pop) - 明るくフレンドリーな色合い */
+        :root {
+            --primary-color: #4285F4; /* Google Blue */
+            --secondary-color: #28a745; /* Green */
+            --accent-color: #6c757d; /* Gray */
+            --text-color: #333;
+            --light-text-color: #555;
+            --background-color: #e8f5e9; /* Light Mint */
+            --panel-bg-color: #ffffff;
+            --border-color: #c8e6c9;
+            --error-color: #dc3545;
+            --delete-button-color: #dc3545;
+            --highlight-color: #ffe082; /* Amber */
+            --announcement-bg-color: #ffc107; /* Orange */
+            --announcement-text-color: #333;
+            --available-color: #a5d6a7; /* Light Green */
+            --pre-announcement-bg-color: #add8e6; /* Light Blue for pre-announcement */
+            --pre-announcement-text-color: #333;
+            --expired-bg-color: #dc3545; /* Red for expired */
+            --expired-text-color: white; /* White text for expired */
+            --border-radius: 12px;
+            --box-shadow: 0 4px 10px rgba(0,0,0,0.08);
+            --base-font-size: 16px; /* 基本フォントサイズ */
+            --base-font-family: 'Zen Kaku Gothic New', 'Noto Sans JP', sans-serif; /* 新規: 基本フォントファミリー */
+        }
+
+        /* シックテーマ */
+        body.theme-chic {
+            --primary-color: #5d4037; /* Dark Brown */
+            --secondary-color: #bcaaa4; /* Light Brown */
+            --accent-color: #8d6e63; /* Medium Brown */
+            --text-color: #3e2723; /* Very Dark Brown */
+            --light-text-color: #5d4037;
+            --background-color: #f5f5f5; /* Off-White */
+            --panel-bg-color: #efebe9; /* Slightly darker Off-White */
+            --border-color: #d7ccc8;
+            --error-color: #c62828;
+            --delete-button-color: #c62828;
+            --highlight-color: #ffecb3; /* Creamy Yellow */
+            --announcement-bg-color: #ffab40; /* Amber */
+            --announcement-text-color: #333;
+            --available-color: #a1887f; /* Muted Green-Brown */
+            --pre-announcement-bg-color: #8d6e63; /* Medium Brown */
+            --pre-announcement-text-color: white;
+            --expired-bg-color: #c62828; /* Dark Red */
+            --expired-text-color: white;
+            --border-radius: 4px; /* シャープな角 */
+            --box-shadow: 0 2px 8px rgba(0,0,0,0.12);
+        }
+
+        /* スタイリッシュテーマ (薄いブルー基調) */
+        body.theme-stylish {
+            --primary-color: #007BFF; /* Bright Blue */
+            --secondary-color: #17A2B8; /* Teal Blue */
+            --accent-color: #6C757D; /* Gray */
+            --text-color: #343A40; /* Darker text color */
+            --light-text-color: #6C757D; /* Lighter text color */
+            --background-color: #E9F5FF; /* Very Light Blue */
+            --panel-bg-color: #FFFFFF; /* White for panels */
+            --border-color: #C5E1FF; /* Light Blue border */
+            --error-color: #DC3545; /* Red for errors */
+            --delete-button-color: #DC3545; /* Red for delete buttons */
+            --highlight-color: #DBEDFF; /* Light Cyan for current event highlight */
+            --announcement-bg-color: #007BFF; /* Primary blue for announcement */
+            --announcement-text-color: white; /* White for announcement text */
+            --available-color: #85CEFF; /* Light blue for "Available" */
+            --pre-announcement-bg-color: #64B5F6; /* Slightly darker blue for pre-announcement */
+            --pre-announcement-text-color: white; /* White for pre-announcement text */
+            --expired-bg-color: #DC3545; /* Red for expired */
+            --expired-text-color: white;
+            --border-radius: 8px; /* 標準的な角 */
+            --box-shadow: 0 6px 20px rgba(0,0,0,0.1);
+        }
+
+
+        body {
+            font-family: var(--base-font-family); /* 変更: CSS変数を使用 */
+            margin: 0;
+            padding: 20px;
+            background-color: var(--background-color);
+            color: var(--text-color);
+            display: flex;
+            flex-direction: column;
+            align-items: center; /* 中央揃え */
+            min-height: 100vh;
+            box-sizing: border-box;
+            font-size: var(--base-font-size); /* CSS変数を使用 */
+            transition: background-color 0.3s ease, color 0.3s ease, font-size 0.3s ease, font-family 0.3s ease; /* transitionに追加 */
+        }
+
+        h1 {
+            font-size: 2.5em; /* 相対単位 */
+        }
+        h2 {
+            font-size: 2em; /* 相対単位 */
+        }
+        h3 {
+            font-size: 1.5em; /* 相対単位 */
+        }
+        h4 {
+            font-size: 1.2em; /* 相対単位 */
+        }
+        
+        /* h1, h2, h3, h4 のスタイルは残しつつ、em単位で相対的に変更 */
+        h1, h2, h3, h4 {
+            color: var(--primary-color);
+            margin-top: 0;
+            margin-bottom: 20px; /* 余白を大きめに */
+            font-weight: 500;
+            transition: color 0.3s ease; /* テーマ切り替え時のアニメーション */
+        }
+        /* Header */
+        header {
+            width: 100%; /* 親要素の幅に合わせる */
+            max-width: 900px; /* 最大幅を設定 */
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 25px; /* 余白を大きめに */
+            position: relative; /* カレンダー名配置のため */
+            padding: 0 20px; /* 左右の余白 */
+            box-sizing: border-box; /* paddingを含めて幅を計算 */
+        }
+        #display_calendar_summary_top { /* カレンダー名（上部）のスタイル */
+            position: absolute;
+            top: 25px; /* H1と設定ボタンの間に配置 */
+            left: 20px; /* H1の左端に合わせる */
+            font-size: 1.6em; /* カレンダーサマリーを調整 */
+            font-weight: 500;
+            color: var(--light-text-color);
+            transform: translateY(50px); /* H1の下にスペースを開ける */
+        }
+
+
+        /* Top Bar for Date/Time and Announcement */
+        #top_bar {
+            width: 100%;
+            max-width: 900px; /* 最大幅を設定 */
+            background-color: var(--panel-bg-color);
+            border-radius: var(--border-radius); /* テーマに合わせる */
+            box-shadow: var(--box-shadow); /* テーマに合わせる */
+            margin-bottom: 30px; /* 余白を大きく */
+            padding: 25px 30px; /* パディングを大きく */
+            display: flex;
+            flex-direction: column; /* 縦並びに */
+            align-items: center; /* 中央寄せ */
+            text-align: center;
+            font-size: 1.2em; /* 調整 */
+            color: var(--text-color);
+            transition: background-color 0.3s ease, box-shadow 0.3s ease;
+            box-sizing: border-box; /* paddingを含めて幅を計算 */
+        }
+        #current_datetime {
+            font-weight: bold;
+            color: var(--secondary-color); /* 色を調整 */
+            margin-bottom: 10px; /* 日付と案内の間に余白 */
+            font-size: 1.1em; /* 日付時刻を調整 */
+            transition: color 0.3s ease;
+        }
+        /* Pre-announcement (予約前案内) */
+        #pre_announcement_text {
+            font-weight: bold;
+            color: var(--pre-announcement-text-color);
+            background-color: var(--pre-announcement-bg-color);
+            padding: 15px 30px;
+            border-radius: var(--border-radius);
+            font-size: 1.8em; /* 現在の案内文を調整 */
+            display: none;
+            width: 100%;
+            box-sizing: border-box;
+            margin-bottom: 15px; /* 下にスペース */
+            transition: background-color 0.3s ease, color 0.3s ease;
+        }
+        #announcement_text { /* Current event announcement */
+            font-weight: bold;
+            color: var(--announcement-text-color);
+            background-color: var(--announcement-bg-color);
+            padding: 15px 30px; /* パディングを大きく */
+            border-radius: var(--border-radius); /* テーマに合わせる */
+            font-size: 1.8em; /* 案内文を調整 */
+            display: none; /* Initially hidden */
+            width: 100%; /* 幅いっぱい */
+            box-sizing: border-box;
+            transition: background-color 0.3s ease, color 0.3s ease;
+        }
+        #announcement_text.available { /* 空室時のスタイル */
+            background-color: var(--available-color);
+            color: var(--text-color);
+        }
+        #announcement_text.expired { /* 期限切れ時のスタイル - 追加 */
+            background-color: var(--expired-bg-color);
+            color: var(--expired-text-color);
+            animation: pulse-warning 2s infinite;
+        }
+
+        @keyframes pulse-warning {
+            0% { opacity: 1; }
+            50% { opacity: 0.8; }
+            100% { opacity: 1; }
+        }
+
+        /* Settings Button */
+        #settings_button {
+            padding: 10px 22px; /* ボタンを調整 */
+            font-size: 0.9em; /* フォントサイズも調整 */
+            background-color: var(--accent-color);
+            color: white;
+            border: none;
+            border-radius: var(--border-radius); /* テーマに合わせる */
+            cursor: pointer;
+            transition: background-color 0.2s ease-in-out, border-radius 0.3s ease, box-shadow 0.2s ease; /* box-shadowもアニメーション */
+            position: fixed; 
+            top: 20px;
+            right: 20px;
+            z-index: 101; 
+            box-shadow: 0 4px 8px rgba(0,0,0,0.2); /* 影を追加 */
+            /* 初期は非表示 */
+            display: none; 
+        }
+        #settings_button:hover {
+            background-color: #5a6268; /* Hover color for gray accent */
+            box-shadow: 0 6px 12px rgba(0,0,0,0.25); /* ホバー時の影を濃く */
+        }
+
+        /* Version Info */
+        #version_info {
+            position: fixed;
+            top: 70px; /* 設定ボタンの下 */
+            right: 20px;
+            z-index: 100;
+            font-size: 0.8em;
+            color: var(--light-text-color);
+            background-color: var(--panel-bg-color);
+            padding: 5px 10px;
+            border-radius: var(--border-radius);
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            border: 1px solid var(--border-color);
+            transition: background-color 0.3s ease, color 0.3s ease;
+        }
+
+        /* Settings Panel */
+        #settings_panel {
+            position: fixed; 
+            top: 0;
+            right: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0,0,0,0.5); 
+            display: flex;
+            justify-content: flex-end; 
+            z-index: 100;
+            opacity: 0;
+            pointer-events: none; 
+            transition: opacity 0.3s ease-in-out;
+        }
+        #settings_panel.open {
+            opacity: 1;
+            pointer-events: auto;
+        }
+        #settings_content {
+            background-color: var(--panel-bg-color);
+            width: 500px; /* パネルの幅を少し広げる */
+            max-width: 90%;
+            height: 100%;
+            padding: 30px;
+            box-sizing: border-box;
+            box-shadow: -5px 0 15px rgba(0,0,0,0.2);
+            transform: translateX(100%); 
+            transition: transform 0.3s ease-in-out, background-color 0.3s ease;
+            display: flex;
+            flex-direction: column;
+            position: relative;
+            /* スクロールを可能にする */
+            overflow-y: auto; 
+        }
+        #settings_panel.open #settings_content {
+            transform: translateX(0); 
+        }
+        #close_settings_panel {
+            position: absolute;
+            top: 15px;
+            right: 15px;
+            background: none;
+            border: none;
+            font-size: 2.2em; /* ボタンを調整 */
+            cursor: pointer;
+            color: var(--accent-color);
+            line-height: 1;
+            padding: 5px;
+        }
+        #close_settings_panel:hover {
+            color: var(--text-color);
+        }
+
+        /* Auth Section in Settings Panel */
+        /* アカウント認証セクション */
+        .setting-group.auth-section-group { /* Authセクションのスタイル */
+            margin-bottom: 25px; /* 下部余白 */
+            padding-bottom: 20px; /* 下部パディング */
+            border-bottom: 1px dashed var(--border-color); /* 下線 */
+        }
+        #auth_status {
+            margin-bottom: 25px; 
+            padding: 20px; 
+            background-color: #E9F5FF; /* 認証ステータスは青系を維持 */
+            border: 1px solid #C5E1FF;
+            border-radius: var(--border-radius); 
+            text-align: center;
+            font-size: 1em; /* 調整 */
+            line-height: 1.5;
+        }
+        #authorize_button, #switch_account_button {
+            padding: 12px 25px; /* ボタンを調整 */
+            font-size: 1em; /* フォントサイズを調整 */
+            background-color: var(--primary-color);
+            color: white;
+            border: none;
+            border-radius: var(--border-radius); 
+            cursor: pointer;
+            transition: background-color 0.2s ease-in-out, border-radius 0.3s ease, box-shadow 0.2s ease, transform 0.1s ease;
+            width: 100%;
+            margin-bottom: 15px; 
+            box-shadow: 0 4px 8px rgba(0,0,0,0.15); /* 影を追加 */
+        }
+        #authorize_button:hover, #switch_account_button:hover {
+            background-color: #0056B3; /* Darker blue hover */
+            box-shadow: 0 6px 12px rgba(0,0,0,0.2); /* ホバー時の影を濃く */
+        }
+        #authorize_button:active, #switch_account_button:active {
+            transform: translateY(2px); /* クリック時のアニメーション */
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        #authorize_button:disabled, #switch_account_button:disabled {
+            background-color: #a0a0a0;
+            cursor: not-allowed;
+            box-shadow: none;
+        }
+        #calendar_selection_panel {
+            margin-top: 25px;
+            padding-top: 25px;
+            border-top: 1px dashed var(--border-color);
+            flex-grow: 1; 
+            overflow-y: auto; 
+            min-height: 200px; /* 最小高さを確保 */
+            max-height: 50vh; /* 最大高さをビューポートの50%に制限 */
+        }
+        #calendar_selection_panel h4 { /* カレンダーリストのタイトル */
+            margin-bottom: 15px;
+            font-size: 1.05em; /* 調整 */
+            color: var(--text-color);
+        }
+        #writable_calendar_list {
+            list-style: none;
+            padding: 0;
+            margin-top: 20px; 
+        }
+        #writable_calendar_list li {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 12px 0; /* パディングを調整 */
+            border-bottom: 1px solid #f7f7f7;
+            font-size: 1.05em; /* フォントサイズを調整 */
+            flex-wrap: wrap; /* 長い場合は折り返し */
+        }
+        #writable_calendar_list li:last-child {
+            border-bottom: none;
+        }
+        
+        /* 追加：カレンダー情報表示エリア */
+        .calendar-info {
+            flex: 1;
+            margin-right: 10px;
+        }
+        .calendar-name {
+            font-weight: 500;
+            margin-bottom: 3px;
+        }
+        .calendar-details {
+            font-size: 0.85em;
+            color: var(--light-text-color);
+        }
+        .calendar-expiry {
+            font-size: 0.8em;
+            padding: 2px 6px;
+            border-radius: 3px;
+            margin-left: 8px;
+        }
+        .calendar-expiry.valid {
+            background-color: #d4edda;
+            color: #155724;
+        }
+        .calendar-expiry.warning {
+            background-color: #fff3cd;
+            color: #856404;
+        }
+        .calendar-expiry.expired {
+            background-color: #f8d7da;
+            color: #721c24;
+        }
+        .select-button {
+            padding: 10px 20px; /* ボタンを調整 */
+            font-size: 0.95em; /* フォントサイズ調整 */
+            background-color: var(--secondary-color);
+            color: white;
+            border: none;
+            border-radius: var(--border-radius); /* テーマに合わせる */
+            cursor: pointer;
+            transition: background-color 0.2s ease-in-out, border-radius 0.3s ease, box-shadow 0.2s ease, transform 0.1s ease;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1); /* 影を追加 */
+        }
+        .select-button:hover {
+            background-color: #138496; /* Darker teal hover */
+            box-shadow: 0 4px 8px rgba(0,0,0,0.15); /* ホバー時の影を濃く */
+        }
+        .select-button:active {
+            transform: translateY(2px); /* クリック時のアニメーション */
+            box-shadow: 0 1px 2px rgba(0,0,0,0.08);
+        }
+
+        /* Calendar Security Status */
+        .calendar-security-status {
+            background-color: #f8f9fa;
+            border: 1px solid var(--border-color);
+            border-radius: var(--border-radius);
+            padding: 10px;
+            margin-bottom: 15px;
+            font-size: 0.9em;
+        }
+        .calendar-security-status.success {
+            background-color: #d4edda;
+            border-color: #c3e6cb;
+            color: #155724;
+        }
+        .calendar-security-status.error {
+            background-color: #f8d7da;
+            border-color: #f5c6cb;
+            color: #721c24;
+        }
+        .calendar-security-status.expired {
+            background-color: #f8d7da;
+            border-color: #f5c6cb;
+            color: #721c24;
+        }
+
+        /* 追加：トップ期限切れ警告スタイル */
+        .top-expired-warning {
+            background-color: #dc3545;
+            color: white;
+            font-weight: bold;
+            padding: 15px 20px;
+            text-align: center;
+            font-size: 1.2em;
+            border-radius: var(--border-radius);
+            margin: 10px 0;
+            box-shadow: 0 4px 8px rgba(220, 53, 69, 0.3);
+            animation: pulse-warning 2s infinite;
+        }
+
+        /* 追加：期限切れカレンダー表示用スタイル */
+        .expired-calendar-notice {
+            background-color: #f8d7da;
+            border: 1px solid #f5c6cb;
+            border-radius: var(--border-radius);
+            padding: 15px;
+            margin: 15px 0;
+            color: #721c24;
+            font-size: 0.9em;
+            line-height: 1.5;
+        }
+        .expired-calendar-name {
+            color: #dc3545;
+            font-weight: bold;
+            font-size: 1.1em;
+        }
+        .switch-account-notice {
+            margin-top: 10px;
+            font-style: italic;
+            color: #856404;
+            background-color: #fff3cd;
+            padding: 8px;
+            border-radius: 4px;
+            border-left: 4px solid #ffc107;
+        }
+
+        /* Settings Options */
+        .setting-group {
+            margin-bottom: 25px;
+            padding-bottom: 20px;
+            border-bottom: 1px dashed var(--border-color);
+        }
+        .setting-group:last-of-type {
+            border-bottom: none;
+        }
+        .setting-group label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: 500;
+            color: var(--light-text-color);
+            font-size: 0.95em; /* 調整 */
+        }
+        .setting-group input[type="text"],
+        .setting-group input[type="number"],
+        .setting-group select {
+            width: calc(100% - 20px);
+            padding: 8px; /* 調整 */
+            margin-bottom: 10px;
+            border: 1px solid var(--border-color);
+            border-radius: var(--border-radius);
+            font-size: 0.95em; /* 調整 */
+            box-sizing: border-box;
+            transition: border-color 0.2s ease, border-radius 0.3s ease;
+        }
+        .setting-group input[type="text"]:focus,
+        .setting-group input[type="number"]:focus,
+        .setting-group select:focus {
+            border-color: var(--primary-color);
+            outline: none;
+        }
+
+        /* Main Content Area */
+        #container {
+            flex-grow: 1;
+            display: flex;
+            gap: 30px; 
+            position: relative; 
+            width: 100%;
+            max-width: 900px; /* 最大幅を設定 */
+            padding: 0 20px; /* 左右の余白 */
+            box-sizing: border-box; /* paddingを含めて幅を計算 */
+        }
+        #event_list_container {
+            flex: 1;
+            padding: 30px;
+            background-color: var(--panel-bg-color);
+            border-radius: var(--border-radius); 
+            box-shadow: var(--box-shadow); 
+            transition: background-color 0.3s ease, box-shadow 0.3s ease, border-radius 0.3s ease;
+        }
+        #selected_calendar_info { /* この要素は残すが、中身は空になる */
+            display: none; /* カレンダー名は上に移動したので非表示 */
+        }
+        #event_list {
+            list-style: none;
+            padding: 0;
+        }
+        #event_list li {
+            background-color: #fdfdfd;
+            border: 1px solid var(--border-color); /* 枠線の色をテーマに合わせる */
+            border-radius: var(--border-radius); /* テーマに合わせる */
+            margin-bottom: 18px; /* 調整 */
+            padding: 18px 22px; /* 調整 */
+            display: flex; 
+            justify-content: space-between; 
+            align-items: center; 
+            box-shadow: 0 2px 6px rgba(0,0,0,0.08); /* カードUIの影 */
+            transition: transform 0.2s ease-out, box-shadow 0.2s ease-out, background-color 0.2s ease-in-out, border-radius 0.3s ease;
+        }
+        #event_list li:hover {
+            transform: translateY(-5px); /* ホバーエフェクト */
+            box-shadow: 0 8px 25px rgba(0,0,0,0.15); /* ホバーエフェクト時の影を濃く */
+        }
+        /* Highlight for current event */
+        #event_list li.current-event {
+            background-color: var(--highlight-color);
+            border-color: var(--primary-color); /* ハイライト時の枠線の色を primary color に */
+            box-shadow: 0 6px 20px rgba(0, 123, 255, 0.3); /* Primary color に合わせた影 */
+        }
+
+        .event-details {
+            flex-grow: 1; 
+        }
+        .event-time {
+            font-weight: 700; 
+            color: var(--primary-color);
+            font-size: 1.2em; /* 調整 */
+            margin-bottom: 6px; /* 調整 */
+            display: block;
+            transition: color 0.3s ease;
+        }
+        .event-summary {
+            color: var(--text-color);
+            font-size: 1.1em; /* 調整 */
+            line-height: 1.4;
+        }
+        .no-events {
+            font-style: italic;
+            color: var(--light-text-color);
+            text-align: center;
+            padding: 30px; /* 調整 */
+            font-size: 1.1em; /* 調整 */
+        }
+
+        /* Action Buttons */
+        .action-button-group {
+            margin-top: 35px; /* 調整 */
+            padding-top: 20px; /* 調整 */
+            border-top: 1px dashed var(--border-color);
+            display: flex;
+            gap: 15px; /* 調整 */
+            flex-wrap: wrap;
+            justify-content: center; /* ボタンを中央揃えに */
+        }
+        .action-button {
+            padding: 12px 22px; /* ボタンを調整 */
+            font-size: 1em; /* フォントサイズを調整 */
+            background-color: var(--primary-color);
+            color: white;
+            border: none;
+            border-radius: var(--border-radius); /* テーマに合わせる */
+            cursor: pointer;
+            transition: background-color 0.2s ease-in-out, border-radius 0.3s ease, box-shadow 0.2s ease, transform 0.1s ease;
+            box-shadow: 0 4px 8px rgba(0,0,0,0.15); /* 影を追加 */
+            flex-grow: 1; 
+            min-width: 140px; /* 調整 */
+            max-width: 230px; /* 調整 */
+        }
+        .action-button:hover {
+            background-color: #0056B3; /* Darker blue hover */
+            box-shadow: 0 6px 12px rgba(0,0,0,0.2); /* ホバー時の影を濃く */
+        }
+        .action-button:active {
+            transform: translateY(2px); /* クリック時のアニメーション */
+            box-shadow: 0 1px 2px rgba(0,0,0,0.08);
+        }
+        /* Disabled state for action buttons */
+        .action-button:disabled,
+        .event-delete-button:disabled {
+            background-color: #cccccc; /* グレーアウト */
+            cursor: not-allowed;
+            box-shadow: none;
+            opacity: 0.7; /* 少し透明に */
+            transform: none; /* 無効時はアニメーションしない */
+        }
+
+        .error-message {
+            color: var(--error-color);
+            font-weight: 700;
+            margin-top: 20px; /* 調整 */
+            text-align: center;
+            font-size: 1.1em; /* 調整 */
+            background-color: #FFE5E5; /* エラーメッセージの背景は赤系を維持 */
+            padding: 18px; /* 調整 */
+            border-radius: var(--border-radius); /* テーマに合わせる */
+            border: 1px solid var(--error-color);
+            width: 100%;
+            max-width: 900px; /* 最大幅を設定 */
+            box-sizing: border-box;
+        }
+        /* New delete button for each event item */
+        .event-delete-button {
+            padding: 8px 16px; /* 調整 */
+            font-size: 0.9em; /* 調整 */
+            background-color: var(--delete-button-color); 
+            color: white;
+            border: none;
+            border-radius: var(--border-radius); /* テーマに合わせる */
+            cursor: pointer;
+            transition: background-color 0.2s ease-in-out, border-radius 0.3s ease, box-shadow 0.2s ease, transform 0.1s ease;
+            margin-left: 15px; /* 調整 */
+            flex-shrink: 0; 
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1); /* 影を追加 */
+        }
+        .event-delete-button:hover {
+            background-color: #A00000; /* Darker red hover */
+            box-shadow: 0 4px 8px rgba(0,0,0,0.15); /* ホバー時の影を濃く */
+        }
+        .event-delete-button:active {
+            transform: translateY(2px); /* クリック時のアニメーション */
+            box-shadow: 0 1px 2px rgba(0,0,0,0.08);
+        }
+
+        /* レスポンシブデザイン */
+        @media (max-width: 768px) {
+            body {
+                padding: 15px;
+                font-size: var(--base-font-size); /* 相対単位なのでそのまま */
+            }
+            header, #top_bar, #container, .error-message {
+                padding: 0 10px;
+                max-width: 100%; /* 小さい画面では全幅を使用 */
+            }
+            header h1 {
+                font-size: 2em; /* 相対単位 */
+            }
+            #display_calendar_summary_top {
+                font-size: 1.3em; /* レスポンシブでも少し大きく */
+                transform: translateY(35px); /* 調整 */
+            }
+            #top_bar {
+                padding: 15px 20px;
+            }
+            #current_datetime {
+                font-size: 1.1em; /* 相対単位 */
+            }
+            #pre_announcement_text, #announcement_text {
+                font-size: 1.4em; /* 相対単位 */
+                padding: 10px 15px;
+            }
+            #settings_button {
+                padding: 8px 18px; /* 調整 */
+                font-size: 0.85em; /* 相対単位 */
+                top: 15px;
+                right: 15px;
+            }
+            #version_info {
+                top: 55px; /* 設定ボタンの位置に合わせて調整 */
+                right: 15px;
+                font-size: 0.75em;
+            }
+            #settings_content {
+                width: 100%;
+                max-width: 100%;
+                padding: 20px;
+            }
+            .setting-group {
+                margin-bottom: 18px; /* 調整 */
+                padding-bottom: 12px; /* 調整 */
+            }
+            #authorize_button, #switch_account_button, .select-button, .action-button {
+                padding: 10px 18px; /* 調整 */
+                font-size: 0.95em; /* 相対単位 */
+            }
+            #event_list_container {
+                padding: 18px; /* 調整 */
+            }
+            #event_list li {
+                flex-direction: column; /* 縦並びに */
+                align-items: flex-start; /* 左寄せ */
+                padding: 12px; /* 調整 */
+            }
+            .event-time, .event-summary {
+                font-size: 1em; /* 相対単位 */
+            }
+            .event-delete-button {
+                margin-left: 0; /* 左マージンをなくす */
+                margin-top: 8px; /* 上にマージンを追加 */
+                width: 100%; /* 幅いっぱいに */
+                padding: 7px 14px; /* 調整 */
+            }
+            .action-button-group {
+                flex-direction: column;
+                gap: 12px; /* 調整 */
+            }
+            .action-button {
+                min-width: unset;
+                max-width: unset;
+                width: 100%;
+            }
+            /* カレンダー情報のレスポンシブ対応 */
+            #writable_calendar_list li {
+                flex-direction: column;
+                align-items: flex-start;
+            }
+            .calendar-info {
+                margin-right: 0;
+                margin-bottom: 10px;
+                width: 100%;
+            }
+        }
+
+        @media (max-width: 480px) {
+            header h1 {
+                font-size: 1.6em; /* 相対単位 */
+            }
+            #display_calendar_summary_top {
+                font-size: 1.1em; /* 相対単位 */
+                transform: translateY(25px); /* 調整 */
+            }
+            #current_datetime {
+                font-size: 0.9em; /* 相対単位 */
+            }
+            #pre_announcement_text, #announcement_text {
+                font-size: 1.1em; /* 相対単位 */
+                padding: 7px 10px; /* 調整 */
+            }
+            #version_info {
+                top: 50px;
+                right: 10px;
+                font-size: 0.7em;
+                padding: 3px 6px;
+            }
+            .setting-group label, .setting-group input, .setting-group select {
+                font-size: 0.85em; /* 相対単位 */
+            }
+            #authorize_button, #switch_account_button, .select-button, .action-button, .event-delete-button {
+                font-size: 0.85em; /* 相対単位 */
+                padding: 8px 12px; /* 調整 */
+            }
+        }
+    </style>
 </head>
-<body>
-    <h1>API通信テストプログラム</h1>
+<body class="theme-stylish">
+    <header>
+        <h1 id="main_app_title"></h1>
+        <button id="settings_button">設定</button>
+        <div id="version_info"></div>
+        <span id="display_calendar_summary_top"></span>
+    </header>
+
+    <div id="top_bar">
+        <span id="current_datetime"></span>
+        <span id="pre_announcement_text"></span>
+        <span id="announcement_text"></span>
+    </div>
+
+    <div id="settings_panel">
+        <div id="settings_content">
+            <button id="close_settings_panel">&times;</button>
+            <h2>設定</h2>
+            <hr>
+
+            <div class="setting-group">
+                <h3>🔐 カレンダーセキュリティ</h3>
+                <div id="calendar_security_status" class="calendar-security-status">
+                    カレンダー許可状態を確認中...
+                </div>
+            </div>
+
+            <div class="setting-group auth-section-group">
+                <h3>アカウントとカレンダーの切り替え</h3>
+                <p id="auth_status" style="color: blue;">操作を行うにはGoogleアカウントで認証してください。</p>
+                <button id="authorize_button">Googleアカウントで認証</button>
+                <button id="switch_account_button" style="display:none;">別のアカウントで認証</button>
+                <p style="font-size: 0.9em; color: var(--light-text-color); margin-top: 10px;">
+                    ※緊急会議、削除などの管理者操作を利用する際に認証が必要です。<br>
+                    ※認証後、表示・操作するカレンダーを選択してください。
+                </p>
+                <div id="calendar_selection_panel" style="display: none;">
+                    <div style="height: 3em; margin-bottom: 1em;"></div> <h4>表示・操作するカレンダーを選択</h4>
+                    <ul id="writable_calendar_list">
+                        <li>認証後、カレンダーを読み込み中...</li>
+                    </ul>
+                </div>
+            </div>
+            <div class="setting-group">
+                <h3>テーマ設定</h3>
+                <label for="theme_select">テーマを選択:</label>
+                <select id="theme_select">
+                    <option value="pop">ポップ</option>
+                    <option value="chic">シック</option>
+                    <option value="stylish">スタイリッシュ</option>
+                </select>
+            </div>
+
+            <div class="setting-group">
+                <h3>更新時間設定</h3>
+                <label for="refresh_interval_select">更新間隔 (秒):</label>
+                <select id="refresh_interval_select">
+                    <option value="30">30秒</option>
+                    <option value="60">60秒</option>
+                    <option value="120">120秒</option>
+                </select>
+            </div>
+
+            <div class="setting-group">
+                <h3>表示期間設定 🗓️</h3>
+                <label for="display_past_hours_input">現在時刻から何時間前まで表示するか:</label>
+                <input type="number" id="display_past_hours_input" min="0" max="24" value="2">
+                <label for="display_future_hours_input">現在時刻から何時間後まで表示するか:</label>
+                <input type="number" id="display_future_hours_input" min="0" max="72" value="12">
+            </div>
+
+            <div class="setting-group">
+                <h3>フォントサイズ設定 🅰️</h3>
+                <label for="base_font_size_input">基本フォントサイズ (px):</label>
+                <input type="number" id="base_font_size_input" min="10" max="30" value="16">
+            </div>
+
+            <div class="setting-group">
+                <h3>フォントの種類設定 🔡</h3>
+                <label for="font_family_select">フォントの種類:</label>
+                <select id="font_family_select">
+                    <option value="'Zen Kaku Gothic New', 'Noto Sans JP', sans-serif">Zen Kaku Gothic New (標準)</option>
+                    <option value="'Noto Sans JP', sans-serif">Noto Sans JP</option>
+                    <option value="'M PLUS Rounded 1c', sans-serif">M PLUS Rounded 1c</option>
+                    <option value="'Mochiy Pop One', sans-serif">Mochiy Pop One</option>
+                    <option value="'Rampart One', cursive">Rampart One</option> <option value="'Roboto', sans-serif">Roboto</option>
+                    <option value="'Shippori Antique B1', sans-serif">Shippori Antique B1</option>
+                    <option value="'Zen Antique', serif">Zen Antique</option> <option value="'Zen Old Mincho', serif">Zen Old Mincho</option>
+                    </select>
+            </div>
+
+            <div class="setting-group">
+                <h3>表示タイトル設定</h3>
+                <label for="main_title_input">メインタイトル:</label>
+                <input type="text" id="main_title_input" value="会議室予約表示Ver1.41">
+
+                <label for="event_list_title_input">イベントリストタイトル:</label>
+                <input type="text" id="event_list_title_input" value="現在の会議室の予定">
+            </div>
+
+            <div class="setting-group">
+                <h3>案内板の表示設定</h3>
+                <label for="available_text_input">空室時の表記:</label>
+                <input type="text" id="available_text_input" value="空室です">
+
+                <label for="in_progress_prefix_input">当該時間時の接頭語:</label>
+                <input type="text" id="in_progress_prefix_input" value="ただいま">
+
+                <label for="in_progress_suffix_input">当該時間時の接尾語:</label>
+                <input type="text" id="in_progress_suffix_input" value="中です">
+            </div>
+
+            <div class="setting-group">
+                <h3>予約前案内設定</h3>
+                <label for="pre_announcement_minutes_select">予約前案内 (何分前):</label>
+                <select id="pre_announcement_minutes_select">
+                    <option value="1">1分前</option>
+                    <option value="5">5分前</option>
+                    <option value="10">10分前</option>
+                    <option value="15">15分前</option>
+                </select>
+
+                <label for="pre_announcement_prefix_input">予約前案内の接頭語:</label>
+                <input type="text" id="pre_announcement_prefix_input" value="まもなく">
+
+                <label for="pre_announcement_suffix_input">予約前案内の接尾語:</label>
+                <input type="text" id="pre_announcement_suffix_input" value="開始">
+
+                <label for="pre_announcement_default_text_input">予約前案内がない場合の表記:</label>
+                <input type="text" id="pre_announcement_default_text_input" value="ご案内">
+            </div>
+
+            <div class="setting-group">
+                <h3>緊急会議イベント設定</h3>
+                <label for="event_summary_input">イベント名 (30分/60分共通):</label>
+                <input type="text" id="event_summary_input" value="緊急会議">
+            </div>
+
+            <hr style="display: none;"> </div>
+    </div>
+
+    <div id="container">
+        <div id="event_list_container" class="panel">
+            <h2 id="event_list_section_title">現在の会議室の予定</h2>
+            <ul id="event_list">
+                <li>イベントを読み込み中...</li>
+            </ul>
+            <div class="action-button-group">
+                <button id="add_30min_event_button" class="action-button">緊急会議 (30分)</button>
+                <button id="add_60min_event_button" class="action-button">緊急会議 (60分)</button>
+                <button id="refresh_button" class="action-button">更新</button>
+            </div>
+        </div>
+    </div>
+    <p id="error_display" class="error-message"></p>
     
     <script src="js/utils.js"></script>
+    <script src="js/settings.js"></script>
+    <script src="js/main.js"></script>
 </body>
 </html>
