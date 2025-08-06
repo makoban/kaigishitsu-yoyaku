@@ -820,7 +820,6 @@
             <h2>設定</h2>
             <hr>
             
-            <!-- 最小限追加：カレンダーセキュリティ状態表示 -->
             <div class="setting-group">
                 <h3>🔐 カレンダーセキュリティ</h3>
                 <div id="calendar_security_status" class="calendar-security-status">
@@ -959,11 +958,8 @@
 
     <script>
         // ★★★ ここをあなたの情報に置き換えてください ★★★
-        const API_KEY = 'AIzaSyDUFH1jbIa66NjzSM8I9Xpicwo6I6H2sB8';             
-        const INITIAL_PUBLIC_CALENDAR_ID = 'kaigishitsu20000101@gmail.com'; 
-        const CLIENT_ID = '155458326593-g92losmr00mji7g4sun62lk8kjv9d01b.apps.googleusercontent.com'; 
+        // APIキーとクライアントIDはjs/utils.jsに定義されたグローバル変数を参照
         // ★★★ ここまで ★★★
-
         const DISCOVERY_DOCS = ["https://www.googleapis.com/discovery/v1/apis/calendar/v3/rest"];
         const WRITE_SCOPES = 'https://www.googleapis.com/auth/calendar.events'; 
 
@@ -1661,71 +1657,6 @@
             });
         }
 
-        // 新規追加：認証後の現在カレンダーチェック
-        async function checkCurrentCalendarAfterAuth() {
-            console.log('--- checkCurrentCalendarAfterAuth: 認証後のカレンダーチェック ---');
-            
-            // 現在のカレンダーIDが許可されているかチェック
-            if (!isCalendarAllowed(currentCalendarId)) {
-                console.warn(`⚠️ 現在のカレンダーID (${currentCalendarId}) は許可されていません。初期カレンダーに戻します。`);
-                
-                // 許可されている最初のカレンダーまたは初期カレンダーに設定
-                if (allowedCalendars.length > 0) {
-                    const firstAllowedCalendar = allowedCalendars[0];
-                    currentCalendarId = firstAllowedCalendar.calendar_id;
-                    currentCalendarSummary = firstAllowedCalendar.display_name || firstAllowedCalendar.calendar_id;
-                    
-                    // ローカルストレージも更新
-                    localStorage.setItem(LOCAL_STORAGE_ACTIVE_CALENDAR_ID_KEY, currentCalendarId);
-                    localStorage.setItem(LOCAL_STORAGE_ACTIVE_CALENDAR_SUMMARY_KEY, currentCalendarSummary);
-                    
-                    console.log(`✅ 許可されたカレンダーに変更しました: ${currentCalendarSummary} (${currentCalendarId})`);
-                } else {
-                    // フォールバック
-                    currentCalendarId = INITIAL_PUBLIC_CALENDAR_ID;
-                    currentCalendarSummary = "初期設定カレンダー";
-                    
-                    localStorage.setItem(LOCAL_STORAGE_ACTIVE_CALENDAR_ID_KEY, currentCalendarId);
-                    localStorage.setItem(LOCAL_STORAGE_ACTIVE_CALENDAR_SUMMARY_KEY, currentCalendarSummary);
-                    
-                    console.log(`⚠️ 許可カレンダーが見つからないため、初期カレンダーに設定しました: ${currentCalendarId}`);
-                }
-                
-                // 表示を更新
-                updateDisplayedCalendarInfo();
-                listEvents();
-            } else {
-                console.log(`✅ 現在のカレンダーID (${currentCalendarId}) は許可されています。`);
-            }
-            
-            // 新しいアカウントでアクセス可能なカレンダーをチェック
-            try {
-                const response = await gapi.client.calendar.calendarList.list();
-                const accessibleCalendars = response.result.items || [];
-                const writableCalendars = accessibleCalendars.filter(calendar => 
-                    calendar.accessRole === 'owner' || calendar.accessRole === 'writer'
-                );
-                const allowedWritableCalendars = writableCalendars.filter(calendar => 
-                    isCalendarAllowed(calendar.id)
-                );
-                
-                if (allowedWritableCalendars.length === 0) {
-                    document.getElementById('auth_status').textContent = '⚠️ このアカウントでは許可されたカレンダーにアクセスできません。';
-                    document.getElementById('auth_status').style.color = 'orange';
-                    console.warn('❌ 新しいアカウントでは許可されたカレンダーにアクセスできません。');
-                } else {
-                    document.getElementById('auth_status').textContent = `✅ 操作権限が認証されました (許可カレンダー: ${allowedWritableCalendars.length}件)`;
-                    document.getElementById('auth_status').style.color = 'green';
-                    console.log(`✅ 新しいアカウントで許可されたカレンダーにアクセス可能: ${allowedWritableCalendars.length}件`);
-                }
-                
-            } catch (err) {
-                console.error('❌ アカウント切り替え後のカレンダーチェックエラー:', err);
-                document.getElementById('auth_status').textContent = '⚠️ カレンダーアクセス確認中にエラーが発生しました。';
-                document.getElementById('auth_status').style.color = 'orange';
-            }
-        }
-
         function handleActionTrigger(event) {
             console.log('--- handleActionTrigger: 操作ボタンがクリックされました ---');
             document.getElementById('settings_panel').classList.add('open'); 
@@ -2190,7 +2121,7 @@
                 document.getElementById('settings_panel').classList.add('open');
                 document.getElementById('auth_status').textContent = `イベントを削除するにはGoogleアカウントで認証してください。`;
                 document.getElementById('auth_status').style.color = 'blue';
-                document.getElementById('authorize_button').style.display = 'block';
+                document.getElementById('authorize_button').style.display = 'block'; 
                 document.getElementById('switch_account_button').style.display = 'none'; 
                 document.getElementById('calendar_selection_panel').style.display = 'none';
                 console.log('🚨 イベント削除: 書き込み権限がありません。認証を促します。');
