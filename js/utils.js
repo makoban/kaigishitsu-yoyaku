@@ -14,7 +14,7 @@ const LOCAL_STORAGE_ACTIVE_CALENDAR_SUMMARY_KEY = 'activeCalendarSummary';
 const LOCAL_STORAGE_SETTINGS_KEY = 'appSettings';
 
 // バージョン情報を1.41に統一
-const APP_VERSION = 'Ver1.41';
+const APP_VERSION = 'Ver1.42';
 
 const GITHUB_PAGES_BASE_URL = window.location.origin + window.location.pathname.replace(/\/[^\/]*$/, '');
 const ALLOWED_CALENDARS_CSV_PATH = GITHUB_PAGES_BASE_URL + '/allowed_calendars.csv';
