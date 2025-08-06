@@ -1,7 +1,7 @@
 // js/utils.js
 
 // ★★★ ここをあなたの情報に置き換えてください ★★★
-const API_KEY = 'AIzaSyDUFH1jbIa66NjzSM8I9Xpicwo6I6H2sB8';
+const API_KEY = 'AIzaSyAANqYZlhyRKj7VAuFbFYQ0hYWPNkd1j70';
 const INITIAL_PUBLIC_CALENDAR_ID = 'kaigishitsu20000101@gmail.com';
 const CLIENT_ID = '155458326593-g92losmr00mjj7g4sung2k8kjv9d01b.apps.googleusercontent.com';
 // ★★★ ここまで ★★★
