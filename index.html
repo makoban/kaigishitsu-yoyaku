@@ -797,20 +797,19 @@
                 padding: 8px 12px; /* 調整 */
             }
         }
-
     </style>
 </head>
 <body class="theme-stylish">
     <header>
-        <h1 id="main_app_title">会議室予約表示Ver1.2</h1>
-        <button id="settings_button">設定</button> 
+        <h1 id="main_app_title">会議室予約表示Ver1.41</h1>
+        <button id="settings_button">設定</button>
         <div id="version_info"></div>
         <span id="display_calendar_summary_top"></span>
     </header>
 
     <div id="top_bar">
         <span id="current_datetime"></span>
-        <span id="pre_announcement_text"></span> 
+        <span id="pre_announcement_text"></span>
         <span id="announcement_text"></span>
     </div>
 
@@ -819,14 +818,14 @@
             <button id="close_settings_panel">&times;</button>
             <h2>設定</h2>
             <hr>
-            
+
             <div class="setting-group">
                 <h3>🔐 カレンダーセキュリティ</h3>
                 <div id="calendar_security_status" class="calendar-security-status">
                     カレンダー許可状態を確認中...
                 </div>
             </div>
-            
+
             <div class="setting-group auth-section-group">
                 <h3>アカウントとカレンダーの切り替え</h3>
                 <p id="auth_status" style="color: blue;">操作を行うにはGoogleアカウントで認証してください。</p>
@@ -887,14 +886,14 @@
                     <option value="'Mochiy Pop One', sans-serif">Mochiy Pop One</option>
                     <option value="'Rampart One', cursive">Rampart One</option> <option value="'Roboto', sans-serif">Roboto</option>
                     <option value="'Shippori Antique B1', sans-serif">Shippori Antique B1</option>
-                    <option value="'Zen Antique', serif">Zen Antique</option> <option value="'Zen Old Mincho', serif">Zen Old Mincho</option> 
+                    <option value="'Zen Antique', serif">Zen Antique</option> <option value="'Zen Old Mincho', serif">Zen Old Mincho</option>
                     </select>
             </div>
 
             <div class="setting-group">
                 <h3>表示タイトル設定</h3>
                 <label for="main_title_input">メインタイトル:</label>
-                <input type="text" id="main_title_input" value="会議室予約表示Ver1.2">
+                <input type="text" id="main_title_input" value="会議室予約表示Ver1.41">
 
                 <label for="event_list_title_input">イベントリストタイトル:</label>
                 <input type="text" id="event_list_title_input" value="現在の会議室の予定">
@@ -956,9 +955,6 @@
     </div>
     <p id="error_display" class="error-message"></p>
 
-    <script>
-        // APIキーとクライアントIDはjs/utils.jsから読み込み
-    </script>
     <script src="js/utils.js"></script>
     <script src="js/settings.js"></script>
     <script src="js/main.js"></script>
