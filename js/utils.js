@@ -8,14 +8,13 @@ const CLIENT_ID = '155458326593-g92losmr00mjj7g4sung2k8kjv9d01b.apps.googleuserc
 
 const DISCOVERY_DOCS = ["https://www.googleapis.com/discovery/v1/apis/calendar/v3/rest"];
 const WRITE_SCOPES = 'https://www.googleapis.com/auth/calendar.events'; 
-// 'https://www.googleapis.com/auth/calendar.readonly' はカレンダーリスト取得に十分ですが、
-// 'calendar.events' (書き込み権限を含む) があれば、通常 'calendar.readonly' もカバーします。
 
 const LOCAL_STORAGE_ACTIVE_CALENDAR_ID_KEY = 'activeCalendarId';
 const LOCAL_STORAGE_ACTIVE_CALENDAR_SUMMARY_KEY = 'activeCalendarSummary';
 const LOCAL_STORAGE_SETTINGS_KEY = 'appSettings'; 
 
-const APP_VERSION = 'Ver1.7'; // バージョンをVer1.7に更新
+// バージョン情報を1.4に変更
+const APP_VERSION = 'Ver1.4'; 
 
 const GITHUB_PAGES_BASE_URL = window.location.origin + window.location.pathname.replace(/\/[^\/]*$/, '');
 const ALLOWED_CALENDARS_CSV_PATH = GITHUB_PAGES_BASE_URL + '/allowed_calendars.csv';
@@ -41,13 +40,11 @@ window.DEFAULT_SETTINGS = { // グローバルアクセス可能に
     eventSummary: "緊急会議",
     lastEvents: [], 
     theme: "stylish", 
-    mainTitle: "会議室予約表示Ver1.7", // バージョン更新
+    mainTitle: "会議室予約表示Ver1.4", // バージョン更新
     eventListTitle: "現在の会議室の予定" 
 };
 window.appSettings = {}; 
 
-// ★この tokenClient が main.js から参照できるようにグローバルに定義されている必要があります★
-// gapi.clientオブジェクトもグローバルで共有されるため、Windowオブジェクトに明示的に割り当てることが推奨される
 window.tokenClient; 
 window.isAuthorizedForWrite = false; 
 window.currentCalendarId = INITIAL_PUBLIC_CALENDAR_ID; 
