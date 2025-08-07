@@ -1,0 +1,87 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <title>カレンダー読み込み検証</title>
+    <script src="https://apis.google.com/js/api.js"></script>
+</head>
+<body>
+
+    <h1>カレンダー読み込み検証ページ</h1>
+    <p>ブラウザのデベロッパーツール（F12キー）を開き、「Console」タブを確認してください。</p>
+    <p>カレンダーの予定が正常に読み込めた場合は、イベントのリストが表示されます。</p>
+    <p>エラーが発生した場合は、エラーメッセージが表示されます。</p>
+
+    <script>
+        // --- 設定項目 ---
+        // 1. あなたのAPIキーに置き換えてください
+        const API_KEY = 'AIzaSyAANqYZlhyRKj7VAuFbFYQ0hYWPNkd1j70';
+
+        // 2. 検証したいカレンダーID
+        const CALENDAR_ID = 'kaigishitsud@gmail.com'; // ユーザー指定のIDに変更
+
+        // --- ここから下は変更しないでください ---
+
+        console.log('--- 検証プログラムを開始します ---');
+
+        /**
+         * Google APIクライアントを初期化し、イベントの読み込みを開始します。
+         */
+        function start() {
+            console.log('gapi.clientを初期化しています...');
+            gapi.client.init({
+                'apiKey': API_KEY,
+                'discoveryDocs': ["https://www.googleapis.com/discovery/v1/apis/calendar/v3/rest"],
+            }).then(() => {
+                console.log('gapi.clientの初期化に成功しました。');
+                listUpcomingEvents();
+            }).catch(error => {
+                console.error('gapi.clientの初期化中にエラーが発生しました:', error);
+                document.body.innerHTML += `<p style="color: red;">エラー: APIクライアントの初期化に失敗しました。APIキーが正しいか確認してください。</p>`;
+            });
+        }
+
+        /**
+         * 指定されたカレンダーから今後のイベントを取得してコンソールに表示します。
+         */
+        async function listUpcomingEvents() {
+            console.log(`カレンダーID: ${CALENDAR_ID} のイベント取得を試みます...`);
+            try {
+                const response = await gapi.client.calendar.events.list({
+                    'calendarId': CALENDAR_ID,
+                    'timeMin': (new Date()).toISOString(),
+                    'showDeleted': false,
+                    'singleEvents': true,
+                    'maxResults': 10,
+                    'orderBy': 'startTime'
+                });
+
+                const events = response.result.items;
+                if (!events || events.length == 0) {
+                    console.log('成功：指定された期間に予定は見つかりませんでした。');
+                    document.body.innerHTML += `<p style="color: green;">成功：カレンダー (${CALENDAR_ID}) の読み込みはできましたが、今後の予定はありませんでした。</p>`;
+                    return;
+                }
+
+                console.log('--- 成功：今後のイベント ---');
+                document.body.innerHTML += `<h2 style="color: green;">成功！カレンダー (${CALENDAR_ID}) の読み込みができました</h2><ul>`;
+                events.forEach(event => {
+                    const when = event.start.dateTime || event.start.date;
+                    console.log(`${when} - ${event.summary}`);
+                    document.body.innerHTML += `<li>${when} - ${event.summary}</li>`;
+                });
+                document.body.innerHTML += `</ul>`;
+
+            } catch (err) {
+                console.error('イベントの取得中にエラーが発生しました:', err);
+                document.body.innerHTML += `<p style="color: red;">エラー: イベントの取得に失敗しました。詳細はコンソールを確認してください。</p><pre>${JSON.stringify(err, null, 2)}</pre>`;
+            }
+        }
+
+        // gapi.loadを呼び出して、クライアントライブラリをロードします。
+        gapi.load('client', start);
+
+    </script>
+
+</body>
+</html>
