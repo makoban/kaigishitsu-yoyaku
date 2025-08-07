@@ -802,7 +802,7 @@
 </head>
 <body class="theme-stylish">
     <header>
-        <h1 id="main_app_title">会議室予約表示Ver1.2</h1>
+        <h1 id="main_app_title">会議室予約表示Ver1.4</h1>
         <button id="settings_button">設定</button> 
         <div id="version_info"></div>
         <span id="display_calendar_summary_top"></span>
@@ -964,14 +964,15 @@
         // ★★★ ここまで ★★★
 
         const DISCOVERY_DOCS = ["https://www.googleapis.com/discovery/v1/apis/calendar/v3/rest"];
-        const WRITE_SCOPES = 'https://www.googleapis.com/auth/calendar.events'; 
+        // 【重要】スコープ（権限）を2つに増やします。予定の読み書き権限と、カレンダーリストの読み取り権限です。
+        const WRITE_SCOPES = 'https://www.googleapis.com/auth/calendar.events https://www.googleapis.com/auth/calendar.readonly'; 
 
         const LOCAL_STORAGE_ACTIVE_CALENDAR_ID_KEY = 'activeCalendarId';
         const LOCAL_STORAGE_ACTIVE_CALENDAR_SUMMARY_KEY = 'activeCalendarSummary';
         const LOCAL_STORAGE_SETTINGS_KEY = 'appSettings'; // 設定保存用キー
 
         // 追加：バージョン情報
-        const APP_VERSION = 'Ver1.38';
+        const APP_VERSION = 'Ver1.37-Fixed-Scope';
 
         // 最小限追加：カレンダーID管理
         const GITHUB_PAGES_BASE_URL = window.location.origin + window.location.pathname.replace(/\/[^\/]*$/, '');
@@ -1720,8 +1721,7 @@
                 
             } catch (err) {
                 console.error('❌ アカウント切り替え後のカレンダーチェックエラー:', err);
-                document.getElementById('auth_status').textContent = '⚠️ カレンダーアクセス確認中にエラーが発生しました。';
-                document.getElementById('auth_status').style.color = 'orange';
+                displayError(`カレンダーリストの取得中にエラーが発生しました: ${err.result && err.result.error && err.result.error.message ? err.result.error.message : err.message}`);
             }
         }
 
@@ -1821,7 +1821,7 @@
                     console.log(`ℹ️ 許可された書き込み可能なカレンダーが見つかりませんでした。`);
                 }
             } catch (err) {
-                console.error('❌ 書き込み可能カレンダーリストの取得エラー:', err.result ? err.result.error : err);
+                console.error('❌ 書き込み可能カレンダーリストの取得エラー:', err);
                 displayError(`カレンダーリストの取得中にエラーが発生しました: ${err.result && err.result.error && err.result.error.message ? err.result.error.message : err.message}`);
             }
         }
@@ -2011,7 +2011,7 @@
                 updateActionButtonStates(); // ボタンの有効/無効状態を更新
 
             } catch (err) {
-                console.error(`❌ イベントの取得エラー (${currentCalendarId}):`, err.result ? err.result.error : err);
+                console.error(`❌ イベントの取得エラー (${currentCalendarId}):`, err);
                 displayError(`イベントの取得中にエラーが発生しました: ${err.result && err.result.error && err.result.error.message ? err.result.error.message : err.message}`);
                 eventListUl.innerHTML = '<li class="error-message">イベントの読み込みに失敗しました。</li>';
                 updateActionButtonStates(); // エラー時もボタンの有効/無効状態を更新
@@ -2179,7 +2179,7 @@
                 console.log('✅ イベントが追加されました:', response.result);
                 listEvents(); 
             } catch (err) {
-                console.error('❌ イベント追加エラー:', err.result ? err.result.error : err);
+                console.error('❌ イベント追加エラー:', err);
                 displayError(`イベントの追加に失敗しました: ${err.result && err.result.error && err.result.error.message ? err.result.error.message : err.message}`);
             }
         }
@@ -2220,7 +2220,7 @@
                 console.log('✅ イベントが削除されました。');
                 listEvents(); 
             } catch (err) {
-                console.error('❌ イベント削除エラー:', err.result ? err.result.error : err);
+                console.error('❌ イベント削除エラー:', err);
                 displayError(`イベントの削除に失敗しました: ${err.result && err.result.error && err.result.error.message ? err.result.error.message : err.message}`);
             }
         }
