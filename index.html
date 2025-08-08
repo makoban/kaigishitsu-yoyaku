@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+F<!DOCTYPE html>
 <html>
 <head>
     <title>会議室予約表示</title>
@@ -972,7 +972,7 @@
         const LOCAL_STORAGE_SETTINGS_KEY = 'appSettings'; // 設定保存用キー
 
         // 追加：バージョン情報
-        const APP_VERSION = 'Ver1.37-Fixed-Scope';
+        const APP_VERSION = 'Ver1.40';
 
         // 最小限追加：カレンダーID管理
         const GITHUB_PAGES_BASE_URL = window.location.origin + window.location.pathname.replace(/\/[^\/]*$/, '');
@@ -1949,6 +1949,7 @@
                     console.log('ℹ️ イベントデータに変化がないため、DOM更新をスキップします。');
                     // ハイライトと案内文だけは時刻変化で更新するため別途処理
                     updateEventHighlightsAndAnnouncement(events); // 元のeventsオブジェクトを渡す
+                    updateActionButtonStates(); // ★この一行を追加
                     return; 
                 }
 
