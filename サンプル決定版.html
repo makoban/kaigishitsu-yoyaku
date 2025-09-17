@@ -1,0 +1,356 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>WellGene 会社通信簿（月次レポート例）</title>
+<style>
+  :root{
+    /* —— やさしい薄ピンク基調 —— */
+    --bg1:#fff7fb;      /* 最淡ピンク */
+    --bg2:#fff0f6;      /* 淡ピンク */
+    --panel:#ffffff;    /* パネル */
+    --card:#ffffff;     /* カード */
+    --ink:#2b2430;      /* 文字 */
+    --muted:#7a6e7f;    /* 補助文字 */
+    --accent:#f06aa6;   /* アクセント（ローズ） */
+    --accent2:#f7a4c1;  /* サブアクセント */
+    --ok:#2ea27b;       /* 良い */
+    --bad:#d76262;      /* 悪い */
+    --neutral:#8c7a8e;  /* 同程度 */
+    --line:#efd2e1;     /* 枠線色 */
+    --shadow: 0 10px 28px rgba(140, 54, 92, .08);
+  }
+  *{box-sizing:border-box}
+  body{
+    margin:0; font-family: system-ui, -apple-system, "Segoe UI", Roboto,
+      "Hiragino Kaku Gothic ProN", "Noto Sans JP", sans-serif;
+    color:var(--ink);
+    background: linear-gradient(120deg, var(--bg1), var(--bg2) 35%, #ffe9f3);
+  }
+  header{
+    padding:24px; border-bottom:1px solid var(--line);
+    background: rgba(255,255,255,.6); position:sticky; top:0; backdrop-filter: blur(6px);
+  }
+  header h1{margin:0 0 6px; font-size:clamp(20px,2.8vw,28px);}
+  header .sub{color:var(--muted); font-size:14px}
+  .wrap{max-width:1100px; margin:0 auto; padding:24px;}
+  .grid{display:grid; gap:16px}
+  .g-2{grid-template-columns:repeat(2,1fr)}
+  .g-3{grid-template-columns:repeat(3,1fr)}
+  .g-4{grid-template-columns:repeat(4,1fr)}
+  @media (max-width:900px){ .g-4{grid-template-columns:repeat(2,1fr)} }
+  @media (max-width:720px){ .g-3,.g-2,.g-4{grid-template-columns:1fr} header{position:static}}
+  section{
+    background:var(--panel); border:1px solid var(--line); border-radius:14px; padding:18px;
+    box-shadow: var(--shadow);
+  }
+  h2{margin:0 0 12px; font-size:18px}
+
+  /* KPI / カード */
+  .kpi{
+    display:flex; align-items:center; gap:12px; background:var(--card);
+    border:1px solid var(--line); border-radius:12px; padding:14px
+  }
+  .kpi .v{font-size:26px; font-weight:700}
+  .kpi small{color:var(--muted)}
+  .pill{
+    display:inline-flex; align-items:center; gap:6px; padding:4px 10px; border-radius:999px;
+    font-size:12px; border:1px solid #f6d6e5; background:#fff7fb; color:#7b2d4e;
+  }
+  .pill.avg{ background:#fff; color:#5a5360; border-style:dashed }
+
+  .row{display:flex; align-items:center; justify-content:space-between; gap:10px}
+  .muted{color:var(--muted)}
+  .trend{font-size:12px}
+  .up{color:var(--ok)} .flat{color:var(--neutral)} .down{color:var(--bad)}
+
+  /* バー/ゲージ（項目内で他社平均を基準線表示） */
+  .bar{height:10px; width:100%; background:#ffe2ee; border-radius:999px; overflow:hidden; border:1px solid var(--line); position:relative}
+  .bar > i{display:block; height:100%; background: linear-gradient(90deg, var(--accent), var(--accent2)); width:0%}
+  .avgmark{ position:absolute; top:-6px; height:22px; width:2px; background:#a88b96; left:50%; border-radius:2px; opacity:.6 }
+  .avglabel{ position:absolute; top:-20px; transform:translateX(-50%); font-size:11px; color:#6a5b64; background:#fff; padding:1px 6px; border:1px dashed #d9b0c2; border-radius:8px }
+
+  /* 悩みカテゴリ・ハラスメント指数 */
+  .rows{display:grid; gap:10px}
+  .rowcard{display:grid; grid-template-columns:1fr 64px; gap:10px; align-items:center}
+  .card{background:var(--card); border:1px solid var(--line); border-radius:12px; padding:14px}
+  .tag{font-size:12px; color:#6b5c68}
+  .small{font-size:12px; color:var(--muted)}
+
+  /* 重大ワード表 */
+  table{border-collapse:separate; border-spacing:0; width:100%}
+  th,td{padding:10px 12px; text-align:left; vertical-align:top; border-bottom:1px solid var(--line)}
+  thead th{background:#fff3f8; position:sticky; top:0}
+  tbody tr:hover td{background:#fff9fc}
+  .right{text-align:right}
+
+  /* 優劣バッジ（各項目の評価色） */
+  .badge{display:inline-flex; align-items:center; gap:6px; padding:2px 8px; border-radius:999px; font-size:12px; border:1px solid}
+  .good{color:var(--ok); border-color:rgba(46,162,123,.35); background:#f0fbf7}
+  .bad{color:var(--bad); border-color:rgba(215,98,98,.35); background:#fff1f1}
+  .neutral{color:var(--neutral); border-color:#dbc5d3; background:#fff}
+</style>
+</head>
+<body>
+<header>
+  <h1>WellGene 会社通信簿（サンプル）</h1>
+  <div class="sub">対象期間：2025年8月1日〜8月31日｜対象：従業員 482名｜回答参加率 86%</div>
+</header>
+
+<div class="wrap grid g-2">
+
+  <!-- サマリー（復元＋各KPIに他社平均） -->
+  <section>
+    <h2>サマリー</h2>
+    <div class="grid g-2">
+      <div class="kpi">
+        <div>🟦 満足度スコア</div>
+        <div class="v">73</div>
+        <small class="trend up">先月 +3</small>
+        <span class="pill avg">他社平均 69</span>
+        <span class="badge good">自社の方が良い</span>
+      </div>
+      <div class="kpi">
+        <div>🟩 エンゲージメント指数</div>
+        <div class="v">69</div>
+        <small class="trend up">+2</small>
+        <span class="pill avg">他社平均 64</span>
+        <span class="badge good">自社の方が良い</span>
+      </div>
+      <div class="kpi">
+        <div>🟠 早期離職リスク</div>
+        <div class="v">12%</div>
+        <small class="trend down">-2pt</small>
+        <span class="pill avg">他社平均 15%</span>
+        <span class="badge good">自社の方が良い</span>
+      </div>
+      <div class="kpi">
+        <div>🟪 匿名対話回数</div>
+        <div class="v">8,142</div>
+        <small class="muted">（1人あたり 月17.0回）</small>
+        <span class="pill avg">他社平均 6,980</span>
+        <span class="badge good">自社の方が良い</span>
+      </div>
+    </div>
+  </section>
+
+  <!-- ポジティブ指数（項目内に他社平均の基準線／優劣色） -->
+  <section>
+    <h2>ポジティブ指数（項目内で他社平均を併記）</h2>
+    <div class="rows">
+      <div class="rowcard card">
+        <div>
+          <div class="row">
+            <strong>会社への誇り</strong>
+            <span class="trend up">前月 +4</span>
+            <span class="badge good">他社：70</span>
+          </div>
+          <div class="bar" aria-label="会社への誇り 76%">
+            <i style="width:76%"></i>
+            <span class="avgmark" style="left:70%"></span><span class="avglabel" style="left:70%">他社平均</span>
+          </div>
+        </div>
+        <div class="pill">76</div>
+      </div>
+
+      <div class="rowcard card">
+        <div>
+          <div class="row">
+            <strong>仲間との信頼</strong>
+            <span class="trend up">+2</span>
+            <span class="badge good">他社：66</span>
+          </div>
+          <div class="bar">
+            <i style="width:72%"></i>
+            <span class="avgmark" style="left:66%"></span><span class="avglabel" style="left:66%">他社平均</span>
+          </div>
+        </div>
+        <div class="pill">72</div>
+      </div>
+
+      <div class="rowcard card">
+        <div>
+          <div class="row">
+            <strong>成長実感</strong>
+            <span class="trend flat">±0</span>
+            <span class="badge good">他社：61</span>
+          </div>
+          <div class="bar">
+            <i style="width:67%"></i>
+            <span class="avgmark" style="left:61%"></span><span class="avglabel" style="left:61%">他社平均</span>
+          </div>
+        </div>
+        <div class="pill">67</div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 悩みカテゴリ（以前の指定を維持。各カードで他社平均を基準線表示） -->
+  <section class="grid g-2" style="grid-column:1 / -1">
+    <h2 style="grid-column:1/-1">悩みカテゴリ（匿名集約｜各項目内に他社平均を併記）</h2>
+
+    <div class="card">
+      <div class="row">
+        <strong>キャリア・成長</strong>
+        <span class="small">自社 22% / 前月 -1pt</span>
+        <span class="badge good">他社：25%</span>
+      </div>
+      <div class="bar"><i style="width:22%"></i><span class="avgmark" style="left:25%"></span><span class="avglabel" style="left:25%">他社平均</span></div>
+      <div class="muted" style="margin-top:6px">配属ミスマッチ、評価の不透明さ、育成面の課題</div>
+    </div>
+
+    <div class="card">
+      <div class="row">
+        <strong>人間関係</strong>
+        <span class="small">17% / -2pt</span>
+        <span class="badge good">他社：19%</span>
+      </div>
+      <div class="bar"><i style="width:17%"></i><span class="avgmark" style="left:19%"></span><span class="avglabel" style="left:19%">他社平均</span></div>
+      <div class="muted" style="margin-top:6px">上司に相談しづらい、チームの分断</div>
+    </div>
+
+    <div class="card">
+      <div class="row"><strong>働き方・WLB</strong><span class="small">14% / -1pt</span><span class="badge good">他社：16%</span></div>
+      <div class="bar"><i style="width:14%"></i><span class="avgmark" style="left:16%"></span><span class="avglabel" style="left:16%">他社平均</span></div>
+      <div class="muted" style="margin-top:6px">残業多い、休暇取りづらい、在宅ルール</div>
+    </div>
+
+    <div class="card">
+      <div class="row"><strong>健康・メンタル</strong><span class="small">13% / ±0</span><span class="badge bad">他社：12%</span></div>
+      <div class="bar"><i style="width:13%"></i><span class="avgmark" style="left:12%"></span><span class="avglabel" style="left:12%">他社平均</span></div>
+      <div class="muted" style="margin-top:6px">睡眠不良、抑うつ傾向、ストレス高止まり</div>
+    </div>
+
+    <div class="card">
+      <div class="row"><strong>組織への意見</strong><span class="small">9% / +1pt</span><span class="badge neutral">他社：8%</span></div>
+      <div class="bar"><i style="width:9%"></i><span class="avgmark" style="left:8%"></span><span class="avglabel" style="left:8%">他社平均</span></div>
+      <div class="muted" style="margin-top:6px">方針説明不足、情報の非対称性</div>
+    </div>
+
+    <div class="card">
+      <div class="row"><strong>ハラスメント（一般）</strong><span class="small">4% / ±0</span><span class="badge good">他社：5%</span></div>
+      <div class="bar"><i style="width:4%"></i><span class="avgmark" style="left:5%"></span><span class="avglabel" style="left:5%">他社平均</span></div>
+      <div class="muted" style="margin-top:6px">兆候の早期発見・第三者窓口のニーズ</div>
+    </div>
+  </section>
+
+  <!-- ハラスメント指数（パワハラ・セクハラ・モラハラ） -->
+  <section class="grid g-2" style="grid-column:1 / -1">
+    <h2 style="grid-column:1/-1">ハラスメント指数（各項目内に他社平均を併記）</h2>
+
+    <div class="rowcard card">
+      <div>
+        <div class="row">
+          <strong>パワハラ</strong>
+          <span class="small">自社 2.1 / 前月 -0.3</span>
+          <span class="badge good">他社：2.4</span>
+        </div>
+        <div class="bar" aria-label="パワハラ指数 2.1（0-5）">
+          <i style="width:42%"></i> <!-- 0-5 → 0-100%換算 -->
+          <span class="avgmark" style="left:48%"></span><span class="avglabel" style="left:48%">他社平均</span>
+        </div>
+        <div class="small" style="margin-top:6px">主訴：<span class="muted">指示の罵倒・過度な叱責・過小評価</span></div>
+      </div>
+      <div class="pill">2.1</div>
+    </div>
+
+    <div class="rowcard card">
+      <div>
+        <div class="row">
+          <strong>セクハラ</strong>
+          <span class="small">自社 0.8 / ±0</span>
+          <span class="badge good">他社：1.1</span>
+        </div>
+        <div class="bar" aria-label="セクハラ指数 0.8（0-5）">
+          <i style="width:16%"></i>
+          <span class="avgmark" style="left:22%"></span><span class="avglabel" style="left:22%">他社平均</span>
+        </div>
+        <div class="small" style="margin-top:6px">主訴：<span class="muted">不適切な発言・身体的接触</span></div>
+      </div>
+      <div class="pill">0.8</div>
+    </div>
+
+    <div class="rowcard card">
+      <div>
+        <div class="row">
+          <strong>モラハラ</strong>
+          <span class="small">自社 1.4 / 前月 +0.2</span>
+          <span class="badge good">他社：1.6</span>
+        </div>
+        <div class="bar" aria-label="モラハラ指数 1.4（0-5）">
+          <i style="width:28%"></i>
+          <span class="avgmark" style="left:32%"></span><span class="avglabel" style="left:32%">他社平均</span>
+        </div>
+        <div class="small" style="margin-top:6px">主訴：<span class="muted">無視・情報遮断・過度なプレッシャー</span></div>
+      </div>
+      <div class="pill">1.4</div>
+    </div>
+  </section>
+
+  <!-- 感情スコア & リスク指数（ゲージ＋他社平均の基準線ラベル） -->
+  <section>
+    <h2>感情スコア & リスク指数（各項目内に他社平均を併記）</h2>
+    <div class="rows">
+      <div class="row">
+        <div style="min-width:160px"><strong>平均感情スコア</strong> <span class="muted">(0-100｜高=ポジ)</span></div>
+        <div class="bar" style="flex:1">
+          <i style="width:61%"></i>
+          <span class="avgmark" style="left:55%"></span><span class="avglabel" style="left:55%">他社平均</span>
+        </div>
+        <div class="pill">自社 61 <span class="trend up">+4</span></div>
+      </div>
+      <div class="row">
+        <div style="min-width:160px"><strong>高リスク率</strong> <span class="muted">(低いほど良い)</span></div>
+        <div class="bar" style="flex:1">
+          <i style="width:28%"></i>
+          <span class="avgmark" style="left:33%"></span><span class="avglabel" style="left:33%">他社平均</span>
+        </div>
+        <div class="pill">自社 28% <span class="trend down">-2pt</span></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 重大ワード検知（警告リスト：備考欄に他社平均との差も記載） -->
+  <section>
+    <h2>重大ワード検知（警告リスト｜各行に他社平均を併記）</h2>
+    <div class="rows" style="overflow:auto">
+      <table aria-label="重大ワード">
+        <thead><tr><th>ワード</th><th class="right">自社頻度</th><th>該当カテゴリ</th><th>備考（他社平均）</th></tr></thead>
+        <tbody>
+          <tr><td>パワハラ</td><td class="right">72</td><td>人間関係</td><td>上司言動・複数部署に分布｜他社 75（<span class="up" style="color:var(--ok)">自社の方が良い</span>）</td></tr>
+          <tr><td>メンタル不調</td><td class="right">65</td><td>健康</td><td>睡眠/不安/通院に関連｜他社 59（<span class="down" style="color:var(--bad)">自社の方が劣る</span>）</td></tr>
+          <tr><td>評価不透明</td><td class="right">54</td><td>働き方/制度</td><td>説明不足の指摘｜他社 50（<span class="down" style="color:var(--bad)">自社の方が劣る</span>）</td></tr>
+          <tr><td>生活苦</td><td class="right">52</td><td>お金</td><td>物価・家計の圧迫｜他社 48（<span class="down" style="color:var(--bad)">自社の方が劣る</span>）</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <div class="muted" style="margin-top:8px">※ しきい値は運用方針に合わせて調整（例：強度4以上 & 頻度50以上）。</div>
+  </section>
+
+  <!-- 本音コメント（匿名） -->
+  <section>
+    <h2>本音コメント（匿名）</h2>
+    <div class="grid" style="gap:10px">
+      <div class="card">「評価の期待値がわからず、目標の立て方に迷う」 <span class="small">｜他社：同程度</span></div>
+      <div class="card">「育児と残業が両立しづらい。勤務時間帯の弾力性がほしい」 <span class="small">｜他社：やや高</span></div>
+      <div class="card">「配属後のメンター面談は助かった。継続してほしい」 <span class="small">｜他社：同程度</span></div>
+    </div>
+  </section>
+
+  <!-- 方法論・安心設計（据置） -->
+  <section>
+    <h2>方法論・安心設計</h2>
+    <div class="row" style="align-items:flex-start">
+      <div style="flex:1">
+        <div>🔒 完全匿名：氏名・社員番号は取得しません。個人特定可能な情報はレポートに出力しません。</div>
+        <div>🧠 心理学学習＋専門家監修。誹謗中傷や個人特定に繋がる文言は自動排除します。</div>
+        <div>📊 他社平均は同規模・同業のベンチマーク。実運用ではセグメントに応じて自動更新します。</div>
+      </div>
+    </div>
+    <p class="small" style="margin-top:8px">※本ページの数値はダミーです。実数は導入企業・期間により自動計算されます。</p>
+  </section>
+
+</div>
+</body>
+</html>
